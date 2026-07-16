@@ -23,6 +23,7 @@ import type { FeatureCollection, Point } from 'geojson'
 
 const POINTS_SOURCE = 'points'
 const BUILDINGS_LAYER_ID = 'buildings-3d'
+const OUTLINES_LAYER = 'building-outlines'
 const MARKERS_LAYER = 'points-markers'
 const CLUSTERS_LAYER = 'clusters'
 const SELECTED_LAYER = 'point-selected'
@@ -176,14 +177,30 @@ export function MapView({ profile }: { profile: Profile | null }) {
         },
       })
 
-      // Couche ortho-photo (toits), par-dessus le fond vectoriel, masquée par défaut.
+      // Ortho-photo (mode "Toits") : insérée SOUS les libellés pour que les noms
+      // de rues restent visibles PAR-DESSUS la photo (vue hybride). Masquée par défaut.
       map.addSource(ORTHO_SOURCE_ID, orthoSource)
-      map.addLayer({
-        id: ORTHO_LAYER_ID,
-        type: 'raster',
-        source: ORTHO_SOURCE_ID,
-        layout: { visibility: 'none' },
-      })
+      map.addLayer(
+        { id: ORTHO_LAYER_ID, type: 'raster', source: ORTHO_SOURCE_ID, layout: { visibility: 'none' } },
+        beforeLabels,
+      )
+      // Contours des bâtiments : dessinés par-dessus la photo (mode Toits) pour
+      // aider à distinguer les maisons. Masqués par défaut.
+      map.addLayer(
+        {
+          id: OUTLINES_LAYER,
+          type: 'line',
+          source: 'plan_ign',
+          'source-layer': 'bati_surf',
+          layout: { visibility: 'none' },
+          paint: {
+            'line-color': '#ffffff',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 15, 0.5, 18, 1.6],
+            'line-opacity': 0.7,
+          },
+        },
+        beforeLabels,
+      )
 
       // Marqueurs (images générées par statut).
       const images = generateMarkerImages()
@@ -370,6 +387,10 @@ export function MapView({ profile }: { profile: Profile | null }) {
     if (!map || !map.isStyleLoaded()) return
     if (map.getLayer(ORTHO_LAYER_ID)) {
       map.setLayoutProperty(ORTHO_LAYER_ID, 'visibility', orthoOn ? 'visible' : 'none')
+    }
+    // Contours des bâtiments : visibles uniquement en mode Toits.
+    if (map.getLayer(OUTLINES_LAYER)) {
+      map.setLayoutProperty(OUTLINES_LAYER, 'visibility', orthoOn ? 'visible' : 'none')
     }
     // Les bâtiments 3D ne s'affichent qu'en mode Plan (masqués sous l'ortho).
     for (const id of [BUILDINGS_LAYER_ID, SELECTED_BUILDING_LAYER]) {
