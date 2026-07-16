@@ -21,8 +21,9 @@
 
 ## Visuel carte (« beau & lisible »)
 - [x] **Lisibilité** — fond adouci (voile sous les labels), marqueurs à icônes par statut (ombre, halo de sélection), regroupement/clustering avec bulles cliquables
-- [x] **Effet 3D waouh** — ciel + brouillard atmosphérique, éclairage directionnel des bâtiments, surbrillance (bleu) de la maison sous le point sélectionné
-- [ ] ⬜ **Vue Toits hybride** — ortho-photo + noms de rues par-dessus, contours des bâtiments
+- [x] **Effet 3D waouh** — éclairage des bâtiments, surbrillance (bleu) de la maison sélectionnée (ciel/brouillard retirés, invisibles). Bâtiments sombres pour contraster.
+- [x] **Vue Toits hybride** — ortho-photo + noms de rues par-dessus (bâtiments blancs du plan masqués). **Vue Toits par défaut** à l'ouverture. (Contours des bâtiments testés puis retirés.)
+- [x] **Vue rue / immersion** — explorée puis **ABANDONNÉE** : Mapillary trop juste en pavillonnaire, Google Street View écarté (dépendance + facturation), 3D photoréaliste Google bloquée en France. Code retiré.
 
 ## Design — DA « Clair & précis » (Linear/Vercel/Emil Kowalski)
 - [x] Système de design (tokens, police Geist, icônes Lucide, Sonner, Vaul, Motion)
@@ -32,10 +33,13 @@
 - [x] Stats (segmented animé, tunnel, classement)
 - [ ] ⬜ Écran de connexion (encore ancien style) + finitions (contrôles carte)
 
-## Ensuite (ordre décidé)
-- [ ] 🔵 **Micro-ajustements** après le retour de l'ami (statuts, flux RDV, définitions stats)
-- [ ] ⬜ **Équipe (invitations)** — le manager invite ses commerciaux dans son agence (aujourd'hui chaque inscription = nouvelle agence). *Dépend de l'ami (Q13-16).*
-- [x] **Déploiement** — Render (Static Site via `render.yaml`), repo GitHub `autonome-ia/appprospection`, HTTPS + PWA installable. Redéploiement auto à chaque `git push`.
+## Déploiement ✅
+- [x] Render (Static Site via `render.yaml`), repo GitHub `autonome-ia/appprospection`, HTTPS + PWA installable. Redéploiement auto à chaque `git push`.
+
+## Prochains chantiers (à choisir avec briac)
+- [ ] ⬜ **Écran de connexion** — dernier écran encore à l'ancien style ; l'habiller avec la DA (Geist/Lucide). Petit, rapide.
+- [ ] ⬜ **Équipe (invitations)** — le manager partage un code ; les commerciaux s'inscrivent avec ce code et rejoignent SON agence (aujourd'hui chaque inscription = nouvelle agence isolée). Débloque le test réel à plusieurs. *Dépend un peu de l'ami (Q13-16).*
+- [ ] ⬜ **Micro-ajustements métier** — après le retour de l'ami : statuts, flux RDV, définitions de stats (« contact » vs « impossible », etc. — voir `questions-ouvertes.md`).
 
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)
