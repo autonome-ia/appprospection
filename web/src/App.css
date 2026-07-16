@@ -596,67 +596,167 @@
   color: var(--ink);
 }
 
-/* --- Stats : tunnel --- */
-.funnel {
-  margin-top: 12px;
+/* --- Stats : plage, focus, drill --- */
+.stats-range {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-3);
+  margin: -6px 2px 12px;
 }
-.funnel-row {
-  display: flex;
+.drill-back {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  margin: 7px 0;
-}
-.funnel-label {
-  width: 96px;
-  font-size: 13px;
-  color: var(--ink-2);
-  flex: 0 0 auto;
-}
-.funnel-bar-bg {
-  flex: 1;
-  background: var(--surface-2);
-  border-radius: var(--r-full);
-  height: 14px;
-  overflow: hidden;
-}
-.funnel-bar {
-  height: 100%;
-  border-radius: var(--r-full);
-}
-.funnel-value {
-  width: 34px;
-  text-align: right;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink);
-}
-.ratios {
-  display: flex;
-  justify-content: space-between;
   gap: 4px;
-  margin-top: 16px;
-  border-top: 1px solid var(--line);
-  padding-top: 14px;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 0 6px;
 }
-.ratio-cell {
+.focus-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0 2px 10px;
+}
+
+/* --- Stats : chiffres héros --- */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.kpi {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  flex: 1;
+  gap: 5px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 13px 12px;
+  box-shadow: var(--shadow-sm);
 }
-.ratio-value {
-  font-size: 17px;
+.kpi-value {
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.delta.up {
+  color: var(--st-vendu);
+}
+.delta.down {
+  color: var(--danger);
+}
+.delta.flat {
+  color: var(--ink-3);
+}
+
+/* --- Stats : objectif --- */
+.obj-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.obj-big {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* --- Stats : tunnel (étapes + taux de passage) --- */
+.funnel2 {
+  margin-top: 10px;
+}
+.funnel-step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+}
+.funnel-step-label {
+  font-size: 14px;
+  color: var(--ink);
+}
+.funnel-step-value {
+  font-size: 16px;
+  font-weight: 600;
+}
+.funnel-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 18px;
+}
+.funnel-rate {
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink);
 }
-.ratio-label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.funnel-rate-label {
+  font-size: 12px;
   color: var(--ink-3);
-  text-align: center;
+}
+.funnel-link.is-leak .funnel-rate,
+.funnel-link.is-leak .funnel-rate-label {
+  color: var(--danger);
+}
+.funnel-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.funnel-conv b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.funnel-absents {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.funnel-leak-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--danger);
+}
+
+/* --- Stats : graphe activité --- */
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 90px;
+  margin-top: 10px;
+}
+.chart-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+.chart-bar {
+  width: 100%;
+  min-height: 2px;
+  background: var(--accent);
+  border-radius: 3px 3px 0 0;
+  opacity: 0.85;
 }
 
 /* --- Stats : classement --- */
@@ -676,24 +776,35 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--ink-3);
-  padding-top: 1px;
-}
-.rank .status-dot {
-  margin-top: 5px;
+  padding-top: 2px;
 }
 .rank-body {
   flex: 1;
   min-width: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 0;
+}
+.rank-clickable {
+  cursor: pointer;
 }
 .rank-line {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 .rank-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-weight: 600;
   font-size: 15px;
+  min-width: 0;
+}
+.rank-name .status-dot {
+  flex: 0 0 auto;
 }
 .rank-sales {
   font-weight: 600;
@@ -734,13 +845,34 @@
   color: var(--ink-3);
   white-space: nowrap;
 }
-.obj-input {
-  width: 46px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  padding: 4px 6px;
-  font-size: 12px;
-  color: var(--ink);
+.rank-edit {
+  border: none;
+  background: none;
+  color: var(--ink-3);
+  padding: 2px;
+  align-self: center;
+}
+
+/* --- Stats : ma position (commercial) --- */
+.mypos-rank {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 8px;
+}
+.mypos-num {
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.mypos-total {
+  font-size: 14px;
+  color: var(--ink-3);
+}
+.mypos-gap {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
 }
 .stats-note {
   font-size: 11px;

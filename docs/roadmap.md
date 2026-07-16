@@ -35,7 +35,7 @@
 ## Ensuite (ordre décidé)
 - [ ] 🔵 **Micro-ajustements** après le retour de l'ami (statuts, flux RDV, définitions stats)
 - [ ] ⬜ **Équipe (invitations)** — le manager invite ses commerciaux dans son agence (aujourd'hui chaque inscription = nouvelle agence). *Dépend de l'ami (Q13-16).*
-- [ ] ⬜ **Déploiement** (Vercel/Netlify) pour un usage terrain réel
+- [x] **Déploiement** — Render (Static Site via `render.yaml`), repo GitHub `autonome-ia/appprospection`, HTTPS + PWA installable. Redéploiement auto à chaque `git push`.
 
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)

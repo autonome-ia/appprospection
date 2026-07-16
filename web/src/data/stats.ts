@@ -11,8 +11,7 @@ export function periodRange(period: Period, now = new Date()): { start: Date; en
   if (period === 'jour') {
     end.setDate(end.getDate() + 1)
   } else if (period === 'semaine') {
-    // Lundi comme premier jour.
-    const day = (start.getDay() + 6) % 7
+    const day = (start.getDay() + 6) % 7 // lundi = premier jour
     start.setDate(start.getDate() - day)
     end.setTime(start.getTime())
     end.setDate(end.getDate() + 7)
@@ -24,13 +23,23 @@ export function periodRange(period: Period, now = new Date()): { start: Date; en
   return { start, end }
 }
 
+/** Décale "now" pour obtenir la période précédente. */
+function previousNow(period: Period, now = new Date()): Date {
+  const d = new Date(now)
+  if (period === 'jour') d.setDate(d.getDate() - 1)
+  else if (period === 'semaine') d.setDate(d.getDate() - 7)
+  else d.setMonth(d.getMonth() - 1)
+  return d
+}
+
 // Un "contact" = quelqu'un a répondu (à revoir / RDV pris / vendu).
-// (Absent et Impossible = pas de contact.) — définitions à valider avec le métier.
+// (Absent et Impossible = pas de contact.) — définition à valider avec le métier.
 const CONTACT_STATUSES: PointStatus[] = ['a_revoir', 'rdv_pris', 'vendu']
 
 export interface CommercialStats {
   commercial_id: string
   portes: number
+  absents: number
   contacts: number
   rdv_pris: number
   rdv_effectues: number
@@ -40,19 +49,20 @@ export interface CommercialStats {
 export interface StatsResult {
   byCommercial: Record<string, CommercialStats>
   team: CommercialStats
-  /** Portes toquées par jour (clé = YYYY-MM-DD) pour la courbe d'activité. */
+  /** Portes par jour (clé YYYY-MM-DD), équipe. */
   activityByDay: Record<string, number>
+  /** Portes par jour et par commercial. */
+  activityByDayBy: Record<string, Record<string, number>>
 }
 
 function emptyStats(id: string): CommercialStats {
-  return { commercial_id: id, portes: 0, contacts: 0, rdv_pris: 0, rdv_effectues: 0, ventes: 0 }
+  return { commercial_id: id, portes: 0, absents: 0, contacts: 0, rdv_pris: 0, rdv_effectues: 0, ventes: 0 }
 }
 
-export async function fetchStats(period: Period): Promise<StatsResult> {
-  const empty: StatsResult = { byCommercial: {}, team: emptyStats('team'), activityByDay: {} }
-  if (!supabase) return empty
+async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
+  const result: StatsResult = { byCommercial: {}, team: emptyStats('team'), activityByDay: {}, activityByDayBy: {} }
+  if (!supabase) return result
 
-  const { start, end } = periodRange(period)
   const startISO = start.toISOString()
   const endISO = end.toISOString()
 
@@ -71,8 +81,6 @@ export async function fetchStats(period: Period): Promise<StatsResult> {
   if (e1) throw e1
   if (e2) throw e2
 
-  const result: StatsResult = { byCommercial: {}, team: emptyStats('team'), activityByDay: {} }
-
   const bump = (id: string | null, key: keyof CommercialStats, n = 1) => {
     if (!id) return
     if (!result.byCommercial[id]) result.byCommercial[id] = emptyStats(id)
@@ -83,11 +91,17 @@ export async function fetchStats(period: Period): Promise<StatsResult> {
   for (const ev of events ?? []) {
     const e = ev as { author_id: string | null; status: PointStatus; occurred_at: string }
     bump(e.author_id, 'portes')
+    if (e.status === 'absent') bump(e.author_id, 'absents')
     if (CONTACT_STATUSES.includes(e.status)) bump(e.author_id, 'contacts')
     if (e.status === 'rdv_pris') bump(e.author_id, 'rdv_pris')
     if (e.status === 'vendu') bump(e.author_id, 'ventes')
+
     const day = e.occurred_at.slice(0, 10)
     result.activityByDay[day] = (result.activityByDay[day] ?? 0) + 1
+    if (e.author_id) {
+      ;(result.activityByDayBy[e.author_id] ??= {})[day] =
+        (result.activityByDayBy[e.author_id]?.[day] ?? 0) + 1
+    }
   }
 
   for (const ap of appts ?? []) {
@@ -96,6 +110,26 @@ export async function fetchStats(period: Period): Promise<StatsResult> {
   }
 
   return result
+}
+
+export async function fetchStats(period: Period): Promise<StatsResult> {
+  const { start, end } = periodRange(period)
+  return fetchStatsRange(start, end)
+}
+
+/** Stats de la période + période précédente (pour les évolutions) + plage de dates. */
+export async function fetchStatsComparison(period: Period): Promise<{
+  current: StatsResult
+  previous: StatsResult
+  range: { start: Date; end: Date }
+}> {
+  const range = periodRange(period)
+  const prev = periodRange(period, previousNow(period))
+  const [current, previous] = await Promise.all([
+    fetchStatsRange(range.start, range.end),
+    fetchStatsRange(prev.start, prev.end),
+  ])
+  return { current, previous, range }
 }
 
 /** Taux (0-1) en évitant la division par zéro. */
