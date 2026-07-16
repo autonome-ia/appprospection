@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
-import { Viewer } from 'mapillary-js'
-import 'mapillary-js/dist/mapillary.css'
+import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
-import { findNearestImage, MAPILLARY_TOKEN } from '../lib/mapillary'
+import { findNearestStreetImage } from '../lib/mapillary'
 
 interface Props {
   lng: number
@@ -10,50 +8,26 @@ interface Props {
   onClose: () => void
 }
 
-/** Vue rue immersive (Mapillary) autour d'un point. */
+/** Vue rue : photo Mapillary la plus proche du point (affichage simple et robuste). */
 export function StreetView({ lng, lat, onClose }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null)
   const [state, setState] = useState<'loading' | 'ok' | 'none'>('loading')
+  const [url, setUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    let viewer: Viewer | null = null
     let active = true
-    const timers: number[] = []
-
-    findNearestImage(lng, lat)
-      .then((id) => {
+    findNearestStreetImage(lng, lat)
+      .then((u) => {
         if (!active) return
-        if (!id || !containerRef.current) {
+        if (u) {
+          setUrl(u)
+          setState('ok')
+        } else {
           setState('none')
-          return
-        }
-        setState('ok')
-        viewer = new Viewer({
-          accessToken: MAPILLARY_TOKEN,
-          container: containerRef.current,
-          imageId: id,
-          component: { cover: false },
-        })
-        // Corrige le rendu noir : le conteneur n'a sa taille finale
-        // qu'après l'affichage → on force un recalcul.
-        for (const delay of [100, 400, 900]) {
-          timers.push(
-            window.setTimeout(() => {
-              try {
-                viewer?.resize()
-              } catch {
-                /* viewer déjà retiré */
-              }
-            }, delay),
-          )
         }
       })
       .catch(() => active && setState('none'))
-
     return () => {
       active = false
-      timers.forEach(clearTimeout)
-      viewer?.remove()
     }
   }, [lng, lat])
 
@@ -62,7 +36,8 @@ export function StreetView({ lng, lat, onClose }: Props) {
       <button type="button" className="street-close" onClick={onClose} aria-label="Fermer">
         <X size={20} />
       </button>
-      <div ref={containerRef} className="street-canvas" />
+
+      {state === 'ok' && url && <img className="street-img" src={url} alt="Vue de la rue" />}
       {state === 'loading' && <div className="street-msg">Recherche d’une vue de rue…</div>}
       {state === 'none' && (
         <div className="street-msg">

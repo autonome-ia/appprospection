@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import {
@@ -15,12 +15,9 @@ import { StatusPicker } from './StatusPicker'
 import { PointDetailSheet } from './PointDetailSheet'
 import { AddressSearch } from './AddressSearch'
 import { AppointmentForm } from './AppointmentForm'
+import { StreetView } from './StreetView'
 import { Layers, Box } from 'lucide-react'
 import { isSupabaseConfigured } from '../lib/supabase'
-
-// Chargée à la demande (mapillary-js est volumineux) : on ne la télécharge
-// que lorsqu'on ouvre la vue rue.
-const StreetView = lazy(() => import('./StreetView').then((m) => ({ default: m.StreetView })))
 import { usePoints } from '../hooks/usePoints'
 import type { MapPoint, Profile } from '../domain/types'
 import type { FeatureCollection, Point } from 'geojson'
@@ -442,9 +439,7 @@ export function MapView({ profile }: { profile: Profile | null }) {
       />
 
       {streetPoint && (
-        <Suspense fallback={<div className="street-overlay"><div className="street-msg">Chargement…</div></div>}>
-          <StreetView lng={streetPoint.lng} lat={streetPoint.lat} onClose={() => setStreetPoint(null)} />
-        </Suspense>
+        <StreetView lng={streetPoint.lng} lat={streetPoint.lat} onClose={() => setStreetPoint(null)} />
       )}
 
       {rdvPoint && profile && (
