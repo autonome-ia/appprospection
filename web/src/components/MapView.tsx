@@ -47,6 +47,8 @@ function toFeatureCollection(points: MapPoint[]): FeatureCollection<Point> {
 export function MapView({ profile }: { profile: Profile | null }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  // Couches de bâtiments du fond Plan IGN (à masquer en mode Toits).
+  const baseBatiLayersRef = useRef<string[]>([])
 
   const { points, addPoint, updatePoint, removePoint } = usePoints(profile)
   const [activeStatus, setActiveStatus] = useState<PointStatus>('absent')
@@ -90,6 +92,15 @@ export function MapView({ profile }: { profile: Profile | null }) {
       const layers = map.getStyle().layers ?? []
       const firstSymbol = layers.find((l) => l.type === 'symbol')
       const beforeLabels = firstSymbol?.id
+
+      // Couches de bâtiments du Plan IGN (fills) : à masquer en mode Toits pour
+      // laisser voir la photo des toits en dessous.
+      baseBatiLayersRef.current = layers
+        .filter((l) => {
+          const sl = (l as { 'source-layer'?: string })['source-layer']
+          return l.type === 'fill' && typeof sl === 'string' && sl.includes('bati')
+        })
+        .map((l) => l.id)
       const fontStack =
         firstSymbol && 'layout' in firstSymbol
           ? ((firstSymbol.layout as Record<string, unknown> | undefined)?.['text-font'] as
@@ -391,6 +402,12 @@ export function MapView({ profile }: { profile: Profile | null }) {
     // Contours des bâtiments : visibles uniquement en mode Toits.
     if (map.getLayer(OUTLINES_LAYER)) {
       map.setLayoutProperty(OUTLINES_LAYER, 'visibility', orthoOn ? 'visible' : 'none')
+    }
+    // Bâtiments blancs du Plan IGN : masqués en mode Toits (sinon ils cachent les toits).
+    for (const id of baseBatiLayersRef.current) {
+      if (map.getLayer(id)) {
+        map.setLayoutProperty(id, 'visibility', orthoOn ? 'none' : 'visible')
+      }
     }
     // Les bâtiments 3D ne s'affichent qu'en mode Plan (masqués sous l'ortho).
     for (const id of [BUILDINGS_LAYER_ID, SELECTED_BUILDING_LAYER]) {
