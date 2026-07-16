@@ -23,7 +23,6 @@ import type { FeatureCollection, Point } from 'geojson'
 
 const POINTS_SOURCE = 'points'
 const BUILDINGS_LAYER_ID = 'buildings-3d'
-const OUTLINES_LAYER = 'building-outlines'
 const MARKERS_LAYER = 'points-markers'
 const CLUSTERS_LAYER = 'clusters'
 const SELECTED_LAYER = 'point-selected'
@@ -52,7 +51,7 @@ export function MapView({ profile }: { profile: Profile | null }) {
 
   const { points, addPoint, updatePoint, removePoint } = usePoints(profile)
   const [activeStatus, setActiveStatus] = useState<PointStatus>('absent')
-  const [orthoOn, setOrthoOn] = useState(false)
+  const [orthoOn, setOrthoOn] = useState(true) // vue Toits par défaut
   const [is3d, setIs3d] = useState(false)
   const [mapLoaded, setMapLoaded] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -193,23 +192,6 @@ export function MapView({ profile }: { profile: Profile | null }) {
       map.addSource(ORTHO_SOURCE_ID, orthoSource)
       map.addLayer(
         { id: ORTHO_LAYER_ID, type: 'raster', source: ORTHO_SOURCE_ID, layout: { visibility: 'none' } },
-        beforeLabels,
-      )
-      // Contours des bâtiments : dessinés par-dessus la photo (mode Toits) pour
-      // aider à distinguer les maisons. Masqués par défaut.
-      map.addLayer(
-        {
-          id: OUTLINES_LAYER,
-          type: 'line',
-          source: 'plan_ign',
-          'source-layer': 'bati_surf',
-          layout: { visibility: 'none' },
-          paint: {
-            'line-color': '#ffffff',
-            'line-width': ['interpolate', ['linear'], ['zoom'], 15, 0.5, 18, 1.6],
-            'line-opacity': 0.7,
-          },
-        },
         beforeLabels,
       )
 
@@ -392,16 +374,13 @@ export function MapView({ profile }: { profile: Profile | null }) {
     }
   }, [selectedId, points, mapLoaded])
 
-  // Bascule de la couche ortho-photo (voir les toits).
+  // Bascule de la couche ortho-photo (voir les toits). S'applique aussi au
+  // chargement (mapLoaded) pour honorer la vue Toits par défaut.
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !map.isStyleLoaded()) return
+    if (!map || !mapLoaded) return
     if (map.getLayer(ORTHO_LAYER_ID)) {
       map.setLayoutProperty(ORTHO_LAYER_ID, 'visibility', orthoOn ? 'visible' : 'none')
-    }
-    // Contours des bâtiments : visibles uniquement en mode Toits.
-    if (map.getLayer(OUTLINES_LAYER)) {
-      map.setLayoutProperty(OUTLINES_LAYER, 'visibility', orthoOn ? 'visible' : 'none')
     }
     // Bâtiments blancs du Plan IGN : masqués en mode Toits (sinon ils cachent les toits).
     for (const id of baseBatiLayersRef.current) {
@@ -415,7 +394,7 @@ export function MapView({ profile }: { profile: Profile | null }) {
         map.setLayoutProperty(id, 'visibility', orthoOn ? 'none' : 'visible')
       }
     }
-  }, [orthoOn])
+  }, [orthoOn, mapLoaded])
 
   // Inclinaison de la carte pour la vue 3D (+ zoom suffisant pour voir les bâtiments).
   useEffect(() => {
