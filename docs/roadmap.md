@@ -27,7 +27,7 @@
 
 ## Fiabilité carte — suite de l'audit (juillet 2026)
 - [x] **Lot 1 — Fiabilité de la donnée** : tolérance de tap (±14 px, plus de point parasite à côté d'un marqueur), garde double-tap-zoom (pose différée 300 ms, annulée par le 2e tap), toast « Point posé » avec action **Annuler**, pose **optimiste** (le point apparaît immédiatement, rollback + toast d'erreur si l'insert échoue).
-- [ ] ⬜ **Lot 2 — Lisibilité soleil + cohérence DA** : halo des labels quand l'ortho est active, contraste des glyphes, cluster blanc/anneau accent, couleurs alignées sur les tokens, contrôles MapLibre restylés (44 px), bouton 3D grisé en vue Toits.
+- [x] **Lot 2 — Lisibilité soleil + cohérence DA** : halo blanc des labels uniquement quand l'ortho est active (restauré en plan), statuts « absent »/« à revoir » assombris (contraste ≥ 3:1 avec le glyphe blanc, alignés `status.ts` ↔ `--st-*`), glyphes et anneau des marqueurs épaissis, cluster blanc à anneau accent (fini la confusion avec « impossible »), halo/bâtiment sélection sur `--accent`, contrôles MapLibre restylés (tokens + cibles 44 px), Toits ↔ 3D cohérents (3D désactivée en vue Toits).
 - [ ] ⬜ **Lot 3 (chantiers, à choisir)** : carte montée en permanence entre onglets · pose au réticule · sheet détail non modale + recadrage · clusters en donut par statut · filtres carte.
 
 ## Design — DA « Clair & précis » (Linear/Vercel/Emil Kowalski)

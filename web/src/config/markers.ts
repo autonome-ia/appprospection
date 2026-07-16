@@ -9,7 +9,9 @@ const SIZE = 64 // px canvas (pixelRatio 2 => ~32px à l'écran)
 function drawGlyph(ctx: CanvasRenderingContext2D, status: PointStatus, cx: number, cy: number) {
   ctx.strokeStyle = '#ffffff'
   ctx.fillStyle = '#ffffff'
-  ctx.lineWidth = 4
+  // Traits épais : le glyphe doit rester lisible en plein soleil (canvas 2x,
+  // 5 ici = 2,5 px à l'écran).
+  ctx.lineWidth = 5
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
   ctx.beginPath()
@@ -33,7 +35,7 @@ function drawGlyph(ctx: CanvasRenderingContext2D, status: PointStatus, cx: numbe
       ctx.stroke()
       break
     case 'a_revoir': { // horloge (repasser plus tard)
-      ctx.lineWidth = 3
+      ctx.lineWidth = 3.5
       ctx.arc(cx, cy, 9, 0, Math.PI * 2)
       ctx.stroke()
       ctx.beginPath()
@@ -45,7 +47,7 @@ function drawGlyph(ctx: CanvasRenderingContext2D, status: PointStatus, cx: numbe
       break
     }
     case 'rdv_pris': { // calendrier
-      ctx.lineWidth = 3
+      ctx.lineWidth = 3.5
       ctx.strokeRect(cx - 9, cy - 5, 18, 14)
       ctx.beginPath()
       ctx.moveTo(cx - 9, cy - 0.5)
@@ -80,10 +82,10 @@ function drawMarker(color: string, status: PointStatus): ImageData {
   ctx.fill()
   ctx.restore()
 
-  // Anneau blanc.
+  // Anneau blanc (épaissi : détache le marqueur des toits sombres de l'ortho).
   ctx.beginPath()
   ctx.arc(cx, cy, r, 0, Math.PI * 2)
-  ctx.lineWidth = 3
+  ctx.lineWidth = 4
   ctx.strokeStyle = '#ffffff'
   ctx.stroke()
 

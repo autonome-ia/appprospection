@@ -150,6 +150,45 @@
   color: var(--accent);
   background: var(--accent-weak);
 }
+.map-tool:disabled {
+  color: var(--ink-3);
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Contrôles MapLibre (géolocalisation, attribution) alignés sur la DA :
+   fond/bordure/ombre des tokens, cibles tactiles 44 px, marges cohérentes. */
+.maplibregl-ctrl-top-right .maplibregl-ctrl {
+  margin: 12px 12px 0 0;
+}
+.maplibregl-ctrl-group {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.maplibregl-ctrl-group:not(:empty) {
+  box-shadow: var(--shadow-md);
+}
+.maplibregl-ctrl-group button {
+  width: 44px;
+  height: 44px;
+}
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--line);
+}
+.maplibregl-ctrl-attrib {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--ink-2);
+}
+.maplibregl-ctrl-attrib.maplibregl-compact {
+  background: var(--surface);
+  border-radius: var(--r-full);
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--ink-2);
+}
 
 /* Sélecteur de statut (légende + statut actif) */
 .status-picker {

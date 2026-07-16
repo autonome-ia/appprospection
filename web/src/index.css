@@ -26,9 +26,9 @@
   --accent-weak: rgba(47, 107, 255, 0.09);
   --accent-ring: rgba(47, 107, 255, 0.35);
 
-  /* Statuts (palette raffinée) */
-  --st-absent: #98a2b3;
-  --st-revoir: #f0a93b;
+  /* Statuts (palette raffinée) — doit rester aligné avec domain/status.ts */
+  --st-absent: #7d8898;
+  --st-revoir: #d97706;
   --st-impossible: #344054;
   --st-rdv: #2f6bff;
   --st-vendu: #17b26a;

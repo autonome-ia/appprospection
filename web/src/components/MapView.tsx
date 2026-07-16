@@ -30,6 +30,10 @@ const SELECTED_LAYER = 'point-selected'
 const SELECTED_BUILDING_SRC = 'selected-building'
 const SELECTED_BUILDING_LAYER = 'selected-building-3d'
 const NO_ID = '__none__'
+// Couleurs de la DA (mêmes valeurs que --accent / --ink dans index.css :
+// MapLibre ne lit pas les variables CSS).
+const ACCENT = '#2f6bff'
+const INK = '#16161a'
 // Tolérance du tap (px) : un doigt n'est pas un curseur — on cherche les
 // marqueurs dans un carré autour du point touché plutôt qu'au pixel exact.
 const HIT_TOLERANCE = 14
@@ -55,6 +59,10 @@ export function MapView({ profile }: { profile: Profile | null }) {
   const mapRef = useRef<maplibregl.Map | null>(null)
   // Couches de bâtiments du fond Plan IGN (à masquer en mode Toits).
   const baseBatiLayersRef = useRef<string[]>([])
+  // Couches de labels du fond (noms de rues…) : halo blanc ajouté en mode
+  // Toits (illisibles sinon sur la photo), valeurs d'origine restaurées en plan.
+  const baseLabelLayersRef = useRef<string[]>([])
+  const labelHaloBackupRef = useRef(new Map<string, { color: unknown; width: unknown }>())
 
   const { points, addPoint, updatePoint, removePoint } = usePoints(profile)
   const [activeStatus, setActiveStatus] = useState<PointStatus>('absent')
@@ -111,6 +119,8 @@ export function MapView({ profile }: { profile: Profile | null }) {
           return l.type === 'fill' && typeof sl === 'string' && sl.includes('bati')
         })
         .map((l) => l.id)
+      // Labels du fond IGN (capturés AVANT l'ajout de nos propres couches symbol).
+      baseLabelLayersRef.current = layers.filter((l) => l.type === 'symbol').map((l) => l.id)
       const fontStack =
         firstSymbol && 'layout' in firstSymbol
           ? ((firstSymbol.layout as Record<string, unknown> | undefined)?.['text-font'] as
@@ -187,7 +197,7 @@ export function MapView({ profile }: { profile: Profile | null }) {
         type: 'fill-extrusion',
         source: SELECTED_BUILDING_SRC,
         paint: {
-          'fill-extrusion-color': '#2563eb',
+          'fill-extrusion-color': ACCENT,
           'fill-extrusion-opacity': 0.7,
           'fill-extrusion-height': [
             '+',
@@ -222,17 +232,18 @@ export function MapView({ profile }: { profile: Profile | null }) {
         clusterMaxZoom: 15,
       })
 
-      // Bulles de regroupement.
+      // Bulles de regroupement : blanches à anneau accent (distinctes du
+      // marqueur sombre "impossible", lisibles sur plan comme sur ortho).
       map.addLayer({
         id: CLUSTERS_LAYER,
         type: 'circle',
         source: POINTS_SOURCE,
         filter: ['has', 'point_count'],
         paint: {
-          'circle-color': '#1e293b',
+          'circle-color': '#ffffff',
           'circle-radius': ['step', ['get', 'point_count'], 16, 10, 20, 50, 26],
           'circle-stroke-width': 3,
-          'circle-stroke-color': '#ffffff',
+          'circle-stroke-color': ACCENT,
         },
       })
       map.addLayer({
@@ -245,7 +256,7 @@ export function MapView({ profile }: { profile: Profile | null }) {
           'text-size': 14,
           ...(fontStack ? { 'text-font': fontStack } : {}),
         },
-        paint: { 'text-color': '#ffffff' },
+        paint: { 'text-color': INK },
       })
 
       // Surbrillance du point sélectionné (halo, sous les marqueurs).
@@ -256,7 +267,7 @@ export function MapView({ profile }: { profile: Profile | null }) {
         filter: ['==', ['get', 'id'], NO_ID],
         paint: {
           'circle-radius': 22,
-          'circle-color': '#3b82f6',
+          'circle-color': ACCENT,
           'circle-opacity': 0.25,
         },
       })
@@ -441,6 +452,27 @@ export function MapView({ profile }: { profile: Profile | null }) {
         map.setLayoutProperty(id, 'visibility', orthoOn ? 'none' : 'visible')
       }
     }
+    // Halo blanc sous les labels (noms de rues) : indispensable sur la photo
+    // (toits sombres, végétation) ; en plan, on restaure le style IGN d'origine.
+    for (const id of baseLabelLayersRef.current) {
+      if (!map.getLayer(id)) continue
+      if (orthoOn) {
+        if (!labelHaloBackupRef.current.has(id)) {
+          labelHaloBackupRef.current.set(id, {
+            color: map.getPaintProperty(id, 'text-halo-color'),
+            width: map.getPaintProperty(id, 'text-halo-width'),
+          })
+        }
+        map.setPaintProperty(id, 'text-halo-color', 'rgba(255, 255, 255, 0.9)')
+        map.setPaintProperty(id, 'text-halo-width', 1.2)
+      } else {
+        const orig = labelHaloBackupRef.current.get(id)
+        if (orig) {
+          map.setPaintProperty(id, 'text-halo-color', orig.color)
+          map.setPaintProperty(id, 'text-halo-width', orig.width)
+        }
+      }
+    }
   }, [orthoOn, mapLoaded])
 
   // Inclinaison de la carte pour la vue 3D (+ zoom suffisant pour voir les bâtiments).
@@ -472,7 +504,13 @@ export function MapView({ profile }: { profile: Profile | null }) {
         <button
           type="button"
           className={`map-tool ${orthoOn ? 'is-on' : ''}`}
-          onClick={() => setOrthoOn((v) => !v)}
+          onClick={() => {
+            const next = !orthoOn
+            setOrthoOn(next)
+            // Les bâtiments 3D sont masqués sous l'ortho : passer en Toits
+            // sort de la 3D (sinon on incline une photo plate).
+            if (next && is3d) setIs3d(false)
+          }}
           title={orthoOn ? 'Vue plan' : 'Vue toits (satellite)'}
         >
           <Layers size={20} strokeWidth={1.8} />
@@ -481,7 +519,8 @@ export function MapView({ profile }: { profile: Profile | null }) {
           type="button"
           className={`map-tool ${is3d ? 'is-on' : ''}`}
           onClick={() => setIs3d((v) => !v)}
-          title={is3d ? 'Vue 2D' : 'Vue 3D'}
+          disabled={orthoOn}
+          title={orthoOn ? 'Vue 3D indisponible en vue Toits' : is3d ? 'Vue 2D' : 'Vue 3D'}
         >
           <Box size={20} strokeWidth={1.8} />
         </button>

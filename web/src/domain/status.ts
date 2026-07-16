@@ -17,9 +17,11 @@ export interface StatusMeta {
   description: string
 }
 
+// Couleurs assombries pour tenir un contraste ≥ 3:1 avec le glyphe blanc
+// (lisibilité en plein soleil). Doit rester aligné avec --st-* (index.css).
 export const STATUSES: StatusMeta[] = [
-  { value: 'absent', label: 'Absent', color: '#98a2b3', description: 'Personne / pas d’ouverture' },
-  { value: 'a_revoir', label: 'À revoir', color: '#f0a93b', description: 'Repasser plus tard' },
+  { value: 'absent', label: 'Absent', color: '#7d8898', description: 'Personne / pas d’ouverture' },
+  { value: 'a_revoir', label: 'À revoir', color: '#d97706', description: 'Repasser plus tard' },
   { value: 'impossible', label: 'Impossible', color: '#344054', description: 'Inutile d’y retourner' },
   { value: 'rdv_pris', label: 'RDV pris', color: '#2f6bff', description: 'Rendez-vous obtenu' },
   { value: 'vendu', label: 'Vendu', color: '#17b26a', description: 'Vente conclue' },
