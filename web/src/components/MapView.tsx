@@ -15,7 +15,6 @@ import { StatusPicker } from './StatusPicker'
 import { PointDetailSheet } from './PointDetailSheet'
 import { AddressSearch } from './AddressSearch'
 import { AppointmentForm } from './AppointmentForm'
-import { StreetView } from './StreetView'
 import { Layers, Box } from 'lucide-react'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { usePoints } from '../hooks/usePoints'
@@ -56,8 +55,6 @@ export function MapView({ profile }: { profile: Profile | null }) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   // Point pour lequel on saisit un RDV (après avoir posé/marqué "RDV pris").
   const [rdvPoint, setRdvPoint] = useState<MapPoint | null>(null)
-  // Point pour lequel on ouvre la vue rue (Mapillary).
-  const [streetPoint, setStreetPoint] = useState<MapPoint | null>(null)
 
   // Le handler de clic lit toujours les dernières valeurs via des refs.
   const activeStatusRef = useRef(activeStatus)
@@ -435,12 +432,7 @@ export function MapView({ profile }: { profile: Profile | null }) {
         onUpdate={updatePoint}
         onDelete={removePoint}
         onRdvNeeded={(p) => isSupabaseConfigured && setRdvPoint(p)}
-        onStreetView={(p) => setStreetPoint(p)}
       />
-
-      {streetPoint && (
-        <StreetView lng={streetPoint.lng} lat={streetPoint.lat} onClose={() => setStreetPoint(null)} />
-      )}
 
       {rdvPoint && profile && (
         <AppointmentForm
