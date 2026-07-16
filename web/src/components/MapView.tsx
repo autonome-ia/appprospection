@@ -10,7 +10,8 @@ import {
   orthoSource,
 } from '../config/map'
 import { generateMarkerImages, MARKER_PREFIX } from '../config/markers'
-import type { PointStatus } from '../domain/status'
+import { toast } from 'sonner'
+import { STATUS_BY_VALUE, type PointStatus } from '../domain/status'
 import { StatusPicker } from './StatusPicker'
 import { PointDetailSheet } from './PointDetailSheet'
 import { AddressSearch } from './AddressSearch'
@@ -29,6 +30,12 @@ const SELECTED_LAYER = 'point-selected'
 const SELECTED_BUILDING_SRC = 'selected-building'
 const SELECTED_BUILDING_LAYER = 'selected-building-3d'
 const NO_ID = '__none__'
+// Tolérance du tap (px) : un doigt n'est pas un curseur — on cherche les
+// marqueurs dans un carré autour du point touché plutôt qu'au pixel exact.
+const HIT_TOLERANCE = 14
+// Délai (ms) avant de poser un point : laisse le temps à un éventuel
+// double-tap (zoom) d'annuler la pose. Aligné sur le seuil double-tap.
+const CREATE_DELAY = 300
 
 const EMPTY_FC: FeatureCollection<Point> = { type: 'FeatureCollection', features: [] }
 
@@ -63,8 +70,12 @@ export function MapView({ profile }: { profile: Profile | null }) {
   activeStatusRef.current = activeStatus
   const addPointRef = useRef(addPoint)
   addPointRef.current = addPoint
+  const removePointRef = useRef(removePoint)
+  removePointRef.current = removePoint
   const selectedIdRef = useRef(selectedId)
   selectedIdRef.current = selectedId
+  // Pose de point en attente (timer) : annulée si un double-tap survient.
+  const pendingCreateRef = useRef<number | null>(null)
 
   // Initialisation de la carte (une seule fois).
   useEffect(() => {
@@ -284,11 +295,41 @@ export function MapView({ profile }: { profile: Profile | null }) {
     map.on('mouseenter', CLUSTERS_LAYER, hover('pointer'))
     map.on('mouseleave', CLUSTERS_LAYER, hover(''))
 
+    // Pose un point (UI optimiste) + toast avec "Annuler" (filet anti-erreur).
+    const createPointAt = (lng: number, lat: number) => {
+      const status = activeStatusRef.current
+      const { point, saved } = addPointRef.current(lng, lat, status)
+      toast.success(`Point posé — ${STATUS_BY_VALUE[status].label}`, {
+        action: { label: 'Annuler', onClick: () => void removePointRef.current(point.id) },
+      })
+      void saved.then((created) => {
+        // Poser un "RDV pris" enchaîne sur la saisie du rendez-vous.
+        if (created && status === 'rdv_pris' && isSupabaseConfigured) {
+          setRdvPoint(created)
+        }
+      })
+    }
+    const cancelPendingCreate = () => {
+      if (pendingCreateRef.current !== null) {
+        window.clearTimeout(pendingCreateRef.current)
+        pendingCreateRef.current = null
+        return true
+      }
+      return false
+    }
+
     // Clic : bulle -> zoom ; marqueur -> détail ; zone vide -> pose un point
     // (ou ferme le détail s'il est ouvert).
     map.on('click', (e) => {
+      // 2e tap rapproché = double-tap (zoom) : on annule la pose en attente.
+      const wasPending = cancelPendingCreate()
+
       const queryable = [CLUSTERS_LAYER, MARKERS_LAYER].filter((l) => map.getLayer(l))
-      const hits = queryable.length ? map.queryRenderedFeatures(e.point, { layers: queryable }) : []
+      const bbox: [[number, number], [number, number]] = [
+        [e.point.x - HIT_TOLERANCE, e.point.y - HIT_TOLERANCE],
+        [e.point.x + HIT_TOLERANCE, e.point.y + HIT_TOLERANCE],
+      ]
+      const hits = queryable.length ? map.queryRenderedFeatures(bbox, { layers: queryable }) : []
 
       const cluster = hits.find((f) => f.layer.id === CLUSTERS_LAYER)
       if (cluster) {
@@ -312,16 +353,22 @@ export function MapView({ profile }: { profile: Profile | null }) {
         return
       }
 
-      const status = activeStatusRef.current
-      void addPointRef.current(e.lngLat.lng, e.lngLat.lat, status).then((created) => {
-        // Poser un "RDV pris" enchaîne sur la saisie du rendez-vous.
-        if (created && status === 'rdv_pris' && isSupabaseConfigured) {
-          setRdvPoint(created)
-        }
-      })
+      // Zone vide juste après un tap annulé : c'était un double-tap-zoom.
+      if (wasPending) return
+
+      // Pose différée : un double-tap dans l'intervalle l'annule.
+      const { lng, lat } = e.lngLat
+      pendingCreateRef.current = window.setTimeout(() => {
+        pendingCreateRef.current = null
+        createPointAt(lng, lat)
+      }, CREATE_DELAY)
     })
 
+    // Ceinture + bretelles : si MapLibre émet dblclick, on annule aussi.
+    map.on('dblclick', cancelPendingCreate)
+
     return () => {
+      cancelPendingCreate()
       map.remove()
       mapRef.current = null
     }

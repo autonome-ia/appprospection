@@ -37,7 +37,9 @@ export function PointDetailSheet({ open, point, onOpenChange, onUpdate, onDelete
     setStatus(point.status)
     setNote('')
     setDetail(null)
-    if (!isSupabaseConfigured) return
+    // Point en cours d'enregistrement (id temporaire, pose optimiste) : pas
+    // encore de détail en base.
+    if (!isSupabaseConfigured || point.id.startsWith('temp-')) return
     let active = true
     getPointDetail(point.id)
       .then((d) => {

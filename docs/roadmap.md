@@ -25,6 +25,11 @@
 - [x] **Vue Toits hybride** — ortho-photo + noms de rues par-dessus (bâtiments blancs du plan masqués). **Vue Toits par défaut** à l'ouverture. (Contours des bâtiments testés puis retirés.)
 - [x] **Vue rue / immersion** — explorée puis **ABANDONNÉE** : Mapillary trop juste en pavillonnaire, Google Street View écarté (dépendance + facturation), 3D photoréaliste Google bloquée en France. Code retiré.
 
+## Fiabilité carte — suite de l'audit (juillet 2026)
+- [x] **Lot 1 — Fiabilité de la donnée** : tolérance de tap (±14 px, plus de point parasite à côté d'un marqueur), garde double-tap-zoom (pose différée 300 ms, annulée par le 2e tap), toast « Point posé » avec action **Annuler**, pose **optimiste** (le point apparaît immédiatement, rollback + toast d'erreur si l'insert échoue).
+- [ ] ⬜ **Lot 2 — Lisibilité soleil + cohérence DA** : halo des labels quand l'ortho est active, contraste des glyphes, cluster blanc/anneau accent, couleurs alignées sur les tokens, contrôles MapLibre restylés (44 px), bouton 3D grisé en vue Toits.
+- [ ] ⬜ **Lot 3 (chantiers, à choisir)** : carte montée en permanence entre onglets · pose au réticule · sheet détail non modale + recadrage · clusters en donut par statut · filtres carte.
+
 ## Design — DA « Clair & précis » (Linear/Vercel/Emil Kowalski)
 - [x] Système de design (tokens, police Geist, icônes Lucide, Sonner, Vaul, Motion)
 - [x] Barre de navigation + écran Accueil
