@@ -1,0 +1,107 @@
+/* =============================================================================
+   AppProspection — Système de design "Clair & précis" (Linear-light / Vercel)
+   Tokens : couleur, typographie, espacement, rayons, ombres, mouvement.
+   ========================================================================== */
+
+:root {
+  /* Typographie */
+  --font-sans: 'Geist Variable', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', monospace;
+
+  /* Couleurs — surfaces & encre */
+  --bg: #fbfbfa;
+  --surface: #ffffff;
+  --surface-2: #f6f6f5;
+  --ink: #16161a;
+  --ink-2: #6b6b73;
+  --ink-3: #9a9aa2;
+
+  /* Traits / bordures */
+  --line: #ececea;
+  --line-strong: #e0e0dd;
+
+  /* Accent */
+  --accent: #2f6bff;
+  --accent-ink: #ffffff;
+  --accent-weak: rgba(47, 107, 255, 0.09);
+  --accent-ring: rgba(47, 107, 255, 0.35);
+
+  /* Statuts (palette raffinée) */
+  --st-absent: #98a2b3;
+  --st-revoir: #f0a93b;
+  --st-impossible: #344054;
+  --st-rdv: #2f6bff;
+  --st-vendu: #17b26a;
+
+  /* Sémantique */
+  --danger: #e5484d;
+  --danger-weak: rgba(229, 72, 77, 0.1);
+
+  /* Rayons */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --r-full: 999px;
+
+  /* Ombres (subtiles = premium) */
+  --shadow-sm: 0 1px 2px rgba(16, 16, 26, 0.06), 0 1px 1px rgba(16, 16, 26, 0.04);
+  --shadow-md: 0 4px 16px rgba(16, 16, 26, 0.08);
+  --shadow-lg: 0 16px 40px rgba(16, 16, 26, 0.14);
+
+  /* Mouvement */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  font-family: var(--font-sans);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  overflow: hidden; /* app plein écran, pas de scroll global */
+  overscroll-behavior: none;
+  background: var(--bg);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  color: inherit;
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
+/* Chiffres tabulaires par défaut pour la data (stats, heures). */
+.tnum {
+  font-family: var(--font-mono);
+  font-feature-settings: 'tnum' 1;
+  letter-spacing: -0.01em;
+}
+
+/* Micro-label (mono, majuscules, discret) — signature de la DA. */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}

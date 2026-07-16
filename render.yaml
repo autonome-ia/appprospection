@@ -1,0 +1,21 @@
+# Blueprint Render — Site statique (PWA Vite dans le sous-dossier web/)
+# Sur Render : New + → Blueprint → sélectionner ce repo, OU configurer un
+# "Static Site" manuellement avec les mêmes valeurs (voir README).
+services:
+  - type: web
+    name: appprospection
+    runtime: static
+    rootDir: web
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    # Réécriture SPA/PWA : toute route sert index.html.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    # Variables à renseigner dans le dashboard Render (non versionnées).
+    envVars:
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
