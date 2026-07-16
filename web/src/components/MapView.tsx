@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import {
@@ -17,6 +17,10 @@ import { AddressSearch } from './AddressSearch'
 import { AppointmentForm } from './AppointmentForm'
 import { Layers, Box } from 'lucide-react'
 import { isSupabaseConfigured } from '../lib/supabase'
+
+// Chargée à la demande (mapillary-js est volumineux) : on ne la télécharge
+// que lorsqu'on ouvre la vue rue.
+const StreetView = lazy(() => import('./StreetView').then((m) => ({ default: m.StreetView })))
 import { usePoints } from '../hooks/usePoints'
 import type { MapPoint, Profile } from '../domain/types'
 import type { FeatureCollection, Point } from 'geojson'
@@ -55,6 +59,8 @@ export function MapView({ profile }: { profile: Profile | null }) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   // Point pour lequel on saisit un RDV (après avoir posé/marqué "RDV pris").
   const [rdvPoint, setRdvPoint] = useState<MapPoint | null>(null)
+  // Point pour lequel on ouvre la vue rue (Mapillary).
+  const [streetPoint, setStreetPoint] = useState<MapPoint | null>(null)
 
   // Le handler de clic lit toujours les dernières valeurs via des refs.
   const activeStatusRef = useRef(activeStatus)
@@ -432,7 +438,14 @@ export function MapView({ profile }: { profile: Profile | null }) {
         onUpdate={updatePoint}
         onDelete={removePoint}
         onRdvNeeded={(p) => isSupabaseConfigured && setRdvPoint(p)}
+        onStreetView={(p) => setStreetPoint(p)}
       />
+
+      {streetPoint && (
+        <Suspense fallback={<div className="street-overlay"><div className="street-msg">Chargement…</div></div>}>
+          <StreetView lng={streetPoint.lng} lat={streetPoint.lat} onClose={() => setStreetPoint(null)} />
+        </Suspense>
+      )}
 
       {rdvPoint && profile && (
         <AppointmentForm

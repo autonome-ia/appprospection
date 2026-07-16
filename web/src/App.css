@@ -1142,6 +1142,68 @@
   background: var(--surface-2);
   color: var(--ink-2);
 }
+
+/* Bouton "Voir la rue" dans le panneau détail */
+.street-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 11px;
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+.street-btn:active {
+  background: var(--surface-2);
+}
+
+/* Vue rue immersive (Mapillary) plein écran */
+.street-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #000;
+}
+.street-canvas {
+  position: absolute;
+  inset: 0;
+}
+.street-close {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top, 0));
+  right: 12px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: #111318;
+  box-shadow: var(--shadow-md);
+}
+.street-msg {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  color: #ffffff;
+  font-size: 15px;
+}
+.street-msg-sub {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+}
 .signout-btn {
   margin-top: 16px;
   border: 1px solid #cbd5e1;

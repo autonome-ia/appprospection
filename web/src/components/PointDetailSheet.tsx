@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
-import { X, Trash2, Clock, User } from 'lucide-react'
+import { X, Trash2, Clock, User, Eye } from 'lucide-react'
 import { getPointDetail, type PointDetail } from '../data/points'
 import { isSupabaseConfigured } from '../lib/supabase'
+import { hasMapillary } from '../lib/mapillary'
 import { STATUSES, STATUS_BY_VALUE, type PointStatus } from '../domain/status'
 import type { MapPoint } from '../domain/types'
 
@@ -14,6 +15,7 @@ interface Props {
   onUpdate: (id: string, changes: { status?: PointStatus; note?: string | null }) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onRdvNeeded?: (point: MapPoint) => void
+  onStreetView?: (point: MapPoint) => void
 }
 
 function formatDate(iso: string): string {
@@ -26,7 +28,7 @@ function formatDate(iso: string): string {
   }).format(new Date(iso))
 }
 
-export function PointDetailSheet({ open, point, onOpenChange, onUpdate, onDelete, onRdvNeeded }: Props) {
+export function PointDetailSheet({ open, point, onOpenChange, onUpdate, onDelete, onRdvNeeded, onStreetView }: Props) {
   const [detail, setDetail] = useState<PointDetail | null>(null)
   const [status, setStatus] = useState<PointStatus>('absent')
   const [note, setNote] = useState('')
@@ -109,6 +111,12 @@ export function PointDetailSheet({ open, point, onOpenChange, onUpdate, onDelete
                 </span>
               )}
             </div>
+          )}
+
+          {hasMapillary && onStreetView && (
+            <button type="button" className="street-btn" onClick={() => onStreetView(point)}>
+              <Eye size={17} strokeWidth={1.9} /> Voir la rue
+            </button>
           )}
 
           <p className="eyebrow field-label">Statut</p>
