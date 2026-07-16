@@ -5,9 +5,9 @@ services:
   - type: web
     name: appprospection
     runtime: static
-    rootDir: web
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
+    # Le build entre dans web/ ; la sortie est publiée depuis web/dist.
+    buildCommand: cd web && npm install && npm run build
+    staticPublishPath: web/dist
     # Réécriture SPA/PWA : toute route sert index.html.
     routes:
       - type: rewrite
