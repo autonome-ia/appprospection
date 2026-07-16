@@ -100,21 +100,6 @@ export function MapView({ profile }: { profile: Profile | null }) {
           return l.type === 'fill' && typeof sl === 'string' && sl.includes('bati')
         })
         .map((l) => l.id)
-
-      // Halo blanc sur les libellés (noms de rues) pour qu'ils restent lisibles
-      // par-dessus la photo satellite en mode Toits.
-      for (const l of layers) {
-        const hasText = (l as { layout?: Record<string, unknown> }).layout?.['text-field']
-        if (l.type === 'symbol' && hasText) {
-          try {
-            map.setPaintProperty(l.id, 'text-halo-color', '#ffffff')
-            map.setPaintProperty(l.id, 'text-halo-width', 1.4)
-            map.setPaintProperty(l.id, 'text-halo-blur', 0.4)
-          } catch {
-            /* couche non modifiable : on ignore */
-          }
-        }
-      }
       const fontStack =
         firstSymbol && 'layout' in firstSymbol
           ? ((firstSymbol.layout as Record<string, unknown> | undefined)?.['text-font'] as
