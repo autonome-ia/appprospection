@@ -21,13 +21,14 @@
 
 ## Visuel carte (« beau & lisible »)
 - [x] **Lisibilité** — fond adouci (voile sous les labels), marqueurs à icônes par statut (ombre, halo de sélection), regroupement/clustering avec bulles cliquables
-- [x] **Effet 3D waouh** — éclairage des bâtiments, surbrillance (bleu) de la maison sélectionnée (ciel/brouillard retirés, invisibles). Bâtiments sombres pour contraster.
+- [x] **Effet 3D waouh** — éclairage des bâtiments, surbrillance (bleu) de la maison sélectionnée (ciel/brouillard retirés, invisibles). ~~Bâtiments sombres~~ → **bâtiments clairs** (réf. Apple Plans, cohérent DA) depuis le lot visuel de juillet 2026.
 - [x] **Vue Toits hybride** — ortho-photo + noms de rues par-dessus (bâtiments blancs du plan masqués). **Vue Toits par défaut** à l'ouverture. (Contours des bâtiments testés puis retirés.)
 - [x] **Vue rue / immersion** — explorée puis **ABANDONNÉE** : Mapillary trop juste en pavillonnaire, Google Street View écarté (dépendance + facturation), 3D photoréaliste Google bloquée en France. Code retiré.
 
 ## Fiabilité carte — suite de l'audit (juillet 2026)
 - [x] **Lot 1 — Fiabilité de la donnée** : tolérance de tap (±14 px, plus de point parasite à côté d'un marqueur), garde double-tap-zoom (pose différée 300 ms, annulée par le 2e tap), toast « Point posé » avec action **Annuler**, pose **optimiste** (le point apparaît immédiatement, rollback + toast d'erreur si l'insert échoue).
 - [x] **Lot 2 — Lisibilité soleil + cohérence DA** : halo blanc des labels uniquement quand l'ortho est active (restauré en plan), statuts « absent »/« à revoir » assombris (contraste ≥ 3:1 avec le glyphe blanc, alignés `status.ts` ↔ `--st-*`), glyphes et anneau des marqueurs épaissis, cluster blanc à anneau accent (fini la confusion avec « impossible »), halo/bâtiment sélection sur `--accent`, contrôles MapLibre restylés (tokens + cibles 44 px), Toits ↔ 3D cohérents (3D désactivée en vue Toits).
+- [x] **Lot visuel (retour captures d'écran)** : bâtiments 3D passés de l'anthracite au **clair** (la masse sombre écrasait la vue), cercle de précision de la géolocalisation retiré (gros halo bleu laiteux), voile papier renforcé et placé **sous les routes** (le réseau de rues blanc ressort enfin), teintes eau/végétation ajustées, ortho ravivée (saturation/contraste), marqueurs qui grossissent jusqu'au zoom 19.
 - [ ] ⬜ **Lot 3 (chantiers, à choisir)** : carte montée en permanence entre onglets · pose au réticule · sheet détail non modale + recadrage · clusters en donut par statut · filtres carte.
 
 ## Design — DA « Clair & précis » (Linear/Vercel/Emil Kowalski)

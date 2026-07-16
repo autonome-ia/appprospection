@@ -101,6 +101,9 @@ export function MapView({ profile }: { profile: Profile | null }) {
     const geolocate = new maplibregl.GeolocateControl({
       positionOptions: { enableHighAccuracy: true },
       trackUserLocation: true,
+      // Pas de cercle de précision : le grand halo bleu pâle mange la carte
+      // (le point suffit sur le terrain).
+      showAccuracyCircle: false,
     })
     map.addControl(geolocate, 'top-right')
 
@@ -128,16 +131,22 @@ export function MapView({ profile }: { profile: Profile | null }) {
               | undefined)
           : undefined
 
-      // Voile chaud léger : adoucit le fond (ton papier) et fait ressortir les
-      // marqueurs, sans toucher aux libellés (rues) qui restent au-dessus.
-      if (beforeLabels) {
+      // Voile chaud : teinte le sol (ton papier) pour que les routes blanches
+      // ressortent. Inséré SOUS les routes si on les trouve (elles restent
+      // blanches et nettes), sinon sous les labels.
+      const firstRoad = layers.find((l) => {
+        const sl = (l as { 'source-layer'?: string })['source-layer']
+        return l.type === 'line' && typeof sl === 'string' && sl.includes('routier')
+      })
+      const washBefore = firstRoad?.id ?? beforeLabels
+      if (washBefore) {
         map.addLayer(
           {
             id: 'base-wash',
             type: 'background',
-            paint: { 'background-color': '#f2ece1', 'background-opacity': 0.22 },
+            paint: { 'background-color': '#efe8da', 'background-opacity': 0.5 },
           },
-          beforeLabels,
+          washBefore,
         )
       }
 
@@ -148,10 +157,11 @@ export function MapView({ profile }: { profile: Profile | null }) {
         const s = sl.toLowerCase()
         try {
           if (layer.type === 'fill') {
+            // Teintes un peu appuyées : le voile chaud (au-dessus) les adoucit.
             if (s.includes('hydro') || s.includes('eau') || s.includes('water')) {
-              map.setPaintProperty(layer.id, 'fill-color', '#c3ddf2')
+              map.setPaintProperty(layer.id, 'fill-color', '#aecfee')
             } else if (s.includes('veget') || s.includes('foret')) {
-              map.setPaintProperty(layer.id, 'fill-color', '#d8e8c6')
+              map.setPaintProperty(layer.id, 'fill-color', '#cfe3b5')
             }
           } else if (layer.type === 'line') {
             if (s.includes('hydro') || s.includes('eau') || s.includes('water')) {
@@ -175,20 +185,23 @@ export function MapView({ profile }: { profile: Profile | null }) {
           'fill-extrusion-base': 0,
           'fill-extrusion-opacity': 0.96,
           'fill-extrusion-vertical-gradient': true,
-          // Bâtiments sombres (ardoise/charbon) pour contraster avec le fond clair.
+          // Bâtiments CLAIRS (réf. Apple Plans / DA "Clair & précis") : le
+          // relief vient de la lumière, la couleur reste aux marqueurs.
+          // Les plus hauts sont à peine plus soutenus pour lire la ville.
           'fill-extrusion-color': [
             'interpolate',
             ['linear'],
             ['case', ['has', 'hauteur'], ['to-number', ['get', 'hauteur']], 3],
-            0, '#4a515f',
-            15, '#3a4150',
-            40, '#2b313d',
+            0, '#eae7e0',
+            15, '#dedad1',
+            40, '#cfcabf',
           ],
         },
       })
 
-      // Lumière directionnelle pour révéler le relief des façades sombres.
-      map.setLight({ anchor: 'viewport', color: '#ffffff', intensity: 0.45, position: [1.4, 200, 30] })
+      // Lumière directionnelle un peu plus marquée : sur des façades claires,
+      // c'est elle qui donne le relief.
+      map.setLight({ anchor: 'viewport', color: '#ffffff', intensity: 0.6, position: [1.4, 200, 30] })
 
       // Surbrillance du bâtiment sous le point sélectionné (la "maison s'illumine").
       map.addSource(SELECTED_BUILDING_SRC, { type: 'geojson', data: EMPTY_FC })
@@ -212,7 +225,14 @@ export function MapView({ profile }: { profile: Profile | null }) {
       // de rues restent visibles PAR-DESSUS la photo (vue hybride). Masquée par défaut.
       map.addSource(ORTHO_SOURCE_ID, orthoSource)
       map.addLayer(
-        { id: ORTHO_LAYER_ID, type: 'raster', source: ORTHO_SOURCE_ID, layout: { visibility: 'none' } },
+        {
+          id: ORTHO_LAYER_ID,
+          type: 'raster',
+          source: ORTHO_SOURCE_ID,
+          layout: { visibility: 'none' },
+          // La BD ORTHO est terne aux zooms moyens : on la ravive légèrement.
+          paint: { 'raster-saturation': 0.2, 'raster-contrast': 0.06 },
+        },
         beforeLabels,
       )
 
@@ -280,7 +300,9 @@ export function MapView({ profile }: { profile: Profile | null }) {
         filter: ['!', ['has', 'point_count']],
         layout: {
           'icon-image': ['concat', MARKER_PREFIX, ['get', 'status']],
-          'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.7, 16, 1],
+          // Continue de grossir aux zooms "toit" (le marqueur reste proportionné
+          // à la maison quand on est proche).
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.7, 16, 1, 19, 1.25],
           'icon-allow-overlap': true,
           'icon-ignore-placement': true,
           'icon-anchor': 'center',
