@@ -1171,6 +1171,10 @@
   z-index: 60;
   background: #000;
 }
+.street-canvas {
+  position: absolute;
+  inset: 0;
+}
 .street-img {
   position: absolute;
   inset: 0;

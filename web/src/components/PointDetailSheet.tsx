@@ -5,6 +5,9 @@ import { X, Trash2, Clock, User, Eye } from 'lucide-react'
 import { getPointDetail, type PointDetail } from '../data/points'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { hasMapillary } from '../lib/mapillary'
+import { hasGoogleStreetView } from '../lib/streetview'
+
+const hasStreetView = hasGoogleStreetView || hasMapillary
 import { STATUSES, STATUS_BY_VALUE, type PointStatus } from '../domain/status'
 import type { MapPoint } from '../domain/types'
 
@@ -113,7 +116,7 @@ export function PointDetailSheet({ open, point, onOpenChange, onUpdate, onDelete
             </div>
           )}
 
-          {hasMapillary && onStreetView && (
+          {hasStreetView && onStreetView && (
             <button type="button" className="street-btn" onClick={() => onStreetView(point)}>
               <Eye size={17} strokeWidth={1.9} /> Voir la rue
             </button>
