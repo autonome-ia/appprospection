@@ -18,6 +18,7 @@ export function StreetView({ lng, lat, onClose }: Props) {
   useEffect(() => {
     let viewer: Viewer | null = null
     let active = true
+    const timers: number[] = []
 
     findNearestImage(lng, lat)
       .then((id) => {
@@ -33,11 +34,25 @@ export function StreetView({ lng, lat, onClose }: Props) {
           imageId: id,
           component: { cover: false },
         })
+        // Corrige le rendu noir : le conteneur n'a sa taille finale
+        // qu'après l'affichage → on force un recalcul.
+        for (const delay of [100, 400, 900]) {
+          timers.push(
+            window.setTimeout(() => {
+              try {
+                viewer?.resize()
+              } catch {
+                /* viewer déjà retiré */
+              }
+            }, delay),
+          )
+        }
       })
       .catch(() => active && setState('none'))
 
     return () => {
       active = false
+      timers.forEach(clearTimeout)
       viewer?.remove()
     }
   }, [lng, lat])
