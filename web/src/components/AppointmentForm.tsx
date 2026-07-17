@@ -3,6 +3,7 @@ import { Drawer } from 'vaul'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
 import { createAppointment, updateAppointment } from '../data/appointments'
+import { addPointNote, setPointClientName } from '../data/points'
 import type { Appointment } from '../domain/appointments'
 import type { Profile } from '../domain/types'
 
@@ -65,6 +66,23 @@ export function AppointmentForm({ open, onOpenChange, profile, existing, pointId
         await updateAppointment(existing.id, { scheduled_at, ...payload })
       } else {
         await createAppointment(profile, { point_id: pointId ?? null, scheduled_at, ...payload })
+      }
+      // Le point lié hérite du contexte saisi ici (fiche maison cohérente) :
+      // nom du client synchronisé, note du RDV ajoutée au journal de la
+      // maison (à la création seulement, pour ne pas dupliquer à chaque
+      // modification). Best effort : un échec n'annule pas le RDV.
+      const linkedPointId = existing ? existing.point_id : (pointId ?? null)
+      if (linkedPointId) {
+        if (clientName) {
+          setPointClientName(linkedPointId, clientName).catch((e) =>
+            console.error('Synchro client du point :', e),
+          )
+        }
+        if (!existing && notes.trim()) {
+          addPointNote(profile, linkedPointId, notes.trim()).catch((e) =>
+            console.error('Note du RDV vers le journal :', e),
+          )
+        }
       }
       onOpenChange(false)
       onSaved()

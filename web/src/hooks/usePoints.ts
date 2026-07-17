@@ -6,6 +6,7 @@ import {
   insertPoint,
   updatePoint as dbUpdatePoint,
   deletePoint as dbDeletePoint,
+  addPointNote,
   subscribePoints,
 } from '../data/points'
 import type { MapPoint, Profile } from '../domain/types'
@@ -134,6 +135,22 @@ export function usePoints(profile: Profile | null) {
     [online, profile],
   )
 
+  // Ajoute une note au journal de la maison (les notes s'empilent, jamais
+  // écrasées). Met aussi à jour la "dernière note" locale (pastille, agenda).
+  const addNote = useCallback(
+    async (id: string, body: string) => {
+      const mapped = tempIdsRef.current.get(id)
+      const realId = mapped && mapped !== 'pending' && mapped !== 'cancelled' ? mapped : id
+      if (online && profile && mapped !== 'pending') {
+        await addPointNote(profile, realId, body) // les erreurs remontent
+      }
+      setPoints((prev) =>
+        prev.map((x) => (x.id === id || x.id === realId ? { ...x, note: body } : x)),
+      )
+    },
+    [online, profile],
+  )
+
   const removePoint = useCallback(
     async (id: string) => {
       const mapped = tempIdsRef.current.get(id)
@@ -158,5 +175,5 @@ export function usePoints(profile: Profile | null) {
     [online],
   )
 
-  return { points, addPoint, updatePoint, removePoint }
+  return { points, addPoint, updatePoint, addNote, removePoint }
 }

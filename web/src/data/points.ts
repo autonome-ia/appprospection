@@ -116,6 +116,55 @@ export async function deletePoint(id: string): Promise<void> {
   if (error) throw error
 }
 
+/** Une entrée du journal de notes d'une maison (table point_notes). */
+export interface PointNote {
+  id: string
+  body: string
+  created_at: string
+  author_name: string | null
+}
+
+/** Journal de notes d'un point, la plus récente en premier. */
+export async function fetchPointNotes(pointId: string): Promise<PointNote[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('point_notes')
+    .select('id, body, created_at, author:profiles(full_name)')
+    .eq('point_id', pointId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
+    id: r.id as string,
+    body: r.body as string,
+    created_at: r.created_at as string,
+    author_name: (r.author as { full_name: string | null } | null)?.full_name ?? null,
+  }))
+}
+
+/**
+ * Ajoute une note au journal de la maison, et rafraîchit `points.notes`
+ * (dernière note, dénormalisée : pastille carte + bloc contexte agenda).
+ */
+export async function addPointNote(profile: Profile, pointId: string, body: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase.from('point_notes').insert({
+    organization_id: profile.organization_id,
+    point_id: pointId,
+    author_id: profile.id,
+    body,
+  })
+  if (error) throw error
+  // Peut échouer en silence si le point appartient à un autre commercial
+  // (RLS update = auteur/manager) : la note du journal, elle, est enregistrée.
+  await supabase.from('points').update({ notes: body }).eq('id', pointId)
+}
+
+/** Synchronise le nom du client sur le point (depuis le formulaire RDV). */
+export async function setPointClientName(pointId: string, clientName: string | null): Promise<void> {
+  if (!supabase) return
+  await supabase.from('points').update({ client_name: clientName }).eq('id', pointId)
+}
+
 async function logEvent(profile: Profile, pointId: string, status: PointStatus, note?: string | null) {
   if (!supabase) return
   const { error } = await supabase.from('point_events').insert({

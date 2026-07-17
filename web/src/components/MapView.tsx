@@ -83,7 +83,7 @@ export function MapView({
   const baseLabelLayersRef = useRef<string[]>([])
   const labelHaloBackupRef = useRef(new Map<string, { color: unknown; width: unknown }>())
 
-  const { points, addPoint, updatePoint, removePoint } = usePoints(profile)
+  const { points, addPoint, updatePoint, addNote, removePoint } = usePoints(profile)
   const [activeStatus, setActiveStatus] = useState<PointStatus>('absent')
   const [orthoOn, setOrthoOn] = useState(true) // vue Toits par défaut
   const [is3d, setIs3d] = useState(false)
@@ -657,6 +657,7 @@ export function MapView({
         point={selectedPoint ?? lastSelectedRef.current}
         onOpenChange={(o) => !o && setSelectedId(null)}
         onUpdate={updatePoint}
+        onAddNote={addNote}
         onDelete={removePoint}
         onRdvNeeded={(p) => isSupabaseConfigured && setRdvPoint(p)}
       />
