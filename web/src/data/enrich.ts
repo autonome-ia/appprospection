@@ -1,5 +1,6 @@
 import proj4 from 'proj4'
 import { supabase } from '../lib/supabase'
+import type { Geometry } from 'geojson'
 
 // -----------------------------------------------------------------------------
 // Enrichissement "fiche maison" depuis l'open data (voir docs/etude-donnees-maisons.md)
@@ -72,6 +73,7 @@ function roofSurface(
 interface BdTopoResult {
   mat_toit: string | null
   toit_surface_m2: number | null
+  geometry: Geometry | null
 }
 
 async function fetchBdTopo(lng: number, lat: number): Promise<BdTopoResult> {
@@ -94,7 +96,7 @@ async function fetchBdTopo(lng: number, lat: number): Promise<BdTopoResult> {
     }[]
   }
   const f = j.features?.[0]
-  if (!f) return { mat_toit: null, toit_surface_m2: null }
+  if (!f) return { mat_toit: null, toit_surface_m2: null, geometry: null }
 
   const p = f.properties ?? {}
   const mat = typeof p.materiaux_de_la_toiture === 'string' ? p.materiaux_de_la_toiture : null
@@ -117,7 +119,11 @@ async function fetchBdTopo(lng: number, lat: number): Promise<BdTopoResult> {
       )
     }
   }
-  return { mat_toit: mat && mat.charAt(0) !== '0' ? mat : null, toit_surface_m2: surface }
+  return {
+    mat_toit: mat && mat.charAt(0) !== '0' ? mat : null,
+    toit_surface_m2: surface,
+    geometry: (g as Geometry | undefined) ?? null,
+  }
 }
 
 // --- BDNB (année de construction + DPE) --------------------------------------
@@ -155,28 +161,60 @@ async function fetchBdnb(lng: number, lat: number): Promise<BdnbResult> {
 
 // --- Orchestration ------------------------------------------------------------
 
+/** Fiche maison consultable AVANT prospection (avec le polygone du bâtiment). */
+export interface HouseInfo extends HouseEnrichment {
+  geometry: Geometry | null
+}
+
+// Cache mémoire par coordonnées (~1 m) : retaper la même maison, ou poser un
+// point après l'avoir consultée, ne refait aucun appel réseau (quota BDNB).
+const houseCache = new Map<string, Promise<HouseInfo>>()
+
+export function fetchHouseInfo(lng: number, lat: number): Promise<HouseInfo> {
+  const key = `${lng.toFixed(5)},${lat.toFixed(5)}`
+  const hit = houseCache.get(key)
+  if (hit) return hit
+  const p = loadHouseInfo(lng, lat)
+  houseCache.set(key, p)
+  p.catch(() => houseCache.delete(key)) // un échec réseau doit pouvoir être retenté
+  return p
+}
+
+async function loadHouseInfo(lng: number, lat: number): Promise<HouseInfo> {
+  const [topo, bdnb] = await Promise.allSettled([fetchBdTopo(lng, lat), fetchBdnb(lng, lat)])
+  const t =
+    topo.status === 'fulfilled'
+      ? topo.value
+      : { mat_toit: null, toit_surface_m2: null, geometry: null }
+  const b =
+    bdnb.status === 'fulfilled' ? bdnb.value : { annee_construction: null, dpe_classe: null }
+  if (topo.status === 'rejected') console.error('Enrichissement BD TOPO :', topo.reason)
+  if (bdnb.status === 'rejected') console.error('Enrichissement BDNB :', bdnb.reason)
+  return {
+    annee_construction: b.annee_construction,
+    mat_toit: t.mat_toit,
+    toit_surface_m2: t.toit_surface_m2,
+    dpe_classe: b.dpe_classe,
+    geometry: t.geometry,
+  }
+}
+
 /**
- * Récupère les infos maison et les met en cache sur le point (best effort :
- * si la RLS refuse l'update — point d'un autre commercial — les données sont
- * quand même retournées pour affichage local).
+ * Récupère les infos maison (via le cache) et les persiste sur le point
+ * (best effort : si la RLS refuse l'update — point d'un autre commercial —
+ * les données sont quand même retournées pour affichage local).
  */
 export async function enrichPoint(
   pointId: string,
   lng: number,
   lat: number,
 ): Promise<HouseEnrichment> {
-  const [topo, bdnb] = await Promise.allSettled([fetchBdTopo(lng, lat), fetchBdnb(lng, lat)])
-  const t = topo.status === 'fulfilled' ? topo.value : { mat_toit: null, toit_surface_m2: null }
-  const b =
-    bdnb.status === 'fulfilled' ? bdnb.value : { annee_construction: null, dpe_classe: null }
-  if (topo.status === 'rejected') console.error('Enrichissement BD TOPO :', topo.reason)
-  if (bdnb.status === 'rejected') console.error('Enrichissement BDNB :', bdnb.reason)
-
+  const info = await fetchHouseInfo(lng, lat)
   const enrich: HouseEnrichment = {
-    annee_construction: b.annee_construction,
-    mat_toit: t.mat_toit,
-    toit_surface_m2: t.toit_surface_m2,
-    dpe_classe: b.dpe_classe,
+    annee_construction: info.annee_construction,
+    mat_toit: info.mat_toit,
+    toit_surface_m2: info.toit_surface_m2,
+    dpe_classe: info.dpe_classe,
   }
 
   if (supabase) {

@@ -31,7 +31,7 @@ function rowToPoint(r: Record<string, unknown>): MapPoint {
 }
 
 /** Adresse la plus proche (géocodage inverse BAN). */
-async function reverseGeocode(lng: number, lat: number): Promise<string | null> {
+export async function reverseGeocode(lng: number, lat: number): Promise<string | null> {
   try {
     const r = await fetch(`https://data.geopf.fr/geocodage/reverse/?lon=${lng}&lat=${lat}`)
     const j = (await r.json()) as { features?: { properties?: { label?: string } }[] }

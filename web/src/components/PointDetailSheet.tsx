@@ -3,7 +3,8 @@ import { Drawer } from 'vaul'
 import { toast } from 'sonner'
 import { X, Trash2, Clock, User, MapPin } from 'lucide-react'
 import { getPointDetail, fetchPointNotes, type PointDetail, type PointNote } from '../data/points'
-import { matToitLabel, SUSPECT_YEARS, type HouseEnrichment } from '../domain/house'
+import type { HouseEnrichment } from '../domain/house'
+import { HouseBadges } from './HouseBadges'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { STATUSES, STATUS_BY_VALUE, type PointStatus } from '../domain/status'
 import type { MapPoint } from '../domain/types'
@@ -165,10 +166,10 @@ export function PointDetailSheet({
 
   // Fiche maison : le cache du point d'abord, sinon le fetch à la volée.
   const annee = point.annee_construction ?? liveEnrich?.annee_construction ?? null
-  const matToit = matToitLabel(point.mat_toit ?? liveEnrich?.mat_toit ?? null)
+  const matCode = point.mat_toit ?? liveEnrich?.mat_toit ?? null
   const toitM2 = point.toit_surface_m2 ?? liveEnrich?.toit_surface_m2 ?? null
   const dpe = point.dpe_classe ?? liveEnrich?.dpe_classe ?? null
-  const hasHouseInfo = annee !== null || matToit !== null || toitM2 !== null || dpe !== null
+  const hasHouseInfo = annee !== null || matCode !== null || toitM2 !== null || dpe !== null
 
   return (
     // Non modale : la carte reste visible et manipulable derrière (le point
@@ -224,43 +225,7 @@ export function PointDetailSheet({
             ))}
           </div>
 
-          {hasHouseInfo && (
-            <div className="house-badges">
-              {annee !== null && (
-                <span
-                  className="house-badge tnum"
-                  title={
-                    SUSPECT_YEARS.has(annee)
-                      ? 'Année approximative (valeur par défaut fréquente du cadastre)'
-                      : 'Année de construction (données fiscales, BDNB)'
-                  }
-                >
-                  ~{annee}
-                </span>
-              )}
-              {matToit && (
-                <span
-                  className="house-badge"
-                  title="Donnée fiscale — probable, une rénovation récente peut ne pas apparaître"
-                >
-                  {matToit}
-                </span>
-              )}
-              {toitM2 !== null && (
-                <span
-                  className="house-badge tnum"
-                  title="Estimation : emprise au sol × pente (altitudes IGN)"
-                >
-                  ~{toitM2} m² toit
-                </span>
-              )}
-              {dpe && (
-                <span className={`house-badge dpe dpe-${dpe.toLowerCase()}`} title="Classe DPE (BDNB)">
-                  DPE {dpe}
-                </span>
-              )}
-            </div>
-          )}
+          <HouseBadges annee={annee} matCode={matCode} toitM2={toitM2} dpe={dpe} />
 
           {status === 'a_revoir' && (
             <>

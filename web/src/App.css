@@ -1320,6 +1320,17 @@
 .house-badge.dpe-f { background: #e5702c; }
 .house-badge.dpe-g { background: #d7301f; }
 
+/* Fiche maison avant prospection */
+.house-loading {
+  margin: 8px 0 2px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.drawer-content .status-picker {
+  position: static;
+  padding: 0;
+}
+
 /* Mention de source (obligation Licence Ouverte) */
 .data-attribution {
   margin: 10px 0 0;

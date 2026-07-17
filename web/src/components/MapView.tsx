@@ -15,6 +15,9 @@ import { toast } from 'sonner'
 import { STATUSES, STATUS_BY_VALUE, statusColorExpression, type PointStatus } from '../domain/status'
 import { StatusPicker } from './StatusPicker'
 import { PointDetailSheet } from './PointDetailSheet'
+import { HousePreviewSheet } from './HousePreviewSheet'
+import { reverseGeocode } from '../data/points'
+import type { HouseInfo } from '../data/enrich'
 import { AddressSearch } from './AddressSearch'
 import { AppointmentForm } from './AppointmentForm'
 import { Layers, Box, Plus, SlidersHorizontal } from 'lucide-react'
@@ -29,6 +32,10 @@ const MARKERS_LAYER = 'points-markers'
 const SELECTED_LAYER = 'point-selected'
 const SELECTED_BUILDING_SRC = 'selected-building'
 const SELECTED_BUILDING_LAYER = 'selected-building-3d'
+// Surbrillance de la maison consultée (fiche maison avant prospection).
+const HOUSE_SRC = 'house-preview'
+const HOUSE_FILL_LAYER = 'house-preview-fill'
+const HOUSE_LINE_LAYER = 'house-preview-line'
 const NO_ID = '__none__'
 // Couleur de la DA (même valeur que --accent dans index.css : MapLibre ne
 // lit pas les variables CSS).
@@ -39,6 +46,11 @@ const HIT_TOLERANCE = 14
 // Zoom minimal pour poser un point au réticule (en dessous, on ne distingue
 // pas les maisons : la pose serait forcément imprécise).
 const PLACE_MIN_ZOOM = 15
+// Zoom minimal pour ouvrir la fiche maison d'un tap (évite les fiches
+// parasites en manipulant la carte au niveau ville).
+const PREVIEW_MIN_ZOOM = 16
+// Délai avant d'ouvrir la fiche maison : un double-tap (zoom) l'annule.
+const PREVIEW_DELAY = 300
 // Hauteur approximative de la sheet détail (px) : padding bas appliqué à la
 // carte pour recadrer le point sélectionné AU-DESSUS de la sheet.
 const SHEET_PADDING = 310
@@ -99,12 +111,20 @@ export function MapView({
   // filtres de la barre d'outils (la carte reste dégagée).
   const [statusFilter, setStatusFilter] = useState<ReadonlySet<PointStatus>>(new Set())
   const [filtersOpen, setFiltersOpen] = useState(false)
+  // Fiche maison AVANT prospection : maison tapée (sans marqueur) + ses infos.
+  const [housePreview, setHousePreview] = useState<{ lng: number; lat: number } | null>(null)
+  const [houseInfo, setHouseInfo] = useState<HouseInfo | null>(null)
+  const [houseAddress, setHouseAddress] = useState<string | null>(null)
 
   // Le handler de clic lit toujours les dernières valeurs via des refs.
   const selectedIdRef = useRef(selectedId)
   selectedIdRef.current = selectedId
   const placingRef = useRef(placing)
   placingRef.current = placing
+  const housePreviewRef = useRef(housePreview)
+  housePreviewRef.current = housePreview
+  // Ouverture de fiche maison en attente (timer) : annulée par un double-tap.
+  const pendingPreviewRef = useRef<number | null>(null)
 
   // Quitter l'onglet Carte ferme ce qui est ouvert (les drawers sont portés
   // dans <body> et resteraient visibles par-dessus l'autre onglet).
@@ -113,6 +133,7 @@ export function MapView({
       setSelectedId(null)
       setRdvPoint(null)
       setPlacing(false)
+      setHousePreview(null)
     }
   }, [active])
 
@@ -273,6 +294,22 @@ export function MapView({
         if (!map.hasImage(name)) map.addImage(name, images[key], { pixelRatio: 2 })
       }
 
+      // Surbrillance de la maison consultée (fiche maison) : contour + voile
+      // accent, visibles sur le plan comme sur l'ortho.
+      map.addSource(HOUSE_SRC, { type: 'geojson', data: EMPTY_FC })
+      map.addLayer({
+        id: HOUSE_FILL_LAYER,
+        type: 'fill',
+        source: HOUSE_SRC,
+        paint: { 'fill-color': ACCENT, 'fill-opacity': 0.15 },
+      })
+      map.addLayer({
+        id: HOUSE_LINE_LAYER,
+        type: 'line',
+        source: HOUSE_SRC,
+        paint: { 'line-color': ACCENT, 'line-width': 2.5 },
+      })
+
       // Source des points, avec regroupement (clustering). Seuils bas : dès
       // l'échelle quartier (z14+), on voit TOUS les points d'un coup d'œil —
       // les bulles ne subsistent qu'aux échelles ville.
@@ -376,13 +413,24 @@ export function MapView({
     map.on('mouseenter', MARKERS_LAYER, hover('pointer'))
     map.on('mouseleave', MARKERS_LAYER, hover(''))
 
-    // Clic : marqueur -> détail ; zone vide -> ferme le détail. Le zoom sur
-    // une bulle est géré par le donut lui-même (élément DOM). La POSE d'un
-    // point ne passe plus par le tap (source d'erreurs terrain) mais par le
-    // mode visée (réticule + bouton), voir confirmPlace().
+    const cancelPendingPreview = () => {
+      if (pendingPreviewRef.current !== null) {
+        window.clearTimeout(pendingPreviewRef.current)
+        pendingPreviewRef.current = null
+        return true
+      }
+      return false
+    }
+
+    // Clic : marqueur -> fiche point ; zone vide -> ferme ce qui est ouvert,
+    // sinon ouvre la FICHE MAISON (infos avant prospection) au zoom maison.
+    // Le zoom sur une bulle est géré par le donut lui-même (élément DOM).
     map.on('click', (e) => {
       // En mode visée, le tap ne sert qu'à naviguer.
       if (placingRef.current) return
+
+      // 2e tap rapproché = double-tap (zoom) : annule la fiche en attente.
+      const wasPending = cancelPendingPreview()
 
       const bbox: [[number, number], [number, number]] = [
         [e.point.x - HIT_TOLERANCE, e.point.y - HIT_TOLERANCE],
@@ -394,20 +442,61 @@ export function MapView({
 
       const marker = hits.find((f) => f.layer.id === MARKERS_LAYER)
       if (marker) {
+        setHousePreview(null)
         setSelectedId(marker.properties?.id as string)
         return
       }
 
-      if (selectedIdRef.current) setSelectedId(null)
+      // Un tap dans le vide ferme d'abord ce qui est ouvert.
+      if (selectedIdRef.current) {
+        setSelectedId(null)
+        return
+      }
+      if (housePreviewRef.current) {
+        setHousePreview(null)
+        return
+      }
+
+      // Zone vide juste après un tap annulé : c'était un double-tap-zoom.
+      if (wasPending) return
+      if (map.getZoom() < PREVIEW_MIN_ZOOM) return
+
+      // Ouverture différée : un double-tap dans l'intervalle l'annule.
+      const { lng, lat } = e.lngLat
+      pendingPreviewRef.current = window.setTimeout(() => {
+        pendingPreviewRef.current = null
+        setHousePreview({ lng, lat })
+      }, PREVIEW_DELAY)
     })
 
+    map.on('dblclick', cancelPendingPreview)
+
     return () => {
+      cancelPendingPreview()
       map.remove()
       mapRef.current = null
     }
   }, [])
 
-  // Pose le point sous le réticule (UI optimiste + toast avec "Annuler").
+  // Pose un point (UI optimiste + toast "Annuler"), puis enchaîne : RDV pris
+  // -> formulaire de rendez-vous ; autres statuts -> fiche du point (contexte
+  // à chaud). Utilisé par le réticule ET par la fiche maison.
+  const poseAt = (lng: number, lat: number, status: PointStatus) => {
+    const { point, saved } = addPoint(lng, lat, status)
+    toast.success(`Point posé — ${STATUS_BY_VALUE[status].label}`, {
+      action: { label: 'Annuler', onClick: () => void removePoint(point.id) },
+    })
+    void saved.then((created) => {
+      if (!created) return
+      if (status === 'rdv_pris' && isSupabaseConfigured) {
+        setRdvPoint(created)
+      } else {
+        setSelectedId(created.id)
+      }
+    })
+  }
+
+  // Pose le point sous le réticule.
   const confirmPlace = () => {
     const map = mapRef.current
     if (!map) return
@@ -418,23 +507,46 @@ export function MapView({
       return
     }
     const { lng, lat } = map.getCenter()
-    const { point, saved } = addPoint(lng, lat, activeStatus)
-    toast.success(`Point posé — ${STATUS_BY_VALUE[activeStatus].label}`, {
-      action: { label: 'Annuler', onClick: () => void removePoint(point.id) },
-    })
-    void saved.then((created) => {
-      if (!created) return
-      if (activeStatus === 'rdv_pris' && isSupabaseConfigured) {
-        // "RDV pris" enchaîne sur la saisie du rendez-vous (client, date…).
-        setRdvPoint(created)
-      } else {
-        // Autres statuts : la fiche s'ouvre pour saisir le contexte à chaud
-        // (client, note "pourquoi à revoir"…) — refermable d'un geste.
-        setSelectedId(created.id)
-      }
-    })
+    poseAt(lng, lat, activeStatus)
     setPlacing(false)
   }
+
+  // Charge les infos de la maison consultée (cache mémoire côté data/enrich).
+  useEffect(() => {
+    if (!housePreview) {
+      setHouseInfo(null)
+      setHouseAddress(null)
+      return
+    }
+    let alive = true
+    setHouseInfo(null)
+    setHouseAddress(null)
+    void import('../data/enrich')
+      .then((m) => m.fetchHouseInfo(housePreview.lng, housePreview.lat))
+      .then((info) => {
+        if (alive) setHouseInfo(info)
+      })
+      .catch((e) => console.error('Fiche maison :', e))
+    void reverseGeocode(housePreview.lng, housePreview.lat).then((label) => {
+      if (alive && label) setHouseAddress(label)
+    })
+    return () => {
+      alive = false
+    }
+  }, [housePreview])
+
+  // Surbrillance du polygone de la maison consultée.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapLoaded) return
+    const src = map.getSource(HOUSE_SRC) as maplibregl.GeoJSONSource | undefined
+    if (!src) return
+    if (housePreview && houseInfo?.geometry) {
+      src.setData({ type: 'Feature', geometry: houseInfo.geometry, properties: {} })
+    } else {
+      src.setData(EMPTY_FC)
+    }
+  }, [housePreview, houseInfo, mapLoaded])
 
   // Met à jour la source GeoJSON quand la liste de points ou le filtre change
   // OU quand la carte devient prête (évite le 1er rendu manqué si les points
@@ -659,7 +771,10 @@ export function MapView({
           <button
             type="button"
             className="map-fab"
-            onClick={() => setPlacing(true)}
+            onClick={() => {
+              setHousePreview(null)
+              setPlacing(true)
+            }}
             aria-label="Poser un point"
           >
             <Plus size={26} strokeWidth={2.2} />
@@ -693,6 +808,21 @@ export function MapView({
             </div>
           </div>
         </>
+      )}
+
+      {housePreview && (
+        <HousePreviewSheet
+          open
+          address={houseAddress}
+          info={houseInfo}
+          activeStatus={activeStatus}
+          onStatusChange={setActiveStatus}
+          onOpenChange={(o) => !o && setHousePreview(null)}
+          onPose={(status) => {
+            poseAt(housePreview.lng, housePreview.lat, status)
+            setHousePreview(null)
+          }}
+        />
       )}
 
       <PointDetailSheet
