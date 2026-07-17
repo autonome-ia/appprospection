@@ -84,9 +84,10 @@ export function PointDetailSheet({ open, point, onOpenChange, onUpdate, onDelete
   const current = STATUS_BY_VALUE[point.status]
 
   return (
-    <Drawer.Root open={open} onOpenChange={onOpenChange}>
+    // Non modale : la carte reste visible et manipulable derrière (le point
+    // sélectionné est recadré au-dessus de la sheet, voir MapView).
+    <Drawer.Root open={open} onOpenChange={onOpenChange} modal={false}>
       <Drawer.Portal>
-        <Drawer.Overlay className="drawer-overlay" />
         <Drawer.Content className="drawer-content">
           <div className="drawer-grip" />
 

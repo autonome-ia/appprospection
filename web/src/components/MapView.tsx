@@ -11,7 +11,7 @@ import {
 } from '../config/map'
 import { generateMarkerImages, MARKER_PREFIX } from '../config/markers'
 import { toast } from 'sonner'
-import { STATUS_BY_VALUE, type PointStatus } from '../domain/status'
+import { STATUS_BY_VALUE, statusColorExpression, type PointStatus } from '../domain/status'
 import { StatusPicker } from './StatusPicker'
 import { PointDetailSheet } from './PointDetailSheet'
 import { AddressSearch } from './AddressSearch'
@@ -40,6 +40,9 @@ const HIT_TOLERANCE = 14
 // Zoom minimal pour poser un point au réticule (en dessous, on ne distingue
 // pas les maisons : la pose serait forcément imprécise).
 const PLACE_MIN_ZOOM = 15
+// Hauteur approximative de la sheet détail (px) : padding bas appliqué à la
+// carte pour recadrer le point sélectionné AU-DESSUS de la sheet.
+const SHEET_PADDING = 310
 
 const EMPTY_FC: FeatureCollection<Point> = { type: 'FeatureCollection', features: [] }
 
@@ -299,7 +302,8 @@ export function MapView({ profile, active }: { profile: Profile | null; active: 
         filter: ['==', ['get', 'id'], NO_ID],
         paint: {
           'circle-radius': 22,
-          'circle-color': ACCENT,
+          // Halo dans la couleur du statut du point sélectionné.
+          'circle-color': statusColorExpression() as maplibregl.ExpressionSpecification,
           'circle-opacity': 0.25,
         },
       })
@@ -418,6 +422,26 @@ export function MapView({ profile, active }: { profile: Profile | null; active: 
     const map = mapRef.current
     if (!map || !mapLoaded || !map.getLayer(SELECTED_LAYER)) return
     map.setFilter(SELECTED_LAYER, ['==', ['get', 'id'], selectedId ?? NO_ID])
+  }, [selectedId, mapLoaded])
+
+  // La sheet détail (non modale) couvre le bas de l'écran : on recadre le
+  // point sélectionné au-dessus d'elle (padding bas), et on rend le padding
+  // à la fermeture (sans recentrer).
+  const pointsRef = useRef(points)
+  pointsRef.current = points
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapLoaded) return
+    const pt = selectedId ? pointsRef.current.find((p) => p.id === selectedId) : null
+    if (pt) {
+      map.easeTo({
+        center: [pt.lng, pt.lat],
+        padding: { top: 0, bottom: SHEET_PADDING, left: 0, right: 0 },
+        duration: 350,
+      })
+    } else {
+      map.easeTo({ padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: 250 })
+    }
   }, [selectedId, mapLoaded])
 
   // Surbrillance du bâtiment (maison) sous le point sélectionné.
