@@ -10,12 +10,7 @@ import {
   orthoSource,
 } from '../config/map'
 import { generateMarkerImages, MARKER_PREFIX } from '../config/markers'
-import {
-  clusterCountProperties,
-  clusterSignature,
-  createClusterDonut,
-  type ClusterProps,
-} from '../config/clusters'
+import { createClusterBadge, type ClusterProps } from '../config/clusters'
 import { toast } from 'sonner'
 import { STATUS_BY_VALUE, statusColorExpression, type PointStatus } from '../domain/status'
 import { StatusPicker } from './StatusPicker'
@@ -256,32 +251,32 @@ export function MapView({ profile, active }: { profile: Profile | null; active: 
         if (!map.hasImage(name)) map.addImage(name, images[status], { pixelRatio: 2 })
       }
 
-      // Source des points, avec regroupement (clustering) et compteurs par
-      // statut agrégés dans chaque bulle (pour les donuts).
+      // Source des points, avec regroupement (clustering). Seuils bas : dès
+      // l'échelle quartier (z14+), on voit TOUS les points d'un coup d'œil —
+      // les bulles ne subsistent qu'aux échelles ville.
       map.addSource(POINTS_SOURCE, {
         type: 'geojson',
         data: toFeatureCollection([]),
         cluster: true,
-        clusterRadius: 45,
-        clusterMaxZoom: 15,
-        clusterProperties: clusterCountProperties as never,
+        clusterRadius: 36,
+        clusterMaxZoom: 13,
       })
 
-      // Bulles de regroupement en DONUT (composition par statut) : marqueurs
-      // DOM synchronisés avec les clusters visibles à chaque mouvement.
-      const donuts = new Map<string, maplibregl.Marker>()
-      const updateDonuts = () => {
+      // Bulles de regroupement : badges DOM (police et tokens de la DA),
+      // synchronisés avec les clusters visibles à chaque mouvement.
+      const badges = new Map<string, maplibregl.Marker>()
+      const updateBadges = () => {
         const visible = new Set<string>()
         for (const f of map.querySourceFeatures(POINTS_SOURCE)) {
           const p = f.properties as ClusterProps | null
           if (!p || !p.cluster) continue
           const coords = (f.geometry as Point).coordinates as [number, number]
-          // Clé = id + composition : si la composition change, on redessine.
-          const key = `${p.cluster_id}:${clusterSignature(p)}`
+          // Clé = id + total : si le contenu change, on redessine.
+          const key = `${p.cluster_id}:${p.point_count}`
           if (visible.has(key)) continue // dédoublonne (tuiles voisines)
           visible.add(key)
-          if (donuts.has(key)) continue
-          const el = createClusterDonut(p)
+          if (badges.has(key)) continue
+          const el = createClusterBadge(p)
           el.addEventListener('click', (ev) => {
             ev.stopPropagation()
             const src = map.getSource(POINTS_SOURCE) as maplibregl.GeoJSONSource
@@ -289,21 +284,21 @@ export function MapView({ profile, active }: { profile: Profile | null; active: 
               map.easeTo({ center: coords, zoom })
             })
           })
-          donuts.set(key, new maplibregl.Marker({ element: el }).setLngLat(coords).addTo(map))
+          badges.set(key, new maplibregl.Marker({ element: el }).setLngLat(coords).addTo(map))
         }
-        for (const [key, m] of donuts) {
+        for (const [key, m] of badges) {
           if (!visible.has(key)) {
             m.remove()
-            donuts.delete(key)
+            badges.delete(key)
           }
         }
       }
       map.on('data', (e) => {
         const ev = e as maplibregl.MapSourceDataEvent
-        if (ev.sourceId === POINTS_SOURCE && ev.isSourceLoaded) updateDonuts()
+        if (ev.sourceId === POINTS_SOURCE && ev.isSourceLoaded) updateBadges()
       })
-      map.on('move', updateDonuts)
-      map.on('moveend', updateDonuts)
+      map.on('move', updateBadges)
+      map.on('moveend', updateBadges)
 
       // Surbrillance du point sélectionné (halo, sous les marqueurs).
       map.addLayer({
