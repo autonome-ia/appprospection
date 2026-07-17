@@ -14,4 +14,6 @@ export interface MapPoint {
   lng: number
   lat: number
   status: PointStatus
+  /** Note terrain (contexte de la maison) — aussi source de la pastille "a une note". */
+  note: string | null
 }

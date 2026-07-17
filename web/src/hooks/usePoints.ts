@@ -58,8 +58,8 @@ export function usePoints(profile: Profile | null) {
   }, [online])
 
   const addPoint = useCallback(
-    (lng: number, lat: number, status: PointStatus): AddPointResult => {
-      const temp: MapPoint = { id: `temp-${crypto.randomUUID()}`, lng, lat, status }
+    (lng: number, lat: number, status: PointStatus, note?: string | null): AddPointResult => {
+      const temp: MapPoint = { id: `temp-${crypto.randomUUID()}`, lng, lat, status, note: note ?? null }
       setPoints((prev) => [...prev, temp])
 
       if (!online || !profile) {
@@ -67,7 +67,7 @@ export function usePoints(profile: Profile | null) {
       }
 
       tempIdsRef.current.set(temp.id, 'pending')
-      const saved = insertPoint(profile, lng, lat, status)
+      const saved = insertPoint(profile, lng, lat, status, note)
         .then(async (p) => {
           if (tempIdsRef.current.get(temp.id) === 'cancelled') {
             // Annulé pendant l'enregistrement : on efface aussi en base.
@@ -102,14 +102,22 @@ export function usePoints(profile: Profile | null) {
       const mapped = tempIdsRef.current.get(id)
       const realId = mapped && mapped !== 'pending' && mapped !== 'cancelled' ? mapped : id
       if (online && profile && mapped !== 'pending') {
-        try {
-          const p = await dbUpdatePoint(profile, realId, changes)
-          setPoints((prev) => prev.map((x) => (x.id === id || x.id === realId ? p : x)))
-        } catch (e) {
-          console.error('Modification du point :', e)
-        }
-      } else if (changes.status !== undefined) {
-        setPoints((prev) => prev.map((x) => (x.id === id ? { ...x, status: changes.status! } : x)))
+        // Les erreurs (réseau, droits RLS : seul l'auteur ou le manager peut
+        // modifier) REMONTENT à l'appelant — pas de faux succès.
+        const p = await dbUpdatePoint(profile, realId, changes)
+        setPoints((prev) => prev.map((x) => (x.id === id || x.id === realId ? p : x)))
+      } else {
+        setPoints((prev) =>
+          prev.map((x) =>
+            x.id === id
+              ? {
+                  ...x,
+                  ...(changes.status !== undefined ? { status: changes.status } : {}),
+                  ...(changes.note !== undefined ? { note: changes.note } : {}),
+                }
+              : x,
+          ),
+        )
       }
     },
     [online, profile],

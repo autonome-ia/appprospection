@@ -35,7 +35,9 @@ export function PointDetailSheet({ open, point, onOpenChange, onUpdate, onDelete
   useEffect(() => {
     if (!point) return
     setStatus(point.status)
-    setNote('')
+    // La note vient du point déjà chargé (carte) : éditable même si le fetch
+    // du détail (date/auteur) échoue ou traîne.
+    setNote(point.note ?? '')
     setDetail(null)
     // Point en cours d'enregistrement (id temporaire, pose optimiste) : pas
     // encore de détail en base.
@@ -43,10 +45,7 @@ export function PointDetailSheet({ open, point, onOpenChange, onUpdate, onDelete
     let active = true
     getPointDetail(point.id)
       .then((d) => {
-        if (!active || !d) return
-        setDetail(d)
-        setStatus(d.status)
-        setNote(d.note ?? '')
+        if (active && d) setDetail(d)
       })
       .catch((e) => console.error('Détail du point :', e))
     return () => {
@@ -56,20 +55,26 @@ export function PointDetailSheet({ open, point, onOpenChange, onUpdate, onDelete
 
   if (!point) return null
 
-  const dirty = status !== point.status || (detail !== null && note !== (detail.note ?? ''))
+  const dirty = status !== point.status || note !== (point.note ?? '')
 
   async function save() {
     if (!point) return
     setSaving(true)
     const changes: { status?: PointStatus; note?: string | null } = {}
     if (status !== point.status) changes.status = status
-    if (detail && note !== (detail.note ?? '')) changes.note = note.trim() ? note.trim() : null
+    if (note !== (point.note ?? '')) changes.note = note.trim() ? note.trim() : null
     const becameRdv = changes.status === 'rdv_pris'
-    await onUpdate(point.id, changes)
-    setSaving(false)
-    onOpenChange(false)
-    toast.success('Point mis à jour')
-    if (becameRdv) onRdvNeeded?.({ ...point, status: 'rdv_pris' })
+    try {
+      await onUpdate(point.id, changes)
+      onOpenChange(false)
+      toast.success('Point mis à jour')
+      if (becameRdv) onRdvNeeded?.({ ...point, status: 'rdv_pris' })
+    } catch (e) {
+      console.error('Modification du point :', e)
+      toast.error('Modification impossible — réseau, ou point d’un autre commercial')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function remove() {

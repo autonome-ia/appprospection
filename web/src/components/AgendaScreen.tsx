@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Phone, Pencil, Trash2, CalendarClock, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Phone, Pencil, Trash2, CalendarClock, ChevronLeft, ChevronRight, StickyNote, MapPin } from 'lucide-react'
 import {
   fetchAppointments,
   deleteAppointment,
@@ -28,10 +28,11 @@ interface CardProps {
   profile: Profile
   onChanged: () => void
   onEdit: (a: Appointment) => void
+  onShowOnMap?: (target: { pointId: string; lng: number; lat: number }) => void
   timeOnly?: boolean
 }
 
-function AppointmentCard({ appt, who, profile, onChanged, onEdit, timeOnly }: CardProps) {
+function AppointmentCard({ appt, who, profile, onChanged, onEdit, onShowOnMap, timeOnly }: CardProps) {
   const meta = APPOINTMENT_STATUS_META[appt.status]
   const color = who ? colorForCommercial(who.id, who.color) : '#98a2b3'
 
@@ -47,6 +48,21 @@ function AppointmentCard({ appt, who, profile, onChanged, onEdit, timeOnly }: Ca
       {appt.client_name && <div className="appt-client">{appt.client_name}</div>}
       {appt.address && <div className="appt-address">{appt.address}</div>}
 
+      {/* Les notes sont LE contexte du commercial : toujours visibles, quel
+          que soit le statut du RDV. */}
+      {appt.notes && (
+        <div className="appt-note">
+          <StickyNote size={13} strokeWidth={1.9} />
+          <span>{appt.notes}</span>
+        </div>
+      )}
+      {appt.point?.notes && appt.point.notes !== appt.notes && (
+        <div className="appt-note is-context">
+          <MapPin size={13} strokeWidth={1.9} />
+          <span>{appt.point.notes}</span>
+        </div>
+      )}
+
       <div className="appt-foot">
         <span className="appt-who">
           <span className="status-dot" style={{ background: color }} />
@@ -60,46 +76,58 @@ function AppointmentCard({ appt, who, profile, onChanged, onEdit, timeOnly }: Ca
       </div>
 
       {appt.status === 'a_venir' && (
-        <>
-          <div className="appt-outcomes">
-            {APPOINTMENT_OUTCOMES.map((o) => {
-              const m = APPOINTMENT_STATUS_META[o]
-              return (
-                <button
-                  key={o}
-                  type="button"
-                  className="outcome-btn"
-                  style={{ color: m.color, borderColor: `${m.color}55` }}
-                  onClick={async () => {
-                    await setAppointmentOutcome(profile, appt, o)
-                    onChanged()
-                    toast.success(`RDV marqué « ${m.label} »`)
-                  }}
-                >
-                  {m.label}
-                </button>
-              )
-            })}
-          </div>
-          <div className="appt-actions">
-            <button type="button" className="text-btn" onClick={() => onEdit(appt)}>
-              <Pencil size={14} strokeWidth={1.8} /> Modifier
-            </button>
-            <button
-              type="button"
-              className="text-btn danger"
-              onClick={async () => {
-                if (!window.confirm('Supprimer ce RDV ?')) return
-                await deleteAppointment(appt.id)
-                onChanged()
-                toast('RDV supprimé')
-              }}
-            >
-              <Trash2 size={14} strokeWidth={1.8} /> Supprimer
-            </button>
-          </div>
-        </>
+        <div className="appt-outcomes">
+          {APPOINTMENT_OUTCOMES.map((o) => {
+            const m = APPOINTMENT_STATUS_META[o]
+            return (
+              <button
+                key={o}
+                type="button"
+                className="outcome-btn"
+                style={{ color: m.color, borderColor: `${m.color}55` }}
+                onClick={async () => {
+                  await setAppointmentOutcome(profile, appt, o)
+                  onChanged()
+                  toast.success(`RDV marqué « ${m.label} »`)
+                }}
+              >
+                {m.label}
+              </button>
+            )
+          })}
+        </div>
       )}
+
+      {/* Accessible quel que soit le statut : un RDV vendu/effectué doit
+          rester consultable et modifiable (notes = mémoire client). */}
+      <div className="appt-actions">
+        {appt.point && onShowOnMap && (
+          <button
+            type="button"
+            className="text-btn"
+            onClick={() =>
+              onShowOnMap({ pointId: appt.point!.id, lng: appt.point!.lng, lat: appt.point!.lat })
+            }
+          >
+            <MapPin size={14} strokeWidth={1.8} /> Carte
+          </button>
+        )}
+        <button type="button" className="text-btn" onClick={() => onEdit(appt)}>
+          <Pencil size={14} strokeWidth={1.8} /> Modifier
+        </button>
+        <button
+          type="button"
+          className="text-btn danger"
+          onClick={async () => {
+            if (!window.confirm('Supprimer ce RDV ?')) return
+            await deleteAppointment(appt.id)
+            onChanged()
+            toast('RDV supprimé')
+          }}
+        >
+          <Trash2 size={14} strokeWidth={1.8} /> Supprimer
+        </button>
+      </div>
     </div>
   )
 }
@@ -132,7 +160,13 @@ function monthCells(monthDate: Date): Date[] {
 }
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
-export function AgendaScreen({ profile }: { profile: Profile | null }) {
+export function AgendaScreen({
+  profile,
+  onShowOnMap,
+}: {
+  profile: Profile | null
+  onShowOnMap?: (target: { pointId: string; lng: number; lat: number }) => void
+}) {
   const [appts, setAppts] = useState<Appointment[]>([])
   const [profiles, setProfiles] = useState<OrgProfile[]>([])
   const [creating, setCreating] = useState(false)
@@ -259,6 +293,7 @@ export function AgendaScreen({ profile }: { profile: Profile | null }) {
               profile={profile}
               onChanged={reload}
               onEdit={setEditing}
+              onShowOnMap={onShowOnMap}
               timeOnly
             />
           ))

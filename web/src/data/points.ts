@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase'
 import type { MapPoint, Profile } from '../domain/types'
 import type { PointStatus } from '../domain/status'
 
-const COLS = 'id, lng, lat, status'
+const COLS = 'id, lng, lat, status, notes'
 
 /** Détail complet d'un point (panneau au clic). */
 export interface PointDetail extends MapPoint {
@@ -17,6 +17,7 @@ function rowToPoint(r: Record<string, unknown>): MapPoint {
     lng: r.lng as number,
     lat: r.lat as number,
     status: r.status as PointStatus,
+    note: (r.notes as string | null) ?? null,
   }
 }
 
@@ -64,18 +65,26 @@ export async function insertPoint(
   lng: number,
   lat: number,
   status: PointStatus,
+  note?: string | null,
 ): Promise<MapPoint> {
   if (!supabase) throw new Error('Supabase non configuré')
 
   const { data, error } = await supabase
     .from('points')
-    .insert({ organization_id: profile.organization_id, created_by: profile.id, status, lat, lng })
+    .insert({
+      organization_id: profile.organization_id,
+      created_by: profile.id,
+      status,
+      lat,
+      lng,
+      notes: note ?? null,
+    })
     .select(COLS)
     .single()
   if (error) throw error
 
   const point = rowToPoint(data as Record<string, unknown>)
-  await logEvent(profile, point.id, status)
+  await logEvent(profile, point.id, status, note)
   return point
 }
 
@@ -94,7 +103,7 @@ export async function updatePoint(
   const { data, error } = await supabase.from('points').update(patch).eq('id', id).select(COLS).single()
   if (error) throw error
 
-  if (changes.status !== undefined) await logEvent(profile, id, changes.status)
+  if (changes.status !== undefined) await logEvent(profile, id, changes.status, changes.note)
   return rowToPoint(data as Record<string, unknown>)
 }
 
@@ -105,13 +114,14 @@ export async function deletePoint(id: string): Promise<void> {
   if (error) throw error
 }
 
-async function logEvent(profile: Profile, pointId: string, status: PointStatus) {
+async function logEvent(profile: Profile, pointId: string, status: PointStatus, note?: string | null) {
   if (!supabase) return
   const { error } = await supabase.from('point_events').insert({
     organization_id: profile.organization_id,
     point_id: pointId,
     author_id: profile.id,
     status,
+    note: note ?? null,
   })
   if (error) console.error('Journal (point_events) :', error.message)
 }

@@ -13,6 +13,8 @@ interface Props {
   existing?: Appointment | null
   pointId?: string | null
   coords?: { lng: number; lat: number } | null
+  /** Note terrain du point lié (affichée en contexte, non éditable ici). */
+  pointNote?: string | null
   onSaved: () => void
 }
 
@@ -27,7 +29,7 @@ function defaultWhen(): string {
   return toLocalInput(d)
 }
 
-export function AppointmentForm({ open, onOpenChange, profile, existing, pointId, coords, onSaved }: Props) {
+export function AppointmentForm({ open, onOpenChange, profile, existing, pointId, coords, pointNote, onSaved }: Props) {
   const [when, setWhen] = useState(existing ? toLocalInput(new Date(existing.scheduled_at)) : defaultWhen())
   const [clientName, setClientName] = useState(existing?.client_name ?? '')
   const [clientPhone, setClientPhone] = useState(existing?.client_phone ?? '')
@@ -124,10 +126,18 @@ export function AppointmentForm({ open, onOpenChange, profile, existing, pointId
             onChange={(e) => setAddress(e.target.value)}
           />
 
-          <p className="eyebrow field-label">Note</p>
+          {(pointNote ?? existing?.point?.notes) && (
+            <>
+              <p className="eyebrow field-label">Note du point (terrain)</p>
+              <p className="form-context-note">{pointNote ?? existing?.point?.notes}</p>
+            </>
+          )}
+
+          <p className="eyebrow field-label">Note du RDV</p>
           <textarea
             className="field-input"
             rows={2}
+            placeholder="Ex : sonner 2 fois, passer par l’arrière, devis à préparer…"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />

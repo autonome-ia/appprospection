@@ -130,6 +130,9 @@
   position: static;
   padding: 0;
 }
+.place-note {
+  font-size: 14px;
+}
 .place-actions {
   display: flex;
   gap: 10px;
@@ -556,6 +559,32 @@
   color: var(--ink-2);
   margin-top: 2px;
 }
+/* Notes du RDV (StickyNote) et contexte terrain du point lié (MapPin) */
+.appt-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.appt-note svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--ink-3);
+}
+.appt-note.is-context {
+  background: var(--accent-weak);
+  color: var(--ink-2);
+}
+.appt-note.is-context svg {
+  color: var(--accent);
+}
+
 .appt-foot {
   display: flex;
   align-items: center;
@@ -1184,6 +1213,17 @@
   box-shadow: var(--shadow-lg);
   outline: none;
 }
+/* Note du point affichée en contexte (lecture seule) dans le form RDV */
+.form-context-note {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--accent-weak);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
 .drawer-grip {
   flex: 0 0 auto;
   width: 38px;

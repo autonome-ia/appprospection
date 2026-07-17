@@ -10,6 +10,8 @@ export interface Appointment {
   client_phone: string | null
   status: AppointmentStatus
   notes: string | null
+  /** Point lié (jointure PostgREST) : contexte terrain + accès carte. */
+  point: { id: string; lng: number; lat: number; notes: string | null } | null
 }
 
 export interface AppointmentStatusMeta {

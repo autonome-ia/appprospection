@@ -9,7 +9,7 @@ import {
   ORTHO_SOURCE_ID,
   orthoSource,
 } from '../config/map'
-import { generateMarkerImages, MARKER_PREFIX } from '../config/markers'
+import { generateMarkerImages, MARKER_PREFIX, NOTE_SUFFIX } from '../config/markers'
 import { createClusterBadge, type ClusterProps } from '../config/clusters'
 import { toast } from 'sonner'
 import { STATUS_BY_VALUE, statusColorExpression, type PointStatus } from '../domain/status'
@@ -51,12 +51,29 @@ function toFeatureCollection(points: MapPoint[]): FeatureCollection<Point> {
     features: points.map((p) => ({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
-      properties: { id: p.id, status: p.status },
+      properties: { id: p.id, status: p.status, has_note: Boolean(p.note && p.note.trim()) },
     })),
   }
 }
 
-export function MapView({ profile, active }: { profile: Profile | null; active: boolean }) {
+/** Cible à montrer sur la carte (depuis l'agenda : « Voir sur la carte »). */
+export interface MapFocus {
+  pointId: string
+  lng: number
+  lat: number
+}
+
+export function MapView({
+  profile,
+  active,
+  focus,
+  onFocusHandled,
+}: {
+  profile: Profile | null
+  active: boolean
+  focus?: MapFocus | null
+  onFocusHandled?: () => void
+}) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   // Couches de bâtiments du fond Plan IGN (à masquer en mode Toits).
@@ -77,6 +94,8 @@ export function MapView({ profile, active }: { profile: Profile | null; active: 
   // Mode visée : réticule au centre, on déplace la carte sous le viseur puis
   // on valide — le doigt ne masque jamais la maison, aucun tap accidentel.
   const [placing, setPlacing] = useState(false)
+  // Note saisie au moment de la pose (capture du contexte "à chaud").
+  const [placeNote, setPlaceNote] = useState('')
 
   // Le handler de clic lit toujours les dernières valeurs via des refs.
   const selectedIdRef = useRef(selectedId)
@@ -244,11 +263,11 @@ export function MapView({ profile, active }: { profile: Profile | null; active: 
         beforeLabels,
       )
 
-      // Marqueurs (images générées par statut).
+      // Marqueurs (images générées par statut + variantes "a une note").
       const images = generateMarkerImages()
-      for (const status of Object.keys(images) as PointStatus[]) {
-        const name = `${MARKER_PREFIX}${status}`
-        if (!map.hasImage(name)) map.addImage(name, images[status], { pixelRatio: 2 })
+      for (const key of Object.keys(images)) {
+        const name = `${MARKER_PREFIX}${key}`
+        if (!map.hasImage(name)) map.addImage(name, images[key], { pixelRatio: 2 })
       }
 
       // Source des points, avec regroupement (clustering). Seuils bas : dès
@@ -321,7 +340,12 @@ export function MapView({ profile, active }: { profile: Profile | null; active: 
         source: POINTS_SOURCE,
         filter: ['!', ['has', 'point_count']],
         layout: {
-          'icon-image': ['concat', MARKER_PREFIX, ['get', 'status']],
+          'icon-image': [
+            'concat',
+            MARKER_PREFIX,
+            ['get', 'status'],
+            ['case', ['get', 'has_note'], NOTE_SUFFIX, ''],
+          ],
           // Continue de grossir aux zooms "toit" (le marqueur reste proportionné
           // à la maison quand on est proche).
           'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.7, 16, 1, 19, 1.25],
@@ -391,7 +415,9 @@ export function MapView({ profile, active }: { profile: Profile | null; active: 
       return
     }
     const { lng, lat } = map.getCenter()
-    const { point, saved } = addPoint(lng, lat, activeStatus)
+    const note = placeNote.trim() ? placeNote.trim() : null
+    const { point, saved } = addPoint(lng, lat, activeStatus, note)
+    setPlaceNote('')
     toast.success(`Point posé — ${STATUS_BY_VALUE[activeStatus].label}`, {
       action: { label: 'Annuler', onClick: () => void removePoint(point.id) },
     })
@@ -425,9 +451,16 @@ export function MapView({ profile, active }: { profile: Profile | null; active: 
   // à la fermeture (sans recentrer).
   const pointsRef = useRef(points)
   pointsRef.current = points
+  // Vrai quand un flyTo "focus" (venu de l'agenda) gère déjà la caméra : le
+  // recadrage de sélection ne doit pas l'interrompre.
+  const skipRecenterRef = useRef(false)
   useEffect(() => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
+    if (skipRecenterRef.current) {
+      skipRecenterRef.current = false
+      return
+    }
     const pt = selectedId ? pointsRef.current.find((p) => p.id === selectedId) : null
     if (pt) {
       map.easeTo({
@@ -439,6 +472,20 @@ export function MapView({ profile, active }: { profile: Profile | null; active: 
       map.easeTo({ padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: 250 })
     }
   }, [selectedId, mapLoaded])
+
+  // « Voir sur la carte » depuis l'agenda : vole vers le point et le sélectionne.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!focus || !map || !mapLoaded) return
+    skipRecenterRef.current = true
+    map.flyTo({
+      center: [focus.lng, focus.lat],
+      zoom: 18,
+      padding: { top: 0, bottom: SHEET_PADDING, left: 0, right: 0 },
+    })
+    setSelectedId(focus.pointId)
+    onFocusHandled?.()
+  }, [focus, mapLoaded, onFocusHandled])
 
   // Surbrillance du bâtiment (maison) sous le point sélectionné.
   useEffect(() => {
@@ -569,7 +616,10 @@ export function MapView({ profile, active }: { profile: Profile | null; active: 
         <button
           type="button"
           className="map-fab"
-          onClick={() => setPlacing(true)}
+          onClick={() => {
+            setPlaceNote('')
+            setPlacing(true)
+          }}
           aria-label="Poser un point"
         >
           <Plus size={26} strokeWidth={2.2} />
@@ -592,6 +642,13 @@ export function MapView({ profile, active }: { profile: Profile | null; active: 
           <div className="place-bar">
             <p className="eyebrow place-hint">Déplacez la carte — la maison sous le viseur</p>
             <StatusPicker active={activeStatus} onChange={setActiveStatus} />
+            <input
+              className="field-input place-note"
+              type="text"
+              placeholder="Note (facultatif) : repasser en soirée, portail bleu…"
+              value={placeNote}
+              onChange={(e) => setPlaceNote(e.target.value)}
+            />
             <div className="place-actions">
               <button type="button" className="btn btn-ghost" onClick={() => setPlacing(false)}>
                 Annuler
@@ -620,6 +677,7 @@ export function MapView({ profile, active }: { profile: Profile | null; active: 
           profile={profile}
           pointId={rdvPoint.id}
           coords={{ lng: rdvPoint.lng, lat: rdvPoint.lat }}
+          pointNote={rdvPoint.note}
           onSaved={() => setRdvPoint(null)}
         />
       )}

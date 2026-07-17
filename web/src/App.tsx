@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Toaster } from 'sonner'
-import { MapView } from './components/MapView'
+import { MapView, type MapFocus } from './components/MapView'
 import { BottomNav, type Tab } from './components/BottomNav'
 import { AuthScreen } from './components/AuthScreen'
 import { AccueilScreen } from './components/AccueilScreen'
@@ -13,6 +13,8 @@ import './App.css'
 function AppInner() {
   const { loading, session, profile } = useSession()
   const [tab, setTab] = useState<Tab>('carte')
+  // Cible « Voir sur la carte » (depuis l'agenda) : consommée par MapView.
+  const [mapFocus, setMapFocus] = useState<MapFocus | null>(null)
 
   if (loading) {
     return (
@@ -34,10 +36,23 @@ function AppInner() {
             onglet est actif) : retour instantané, position/zoom conservés,
             pas de re-téléchargement des tuiles. */}
         <div className={`map-slot ${tab === 'carte' ? '' : 'is-hidden'}`}>
-          <MapView profile={profile} active={tab === 'carte'} />
+          <MapView
+            profile={profile}
+            active={tab === 'carte'}
+            focus={mapFocus}
+            onFocusHandled={() => setMapFocus(null)}
+          />
         </div>
         {tab === 'accueil' ? <AccueilScreen /> : null}
-        {tab === 'agenda' ? <AgendaScreen profile={profile} /> : null}
+        {tab === 'agenda' ? (
+          <AgendaScreen
+            profile={profile}
+            onShowOnMap={(target) => {
+              setMapFocus(target)
+              setTab('carte')
+            }}
+          />
+        ) : null}
         {tab === 'stats' ? <StatsScreen profile={profile} /> : null}
       </main>
 

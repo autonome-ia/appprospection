@@ -4,6 +4,8 @@ import { STATUSES, type PointStatus } from '../domain/status'
 // dessinées sur canvas en 2x pour un rendu net (retina). Nom d'image : marker-<statut>.
 
 export const MARKER_PREFIX = 'marker-'
+/** Suffixe des variantes "a une note" (pastille en haut à droite). */
+export const NOTE_SUFFIX = '-note'
 const SIZE = 64 // px canvas (pixelRatio 2 => ~32px à l'écran)
 
 function drawGlyph(ctx: CanvasRenderingContext2D, status: PointStatus, cx: number, cy: number) {
@@ -62,7 +64,7 @@ function drawGlyph(ctx: CanvasRenderingContext2D, status: PointStatus, cx: numbe
   }
 }
 
-function drawMarker(color: string, status: PointStatus): ImageData {
+function drawMarker(color: string, status: PointStatus, withNote = false): ImageData {
   const canvas = document.createElement('canvas')
   canvas.width = SIZE
   canvas.height = SIZE
@@ -91,13 +93,30 @@ function drawMarker(color: string, status: PointStatus): ImageData {
 
   drawGlyph(ctx, status, cx, cy)
 
+  // Pastille "a une note" : petit disque blanc + point accent, en haut à
+  // droite du badge — signale un contexte terrain sans ouvrir la fiche.
+  if (withNote) {
+    const bx = cx + r * 0.74
+    const by = cy - r * 0.74
+    ctx.beginPath()
+    ctx.arc(bx, by, 7.5, 0, Math.PI * 2)
+    ctx.fillStyle = '#ffffff'
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(bx, by, 3.5, 0, Math.PI * 2)
+    ctx.fillStyle = '#2f6bff' // = --accent (index.css)
+    ctx.fill()
+  }
+
   return ctx.getImageData(0, 0, SIZE, SIZE)
 }
 
-export function generateMarkerImages(): Record<PointStatus, ImageData> {
-  const out = {} as Record<PointStatus, ImageData>
+/** Images de marqueurs : une par statut + une variante "-note" par statut. */
+export function generateMarkerImages(): Record<string, ImageData> {
+  const out: Record<string, ImageData> = {}
   for (const s of STATUSES) {
     out[s.value] = drawMarker(s.color, s.value)
+    out[`${s.value}${NOTE_SUFFIX}`] = drawMarker(s.color, s.value, true)
   }
   return out
 }

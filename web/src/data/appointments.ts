@@ -2,8 +2,10 @@ import { supabase } from '../lib/supabase'
 import type { Profile } from '../domain/types'
 import type { Appointment, AppointmentStatus } from '../domain/appointments'
 
+// `point:points(...)` = jointure PostgREST sur le point lié : contexte
+// terrain (note de la maison) + coordonnées pour « Voir sur la carte ».
 const COLS =
-  'id, point_id, commercial_id, scheduled_at, address, client_name, client_phone, status, notes'
+  'id, point_id, commercial_id, scheduled_at, address, client_name, client_phone, status, notes, point:points(id, lng, lat, notes)'
 
 export interface NewAppointment {
   point_id?: string | null
@@ -18,7 +20,9 @@ export async function fetchAppointments(): Promise<Appointment[]> {
   if (!supabase) return []
   const { data, error } = await supabase.from('appointments').select(COLS).order('scheduled_at')
   if (error) throw error
-  return (data ?? []) as Appointment[]
+  // Cast via unknown : l'embed `point` est typé tableau par le client (FK
+  // inconnu sans types générés) mais PostgREST renvoie un objet (many-to-one).
+  return (data ?? []) as unknown as Appointment[]
 }
 
 export async function createAppointment(
@@ -43,7 +47,7 @@ export async function createAppointment(
     .select(COLS)
     .single()
   if (error) throw error
-  return data as Appointment
+  return data as unknown as Appointment
 }
 
 export async function updateAppointment(
@@ -53,7 +57,7 @@ export async function updateAppointment(
   if (!supabase) throw new Error('Supabase non configuré')
   const { data, error } = await supabase.from('appointments').update(changes).eq('id', id).select(COLS).single()
   if (error) throw error
-  return data as Appointment
+  return data as unknown as Appointment
 }
 
 export async function deleteAppointment(id: string): Promise<void> {
