@@ -2,7 +2,8 @@ import { supabase } from '../lib/supabase'
 import type { MapPoint, Profile } from '../domain/types'
 import type { PointStatus } from '../domain/status'
 
-const COLS = 'id, lng, lat, status, notes, client_name, address, revisit_at'
+const COLS =
+  'id, lng, lat, status, notes, client_name, address, revisit_at, annee_construction, mat_toit, toit_surface_m2, dpe_classe, enriched_at'
 
 /** Détail complet d'un point (panneau au clic). */
 export interface PointDetail extends MapPoint {
@@ -21,6 +22,11 @@ function rowToPoint(r: Record<string, unknown>): MapPoint {
     client_name: (r.client_name as string | null) ?? null,
     address: (r.address as string | null) ?? null,
     revisit_at: (r.revisit_at as string | null) ?? null,
+    annee_construction: (r.annee_construction as number | null) ?? null,
+    mat_toit: (r.mat_toit as string | null) ?? null,
+    toit_surface_m2: (r.toit_surface_m2 as number | null) ?? null,
+    dpe_classe: (r.dpe_classe as string | null) ?? null,
+    enriched_at: (r.enriched_at as string | null) ?? null,
   }
 }
 
@@ -99,13 +105,18 @@ export async function insertPoint(
 
   const point = rowToPoint(data as Record<string, unknown>)
   await logEvent(profile, point.id, status, note)
-  // Adresse en arrière-plan (n'attend pas : la pose doit rester instantanée).
-  // Le temps réel propage la mise à jour à tous les clients.
+  // Adresse + fiche maison (open data) en arrière-plan : la pose reste
+  // instantanée, le temps réel propage les mises à jour à tous les clients.
   void reverseGeocode(lng, lat).then((label) => {
     if (label && supabase) {
       void supabase.from('points').update({ address: label }).eq('id', point.id)
     }
   })
+  // Import dynamique : le module d'enrichissement embarque proj4, inutile de
+  // l'inclure dans le bundle principal.
+  void import('./enrich')
+    .then((m) => m.enrichPoint(point.id, lng, lat))
+    .catch((e) => console.error('Enrichissement :', e))
   return point
 }
 

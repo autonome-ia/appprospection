@@ -69,6 +69,11 @@ export function usePoints(profile: Profile | null) {
         client_name: null,
         address: null,
         revisit_at: null,
+        annee_construction: null,
+        mat_toit: null,
+        toit_surface_m2: null,
+        dpe_classe: null,
+        enriched_at: null,
       }
       setPoints((prev) => [...prev, temp])
 

@@ -1289,6 +1289,45 @@
   color: var(--ink-3);
 }
 
+/* Fiche maison enrichie (open data) : badges compacts sous l'en-tête */
+.house-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 2px;
+}
+.house-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.house-badge.dpe {
+  color: #ffffff;
+  border-color: transparent;
+  font-weight: 600;
+}
+.house-badge.dpe-a { background: #1a9850; }
+.house-badge.dpe-b { background: #52b153; }
+.house-badge.dpe-c { background: #a5c93c; }
+.house-badge.dpe-d { background: #e3c522; color: #4a4200; }
+.house-badge.dpe-e { background: #f0a13b; }
+.house-badge.dpe-f { background: #e5702c; }
+.house-badge.dpe-g { background: #d7301f; }
+
+/* Mention de source (obligation Licence Ouverte) */
+.data-attribution {
+  margin: 10px 0 0;
+  font-size: 10.5px;
+  text-align: center;
+  color: var(--ink-3);
+}
+
 /* Journal de notes de la maison (fiche point) : horodaté, auteur, empilé */
 .note-history {
   list-style: none;

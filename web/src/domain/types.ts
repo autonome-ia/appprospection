@@ -22,4 +22,10 @@ export interface MapPoint {
   address: string | null
   /** Date de relance (YYYY-MM-DD) pour les points « à revoir ». */
   revisit_at: string | null
+  /** Fiche maison enrichie (open data BD TOPO / BDNB, cache à la pose). */
+  annee_construction: number | null
+  mat_toit: string | null
+  toit_surface_m2: number | null
+  dpe_classe: string | null
+  enriched_at: string | null
 }

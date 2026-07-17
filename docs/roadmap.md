@@ -57,6 +57,7 @@
 - [x] **Filtres carte par statut** : chips en bas de carte (multi-sélection, vide = tout). « Vendu » seul = voir les chantiers pour prospecter autour (Customer Locator de SalesRabbit).
 - [x] **Feed d'activité** sur l'Accueil : dernières actions de l'équipe (auteur, statut, client/adresse, il y a X min) depuis `point_events`.
 - [x] **Retours briac** : les « à revoir » datés apparaissent aussi dans l'**agenda** (pastille ambre dans la grille du mois + liste « à revoir » sous les RDV du jour, tap → carte) ; les chips de filtre sont **repliées derrière un bouton filtres** dans la barre d'outils (la carte reste dégagée, bouton surligné quand un filtre est actif).
+- [x] **Fiche maison enrichie** (étude `etude-donnees-maisons.md`, plan validé par briac) : à la pose, 2 appels open data en arrière-plan — WFS BD TOPO (matériau de toiture + altitudes → **surface de toit estimée**, calcul emprise/cos(pente) en Lambert-93) et BDNB (**année de construction** + classe DPE). Cache définitif sur le point (**migration `db/0006_maison_enrichie.sql` à exécuter**), backfill paresseux à l'ouverture des fiches anciennes. Affichage : badges compacts sous l'en-tête de la fiche (`~1972 · Ardoise · ~120 m² toit · DPE E`) avec nuances (~, « probable », title explicatifs) + attribution IGN/CSTB. Module `data/enrich.ts` (proj4) en chunk séparé chargé à la demande. Coût : 0 €.
 - [ ] ⬜ **Territoires** (chantier suivant validé) : polygones dessinés par le manager + assignation + % de couverture. Puis équipe/invitations avant la prod.
 
 ## Prochains chantiers (à choisir avec briac)

@@ -3,6 +3,7 @@ import { Drawer } from 'vaul'
 import { toast } from 'sonner'
 import { X, Trash2, Clock, User, MapPin } from 'lucide-react'
 import { getPointDetail, fetchPointNotes, type PointDetail, type PointNote } from '../data/points'
+import { matToitLabel, SUSPECT_YEARS, type HouseEnrichment } from '../domain/house'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { STATUSES, STATUS_BY_VALUE, type PointStatus } from '../domain/status'
 import type { MapPoint } from '../domain/types'
@@ -52,6 +53,9 @@ export function PointDetailSheet({
   const [clientName, setClientName] = useState('')
   const [revisitAt, setRevisitAt] = useState('')
   const [saving, setSaving] = useState(false)
+  // Fiche maison récupérée à la volée (backfill des points posés avant le
+  // chantier, ou point d'un autre commercial dont le cache RLS a échoué).
+  const [liveEnrich, setLiveEnrich] = useState<HouseEnrichment | null>(null)
 
   useEffect(() => {
     if (!point) return
@@ -61,10 +65,21 @@ export function PointDetailSheet({
     setNewNote('')
     setDetail(null)
     setHistory([])
+    setLiveEnrich(null)
     // Point en cours d'enregistrement (id temporaire, pose optimiste) : pas
     // encore de détail ni de journal en base.
     if (!isSupabaseConfigured || point.id.startsWith('temp-')) return
     let active = true
+    // Backfill paresseux : point jamais enrichi (posé avant le chantier) ->
+    // on récupère la fiche maison maintenant (et on la met en cache).
+    if (!point.enriched_at) {
+      void import('../data/enrich')
+        .then((m) => m.enrichPoint(point.id, point.lng, point.lat))
+        .then((e) => {
+          if (active) setLiveEnrich(e)
+        })
+        .catch((e) => console.error('Enrichissement :', e))
+    }
     getPointDetail(point.id)
       .then((d) => {
         if (active && d) setDetail(d)
@@ -78,7 +93,10 @@ export function PointDetailSheet({
     return () => {
       active = false
     }
-  }, [point])
+    // Dépend de l'ID (pas de l'objet) : les mises à jour temps réel du point
+    // (ex. arrivée du cache d'enrichissement) ne réinitialisent pas la saisie.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [point?.id])
 
   if (!point) return null
 
@@ -145,6 +163,13 @@ export function PointDetailSheet({
 
   const current = STATUS_BY_VALUE[point.status]
 
+  // Fiche maison : le cache du point d'abord, sinon le fetch à la volée.
+  const annee = point.annee_construction ?? liveEnrich?.annee_construction ?? null
+  const matToit = matToitLabel(point.mat_toit ?? liveEnrich?.mat_toit ?? null)
+  const toitM2 = point.toit_surface_m2 ?? liveEnrich?.toit_surface_m2 ?? null
+  const dpe = point.dpe_classe ?? liveEnrich?.dpe_classe ?? null
+  const hasHouseInfo = annee !== null || matToit !== null || toitM2 !== null || dpe !== null
+
   return (
     // Non modale : la carte reste visible et manipulable derrière (le point
     // sélectionné est recadré au-dessus de la sheet, voir MapView).
@@ -198,6 +223,44 @@ export function PointDetailSheet({
               </button>
             ))}
           </div>
+
+          {hasHouseInfo && (
+            <div className="house-badges">
+              {annee !== null && (
+                <span
+                  className="house-badge tnum"
+                  title={
+                    SUSPECT_YEARS.has(annee)
+                      ? 'Année approximative (valeur par défaut fréquente du cadastre)'
+                      : 'Année de construction (données fiscales, BDNB)'
+                  }
+                >
+                  ~{annee}
+                </span>
+              )}
+              {matToit && (
+                <span
+                  className="house-badge"
+                  title="Donnée fiscale — probable, une rénovation récente peut ne pas apparaître"
+                >
+                  {matToit}
+                </span>
+              )}
+              {toitM2 !== null && (
+                <span
+                  className="house-badge tnum"
+                  title="Estimation : emprise au sol × pente (altitudes IGN)"
+                >
+                  ~{toitM2} m² toit
+                </span>
+              )}
+              {dpe && (
+                <span className={`house-badge dpe dpe-${dpe.toLowerCase()}`} title="Classe DPE (BDNB)">
+                  DPE {dpe}
+                </span>
+              )}
+            </div>
+          )}
 
           {status === 'a_revoir' && (
             <>
@@ -254,6 +317,10 @@ export function PointDetailSheet({
               {saving ? 'Enregistrement…' : 'Enregistrer'}
             </button>
           </div>
+
+          {hasHouseInfo && (
+            <p className="data-attribution">Données IGN BD TOPO · BDNB (CSTB)</p>
+          )}
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>
