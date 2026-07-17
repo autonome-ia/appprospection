@@ -157,6 +157,19 @@ export async function fetchRelances(): Promise<MapPoint[]> {
   return (data ?? []).map(rowToPoint)
 }
 
+/** Tous les « à revoir » datés (affichage agenda : pastilles + liste du jour). */
+export async function fetchRevisits(): Promise<MapPoint[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('points')
+    .select(COLS)
+    .eq('status', 'a_revoir')
+    .not('revisit_at', 'is', null)
+    .order('revisit_at')
+  if (error) throw error
+  return (data ?? []).map(rowToPoint)
+}
+
 /** Une entrée du journal de notes d'une maison (table point_notes). */
 export interface PointNote {
   id: string

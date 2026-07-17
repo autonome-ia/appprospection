@@ -17,7 +17,7 @@ import { StatusPicker } from './StatusPicker'
 import { PointDetailSheet } from './PointDetailSheet'
 import { AddressSearch } from './AddressSearch'
 import { AppointmentForm } from './AppointmentForm'
-import { Layers, Box, Plus } from 'lucide-react'
+import { Layers, Box, Plus, SlidersHorizontal } from 'lucide-react'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { usePoints } from '../hooks/usePoints'
 import type { MapPoint, Profile } from '../domain/types'
@@ -95,8 +95,10 @@ export function MapView({
   // on valide — le doigt ne masque jamais la maison, aucun tap accidentel.
   const [placing, setPlacing] = useState(false)
   // Filtre par statut (vide = tout afficher). Ex. « Vendu » seul = voir les
-  // chantiers pour prospecter autour.
+  // chantiers pour prospecter autour. Chips repliées derrière le bouton
+  // filtres de la barre d'outils (la carte reste dégagée).
   const [statusFilter, setStatusFilter] = useState<ReadonlySet<PointStatus>>(new Set())
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   // Le handler de clic lit toujours les dernières valeurs via des refs.
   const selectedIdRef = useRef(selectedId)
@@ -619,10 +621,19 @@ export function MapView({
         >
           <Box size={20} strokeWidth={1.8} />
         </button>
+        <button
+          type="button"
+          className={`map-tool ${filtersOpen || statusFilter.size > 0 ? 'is-on' : ''}`}
+          onClick={() => setFiltersOpen((v) => !v)}
+          title="Filtrer par statut"
+        >
+          <SlidersHorizontal size={20} strokeWidth={1.8} />
+        </button>
       </div>
 
       {!placing && (
         <>
+          {filtersOpen && (
           <div className="map-filterbar">
             {STATUSES.map((s) => (
               <button
@@ -644,6 +655,7 @@ export function MapView({
               </button>
             ))}
           </div>
+          )}
           <button
             type="button"
             className="map-fab"

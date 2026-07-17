@@ -8,10 +8,12 @@ import {
   subscribeAppointments,
 } from '../data/appointments'
 import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
+import { fetchRevisits } from '../data/points'
 import { AppointmentForm } from './AppointmentForm'
 import { APPOINTMENT_STATUS_META, APPOINTMENT_OUTCOMES, type Appointment } from '../domain/appointments'
+import { STATUS_BY_VALUE } from '../domain/status'
 import { colorForCommercial } from '../domain/colors'
-import type { Profile } from '../domain/types'
+import type { MapPoint, Profile } from '../domain/types'
 
 function fmt(iso: string, timeOnly = false): string {
   return new Intl.DateTimeFormat(
@@ -170,6 +172,7 @@ export function AgendaScreen({
   onShowOnMap?: (target: { pointId: string; lng: number; lat: number }) => void
 }) {
   const [appts, setAppts] = useState<Appointment[]>([])
+  const [revisits, setRevisits] = useState<MapPoint[]>([])
   const [profiles, setProfiles] = useState<OrgProfile[]>([])
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<Appointment | null>(null)
@@ -178,6 +181,7 @@ export function AgendaScreen({
 
   const reload = useCallback(() => {
     fetchAppointments().then(setAppts).catch((e) => console.error('Agenda :', e))
+    fetchRevisits().then(setRevisits).catch((e) => console.error('Relances :', e))
   }, [])
 
   useEffect(() => {
@@ -203,6 +207,15 @@ export function AgendaScreen({
     return m
   }, [appts])
 
+  // Regroupe les « à revoir » datés par jour de relance (clé YYYY-MM-DD).
+  const revisitsByDay = useMemo(() => {
+    const m: Record<string, MapPoint[]> = {}
+    for (const p of revisits) {
+      if (p.revisit_at) (m[p.revisit_at] ??= []).push(p)
+    }
+    return m
+  }, [revisits])
+
   if (!profile) return <div className="placeholder">Connexion requise.</div>
 
   const cells = monthCells(monthDate)
@@ -210,6 +223,7 @@ export function AgendaScreen({
   const selectedAppts = (byDay[dateKey(selected)] ?? []).sort((a, b) =>
     a.scheduled_at.localeCompare(b.scheduled_at),
   )
+  const selectedRevisits = revisitsByDay[dateKey(selected)] ?? []
   const monthLabel = capitalize(
     new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(monthDate),
   )
@@ -248,6 +262,12 @@ export function AgendaScreen({
         <div className="cal-grid">
           {cells.map((d) => {
             const dayAppts = byDay[dateKey(d)] ?? []
+            const dayRevisits = revisitsByDay[dateKey(d)] ?? []
+            // Pastilles du jour : RDV (couleur du statut) puis relances (ambre).
+            const dotColors = [
+              ...dayAppts.map((a) => APPOINTMENT_STATUS_META[a.status].color),
+              ...dayRevisits.map(() => STATUS_BY_VALUE.a_revoir.color),
+            ].slice(0, 3)
             const out = d.getMonth() !== monthDate.getMonth()
             const isSel = sameDay(d, selected)
             const isToday = sameDay(d, today)
@@ -263,12 +283,8 @@ export function AgendaScreen({
               >
                 <span className="cal-daynum">{d.getDate()}</span>
                 <span className="cal-dots">
-                  {dayAppts.slice(0, 3).map((a) => (
-                    <span
-                      key={a.id}
-                      className="cal-dot"
-                      style={{ background: APPOINTMENT_STATUS_META[a.status].color }}
-                    />
+                  {dotColors.map((c, i) => (
+                    <span key={i} className="cal-dot" style={{ background: c }} />
                   ))}
                 </span>
               </button>
@@ -280,25 +296,53 @@ export function AgendaScreen({
       <section className="appt-section">
         <p className="eyebrow section-title">
           {dayLabel} · {selectedAppts.length} RDV
+          {selectedRevisits.length > 0 && ` · ${selectedRevisits.length} à revoir`}
         </p>
-        {selectedAppts.length === 0 ? (
+        {selectedAppts.length === 0 && selectedRevisits.length === 0 ? (
           <div className="empty-state">
             <CalendarClock size={26} strokeWidth={1.5} />
             <p>Aucun rendez-vous ce jour.</p>
           </div>
         ) : (
-          selectedAppts.map((a) => (
-            <AppointmentCard
-              key={a.id}
-              appt={a}
-              who={a.commercial_id ? whoById[a.commercial_id] : undefined}
-              profile={profile}
-              onChanged={reload}
-              onEdit={setEditing}
-              onShowOnMap={onShowOnMap}
-              timeOnly
-            />
-          ))
+          <>
+            {selectedAppts.map((a) => (
+              <AppointmentCard
+                key={a.id}
+                appt={a}
+                who={a.commercial_id ? whoById[a.commercial_id] : undefined}
+                profile={profile}
+                onChanged={reload}
+                onEdit={setEditing}
+                onShowOnMap={onShowOnMap}
+                timeOnly
+              />
+            ))}
+            {/* Maisons « à revoir » planifiées ce jour (pas des RDV : un tap
+                ouvre la fiche sur la carte). */}
+            {selectedRevisits.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="home-row"
+                onClick={() => onShowOnMap?.({ pointId: p.id, lng: p.lng, lat: p.lat })}
+              >
+                <span
+                  className="status-dot"
+                  style={{ background: STATUS_BY_VALUE.a_revoir.color }}
+                />
+                <span className="home-row-main">
+                  <span className="home-row-title">
+                    {p.client_name ?? p.address ?? 'Maison à revoir'}
+                  </span>
+                  <span className="home-row-sub">
+                    {p.client_name && p.address ? `${p.address} · ` : ''}
+                    {p.note ?? ''}
+                  </span>
+                </span>
+                <span className="home-row-when tnum">À revoir</span>
+              </button>
+            ))}
+          </>
         )}
       </section>
 

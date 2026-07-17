@@ -56,6 +56,7 @@
 - [x] **Adresse automatique** : géocodage inverse BAN en arrière-plan à la pose → adresse sur la fiche, l'Accueil et l'agenda.
 - [x] **Filtres carte par statut** : chips en bas de carte (multi-sélection, vide = tout). « Vendu » seul = voir les chantiers pour prospecter autour (Customer Locator de SalesRabbit).
 - [x] **Feed d'activité** sur l'Accueil : dernières actions de l'équipe (auteur, statut, client/adresse, il y a X min) depuis `point_events`.
+- [x] **Retours briac** : les « à revoir » datés apparaissent aussi dans l'**agenda** (pastille ambre dans la grille du mois + liste « à revoir » sous les RDV du jour, tap → carte) ; les chips de filtre sont **repliées derrière un bouton filtres** dans la barre d'outils (la carte reste dégagée, bouton surligné quand un filtre est actif).
 - [ ] ⬜ **Territoires** (chantier suivant validé) : polygones dessinés par le manager + assignation + % de couverture. Puis équipe/invitations avant la prod.
 
 ## Prochains chantiers (à choisir avec briac)
