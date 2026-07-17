@@ -230,8 +230,13 @@ export function MapView({ profile }: { profile: Profile | null }) {
           type: 'raster',
           source: ORTHO_SOURCE_ID,
           layout: { visibility: 'none' },
-          // La BD ORTHO est terne aux zooms moyens : on la ravive légèrement.
-          paint: { 'raster-saturation': 0.2, 'raster-contrast': 0.06 },
+          // La BD ORTHO est voilée/laiteuse aux zooms moyens : contraste appuyé,
+          // blancs légèrement rabaissés, saturation relevée.
+          paint: {
+            'raster-saturation': 0.25,
+            'raster-contrast': 0.12,
+            'raster-brightness-max': 0.95,
+          },
         },
         beforeLabels,
       )
