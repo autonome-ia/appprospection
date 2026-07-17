@@ -1,4 +1,4 @@
-import { matToitLabel, fibroSuspect, SUSPECT_YEARS } from '../domain/house'
+import { matToitLabel, SUSPECT_YEARS } from '../domain/house'
 
 interface Props {
   annee: number | null
@@ -12,7 +12,6 @@ interface Props {
 /** Badges compacts de la fiche maison (année, toiture, surface, DPE). */
 export function HouseBadges({ annee, matCode, matConfirme, toitM2, dpe }: Props) {
   const matToit = matToitLabel(matCode)
-  const fibro = fibroSuspect(matCode, annee)
   if (annee === null && !matToit && !matConfirme && toitM2 === null && !dpe) return null
 
   return (
@@ -32,13 +31,6 @@ export function HouseBadges({ annee, matCode, matConfirme, toitM2, dpe }: Props)
       {matConfirme ? (
         <span className="house-badge is-confirmed" title="Toiture confirmée sur le terrain">
           {matConfirme}
-        </span>
-      ) : fibro ? (
-        <span
-          className="house-badge is-warning"
-          title="Catégorie fiscale « Autres » sur une maison d’avant 1997 : fibrociment (amiante) possible — à vérifier sur place"
-        >
-          Autre — fibro ?
         </span>
       ) : matToit ? (
         <span

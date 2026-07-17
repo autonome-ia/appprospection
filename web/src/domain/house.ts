@@ -23,14 +23,6 @@ export function matToitLabel(code: string | null): string | null {
   return main
 }
 
-/**
- * Code « Autres » sur une maison d'avant l'interdiction de l'amiante (1997) :
- * signal fibrociment possible — catégorie fourre-tout du fisc où il tombe.
- */
-export function fibroSuspect(code: string | null, annee: number | null): boolean {
-  return code?.charAt(0) === '9' && annee !== null && annee <= 1997
-}
-
 /** Liste métier des matériaux confirmables sur le terrain (à affiner avec le chef des ventes). */
 export const CONFIRMED_MAT_OPTIONS = [
   'Tuile mécanique',
