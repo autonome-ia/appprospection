@@ -16,7 +16,7 @@ import { StatusPicker } from './StatusPicker'
 import { PointDetailSheet } from './PointDetailSheet'
 import { AddressSearch } from './AddressSearch'
 import { AppointmentForm } from './AppointmentForm'
-import { Layers, Box } from 'lucide-react'
+import { Layers, Box, Plus } from 'lucide-react'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { usePoints } from '../hooks/usePoints'
 import type { MapPoint, Profile } from '../domain/types'
@@ -37,9 +37,9 @@ const INK = '#16161a'
 // Tolérance du tap (px) : un doigt n'est pas un curseur — on cherche les
 // marqueurs dans un carré autour du point touché plutôt qu'au pixel exact.
 const HIT_TOLERANCE = 14
-// Délai (ms) avant de poser un point : laisse le temps à un éventuel
-// double-tap (zoom) d'annuler la pose. Aligné sur le seuil double-tap.
-const CREATE_DELAY = 300
+// Zoom minimal pour poser un point au réticule (en dessous, on ne distingue
+// pas les maisons : la pose serait forcément imprécise).
+const PLACE_MIN_ZOOM = 15
 
 const EMPTY_FC: FeatureCollection<Point> = { type: 'FeatureCollection', features: [] }
 
@@ -54,7 +54,7 @@ function toFeatureCollection(points: MapPoint[]): FeatureCollection<Point> {
   }
 }
 
-export function MapView({ profile }: { profile: Profile | null }) {
+export function MapView({ profile, active }: { profile: Profile | null; active: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   // Couches de bâtiments du fond Plan IGN (à masquer en mode Toits).
@@ -72,18 +72,25 @@ export function MapView({ profile }: { profile: Profile | null }) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   // Point pour lequel on saisit un RDV (après avoir posé/marqué "RDV pris").
   const [rdvPoint, setRdvPoint] = useState<MapPoint | null>(null)
+  // Mode visée : réticule au centre, on déplace la carte sous le viseur puis
+  // on valide — le doigt ne masque jamais la maison, aucun tap accidentel.
+  const [placing, setPlacing] = useState(false)
 
   // Le handler de clic lit toujours les dernières valeurs via des refs.
-  const activeStatusRef = useRef(activeStatus)
-  activeStatusRef.current = activeStatus
-  const addPointRef = useRef(addPoint)
-  addPointRef.current = addPoint
-  const removePointRef = useRef(removePoint)
-  removePointRef.current = removePoint
   const selectedIdRef = useRef(selectedId)
   selectedIdRef.current = selectedId
-  // Pose de point en attente (timer) : annulée si un double-tap survient.
-  const pendingCreateRef = useRef<number | null>(null)
+  const placingRef = useRef(placing)
+  placingRef.current = placing
+
+  // Quitter l'onglet Carte ferme ce qui est ouvert (les drawers sont portés
+  // dans <body> et resteraient visibles par-dessus l'autre onglet).
+  useEffect(() => {
+    if (!active) {
+      setSelectedId(null)
+      setRdvPoint(null)
+      setPlacing(false)
+    }
+  }, [active])
 
   // Initialisation de la carte (une seule fois).
   useEffect(() => {
@@ -333,34 +340,12 @@ export function MapView({ profile }: { profile: Profile | null }) {
     map.on('mouseenter', CLUSTERS_LAYER, hover('pointer'))
     map.on('mouseleave', CLUSTERS_LAYER, hover(''))
 
-    // Pose un point (UI optimiste) + toast avec "Annuler" (filet anti-erreur).
-    const createPointAt = (lng: number, lat: number) => {
-      const status = activeStatusRef.current
-      const { point, saved } = addPointRef.current(lng, lat, status)
-      toast.success(`Point posé — ${STATUS_BY_VALUE[status].label}`, {
-        action: { label: 'Annuler', onClick: () => void removePointRef.current(point.id) },
-      })
-      void saved.then((created) => {
-        // Poser un "RDV pris" enchaîne sur la saisie du rendez-vous.
-        if (created && status === 'rdv_pris' && isSupabaseConfigured) {
-          setRdvPoint(created)
-        }
-      })
-    }
-    const cancelPendingCreate = () => {
-      if (pendingCreateRef.current !== null) {
-        window.clearTimeout(pendingCreateRef.current)
-        pendingCreateRef.current = null
-        return true
-      }
-      return false
-    }
-
-    // Clic : bulle -> zoom ; marqueur -> détail ; zone vide -> pose un point
-    // (ou ferme le détail s'il est ouvert).
+    // Clic : bulle -> zoom ; marqueur -> détail ; zone vide -> ferme le détail.
+    // La POSE d'un point ne passe plus par le tap (source d'erreurs terrain)
+    // mais par le mode visée (réticule + bouton), voir confirmPlace().
     map.on('click', (e) => {
-      // 2e tap rapproché = double-tap (zoom) : on annule la pose en attente.
-      const wasPending = cancelPendingCreate()
+      // En mode visée, le tap ne sert qu'à naviguer.
+      if (placingRef.current) return
 
       const queryable = [CLUSTERS_LAYER, MARKERS_LAYER].filter((l) => map.getLayer(l))
       const bbox: [[number, number], [number, number]] = [
@@ -386,31 +371,38 @@ export function MapView({ profile }: { profile: Profile | null }) {
         return
       }
 
-      if (selectedIdRef.current) {
-        setSelectedId(null)
-        return
-      }
-
-      // Zone vide juste après un tap annulé : c'était un double-tap-zoom.
-      if (wasPending) return
-
-      // Pose différée : un double-tap dans l'intervalle l'annule.
-      const { lng, lat } = e.lngLat
-      pendingCreateRef.current = window.setTimeout(() => {
-        pendingCreateRef.current = null
-        createPointAt(lng, lat)
-      }, CREATE_DELAY)
+      if (selectedIdRef.current) setSelectedId(null)
     })
 
-    // Ceinture + bretelles : si MapLibre émet dblclick, on annule aussi.
-    map.on('dblclick', cancelPendingCreate)
-
     return () => {
-      cancelPendingCreate()
       map.remove()
       mapRef.current = null
     }
   }, [])
+
+  // Pose le point sous le réticule (UI optimiste + toast avec "Annuler").
+  const confirmPlace = () => {
+    const map = mapRef.current
+    if (!map) return
+    if (map.getZoom() < PLACE_MIN_ZOOM) {
+      toast('Rapprochez-vous pour viser la maison', {
+        description: 'Zoomez jusqu’à distinguer les toits avant de poser un point.',
+      })
+      return
+    }
+    const { lng, lat } = map.getCenter()
+    const { point, saved } = addPoint(lng, lat, activeStatus)
+    toast.success(`Point posé — ${STATUS_BY_VALUE[activeStatus].label}`, {
+      action: { label: 'Annuler', onClick: () => void removePoint(point.id) },
+    })
+    void saved.then((created) => {
+      // Poser un "RDV pris" enchaîne sur la saisie du rendez-vous.
+      if (created && activeStatus === 'rdv_pris' && isSupabaseConfigured) {
+        setRdvPoint(created)
+      }
+    })
+    setPlacing(false)
+  }
 
   // Met à jour la source GeoJSON quand la liste de points change OU quand la
   // carte devient prête (évite le 1er rendu manqué si les points arrivent avant).
@@ -553,7 +545,44 @@ export function MapView({ profile }: { profile: Profile | null }) {
         </button>
       </div>
 
-      <StatusPicker active={activeStatus} onChange={setActiveStatus} />
+      {!placing && (
+        <button
+          type="button"
+          className="map-fab"
+          onClick={() => setPlacing(true)}
+          aria-label="Poser un point"
+        >
+          <Plus size={26} strokeWidth={2.2} />
+        </button>
+      )}
+
+      {placing && (
+        <>
+          {/* Réticule : la pose se fait au centre exact de la carte (getCenter). */}
+          <div className="map-crosshair" aria-hidden="true">
+            <svg width="52" height="52" viewBox="0 0 52 52">
+              <circle cx="26" cy="26" r="15" fill="none" stroke="var(--accent)" strokeWidth="2" />
+              <circle cx="26" cy="26" r="3" fill="var(--accent)" />
+              <line x1="26" y1="3" x2="26" y2="9" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+              <line x1="26" y1="43" x2="26" y2="49" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+              <line x1="3" y1="26" x2="9" y2="26" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+              <line x1="43" y1="26" x2="49" y2="26" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </div>
+          <div className="place-bar">
+            <p className="eyebrow place-hint">Déplacez la carte — la maison sous le viseur</p>
+            <StatusPicker active={activeStatus} onChange={setActiveStatus} />
+            <div className="place-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setPlacing(false)}>
+                Annuler
+              </button>
+              <button type="button" className="btn btn-primary" onClick={confirmPlace}>
+                Poser ici
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       <PointDetailSheet
         open={selectedPoint !== null}

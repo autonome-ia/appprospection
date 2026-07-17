@@ -12,10 +12,96 @@
 }
 
 /* --- Carte --- */
+/* La carte reste montée quand un autre onglet est actif : visibility (et non
+   display:none) pour conserver les dimensions -> pas de resize au retour. */
+.map-slot {
+  position: absolute;
+  inset: 0;
+}
+.map-slot.is-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .map-view,
 .map-canvas {
   position: absolute;
   inset: 0;
+}
+
+/* Bouton "Poser un point" (zone pouce) */
+.map-fab {
+  position: absolute;
+  right: 14px;
+  bottom: 18px;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--shadow-lg);
+  transition: transform 0.15s var(--ease-out);
+}
+.map-fab:active {
+  transform: scale(0.94);
+}
+
+/* Réticule de visée (centre exact de la carte = point posé) */
+.map-crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  pointer-events: none;
+}
+.map-crosshair svg {
+  display: block;
+  /* Liseré clair + ombre : visible sur l'ortho comme sur le plan. */
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.9)) drop-shadow(0 1px 4px rgba(0, 0, 0, 0.25));
+}
+
+/* Barre de visée : statut + validation */
+.place-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0));
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  box-shadow: var(--shadow-lg);
+  animation: place-bar-in 0.25s var(--ease-out);
+}
+@keyframes place-bar-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.place-hint {
+  margin: 0;
+}
+.place-bar .status-picker {
+  position: static;
+  padding: 0;
+}
+.place-actions {
+  display: flex;
+  gap: 10px;
+}
+.place-actions .btn-primary {
+  flex: 2;
 }
 
 /* Barre de recherche d'adresse (BAN) */

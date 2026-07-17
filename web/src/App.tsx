@@ -30,7 +30,12 @@ function AppInner() {
   return (
     <div className="app-shell">
       <main className="app-main">
-        {tab === 'carte' ? <MapView profile={profile} /> : null}
+        {/* La carte reste montée en permanence (masquée en CSS quand un autre
+            onglet est actif) : retour instantané, position/zoom conservés,
+            pas de re-téléchargement des tuiles. */}
+        <div className={`map-slot ${tab === 'carte' ? '' : 'is-hidden'}`}>
+          <MapView profile={profile} active={tab === 'carte'} />
+        </div>
         {tab === 'accueil' ? <AccueilScreen /> : null}
         {tab === 'agenda' ? <AgendaScreen profile={profile} /> : null}
         {tab === 'stats' ? <StatsScreen profile={profile} /> : null}
