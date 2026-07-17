@@ -1307,6 +1307,16 @@
   font-weight: 500;
   color: var(--ink-2);
 }
+.house-badge.is-confirmed {
+  background: var(--accent-weak);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.house-badge.is-warning {
+  background: rgba(217, 119, 6, 0.1);
+  border-color: #d97706;
+  color: #b45309;
+}
 .house-badge.dpe {
   color: #ffffff;
   border-color: transparent;

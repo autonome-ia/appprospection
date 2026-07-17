@@ -25,6 +25,8 @@ export interface MapPoint {
   /** Fiche maison enrichie (open data BD TOPO / BDNB, cache à la pose). */
   annee_construction: number | null
   mat_toit: string | null
+  /** Matériau constaté sur le terrain (prioritaire sur la donnée fiscale). */
+  mat_toit_confirme: string | null
   toit_surface_m2: number | null
   dpe_classe: string | null
   enriched_at: string | null

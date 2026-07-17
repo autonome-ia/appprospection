@@ -3,7 +3,7 @@ import { Drawer } from 'vaul'
 import { toast } from 'sonner'
 import { X, Trash2, Clock, User, MapPin } from 'lucide-react'
 import { getPointDetail, fetchPointNotes, type PointDetail, type PointNote } from '../data/points'
-import type { HouseEnrichment } from '../domain/house'
+import { CONFIRMED_MAT_OPTIONS, type HouseEnrichment } from '../domain/house'
 import { HouseBadges } from './HouseBadges'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { STATUSES, STATUS_BY_VALUE, type PointStatus } from '../domain/status'
@@ -20,6 +20,7 @@ interface Props {
       note?: string | null
       client_name?: string | null
       revisit_at?: string | null
+      mat_toit_confirme?: string | null
     },
   ) => Promise<void>
   /** Ajoute une note au journal de la maison (jamais d'écrasement). */
@@ -53,6 +54,7 @@ export function PointDetailSheet({
   const [newNote, setNewNote] = useState('')
   const [clientName, setClientName] = useState('')
   const [revisitAt, setRevisitAt] = useState('')
+  const [matConfirme, setMatConfirme] = useState('')
   const [saving, setSaving] = useState(false)
   // Fiche maison récupérée à la volée (backfill des points posés avant le
   // chantier, ou point d'un autre commercial dont le cache RLS a échoué).
@@ -63,6 +65,7 @@ export function PointDetailSheet({
     setStatus(point.status)
     setClientName(point.client_name ?? '')
     setRevisitAt(point.revisit_at ?? '')
+    setMatConfirme(point.mat_toit_confirme ?? '')
     setNewNote('')
     setDetail(null)
     setHistory([])
@@ -104,6 +107,7 @@ export function PointDetailSheet({
   const dirty =
     status !== point.status ||
     clientName !== (point.client_name ?? '') ||
+    matConfirme !== (point.mat_toit_confirme ?? '') ||
     (status === 'a_revoir' && revisitAt !== (point.revisit_at ?? '')) ||
     newNote.trim().length > 0
 
@@ -128,10 +132,13 @@ export function PointDetailSheet({
       status?: PointStatus
       client_name?: string | null
       revisit_at?: string | null
+      mat_toit_confirme?: string | null
     } = {}
     if (status !== point.status) changes.status = status
     if (clientName !== (point.client_name ?? ''))
       changes.client_name = clientName.trim() ? clientName.trim() : null
+    if (matConfirme !== (point.mat_toit_confirme ?? ''))
+      changes.mat_toit_confirme = matConfirme || null
     // Date de relance : suivie seulement pour « à revoir », effacée sinon.
     if (status === 'a_revoir') {
       if (revisitAt !== (point.revisit_at ?? '')) changes.revisit_at = revisitAt || null
@@ -225,7 +232,13 @@ export function PointDetailSheet({
             ))}
           </div>
 
-          <HouseBadges annee={annee} matCode={matCode} toitM2={toitM2} dpe={dpe} />
+          <HouseBadges
+            annee={annee}
+            matCode={matCode}
+            matConfirme={point.mat_toit_confirme}
+            toitM2={toitM2}
+            dpe={dpe}
+          />
 
           {status === 'a_revoir' && (
             <>
@@ -247,6 +260,20 @@ export function PointDetailSheet({
             value={clientName}
             onChange={(e) => setClientName(e.target.value)}
           />
+
+          <p className="eyebrow field-label">Toiture constatée</p>
+          <select
+            className="field-input"
+            value={matConfirme}
+            onChange={(e) => setMatConfirme(e.target.value)}
+          >
+            <option value="">— non confirmée (donnée fiscale) —</option>
+            {CONFIRMED_MAT_OPTIONS.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
 
           <p className="eyebrow field-label">Notes</p>
           {shownNotes.length > 0 && (

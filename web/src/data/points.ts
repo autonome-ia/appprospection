@@ -3,7 +3,7 @@ import type { MapPoint, Profile } from '../domain/types'
 import type { PointStatus } from '../domain/status'
 
 const COLS =
-  'id, lng, lat, status, notes, client_name, address, revisit_at, annee_construction, mat_toit, toit_surface_m2, dpe_classe, enriched_at'
+  'id, lng, lat, status, notes, client_name, address, revisit_at, annee_construction, mat_toit, mat_toit_confirme, toit_surface_m2, dpe_classe, enriched_at'
 
 /** Détail complet d'un point (panneau au clic). */
 export interface PointDetail extends MapPoint {
@@ -24,6 +24,7 @@ function rowToPoint(r: Record<string, unknown>): MapPoint {
     revisit_at: (r.revisit_at as string | null) ?? null,
     annee_construction: (r.annee_construction as number | null) ?? null,
     mat_toit: (r.mat_toit as string | null) ?? null,
+    mat_toit_confirme: (r.mat_toit_confirme as string | null) ?? null,
     toit_surface_m2: (r.toit_surface_m2 as number | null) ?? null,
     dpe_classe: (r.dpe_classe as string | null) ?? null,
     enriched_at: (r.enriched_at as string | null) ?? null,
@@ -129,6 +130,7 @@ export async function updatePoint(
     note?: string | null
     client_name?: string | null
     revisit_at?: string | null
+    mat_toit_confirme?: string | null
   },
 ): Promise<MapPoint> {
   if (!supabase) throw new Error('Supabase non configuré')
@@ -138,6 +140,7 @@ export async function updatePoint(
   if (changes.note !== undefined) patch.notes = changes.note
   if (changes.client_name !== undefined) patch.client_name = changes.client_name
   if (changes.revisit_at !== undefined) patch.revisit_at = changes.revisit_at
+  if (changes.mat_toit_confirme !== undefined) patch.mat_toit_confirme = changes.mat_toit_confirme
 
   const { data, error } = await supabase.from('points').update(patch).eq('id', id).select(COLS).single()
   if (error) throw error

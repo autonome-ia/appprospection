@@ -71,6 +71,7 @@ export function usePoints(profile: Profile | null) {
         revisit_at: null,
         annee_construction: null,
         mat_toit: null,
+        mat_toit_confirme: null,
         toit_surface_m2: null,
         dpe_classe: null,
         enriched_at: null,
@@ -120,6 +121,7 @@ export function usePoints(profile: Profile | null) {
         note?: string | null
         client_name?: string | null
         revisit_at?: string | null
+        mat_toit_confirme?: string | null
       },
     ) => {
       const mapped = tempIdsRef.current.get(id)
@@ -139,6 +141,9 @@ export function usePoints(profile: Profile | null) {
                   ...(changes.note !== undefined ? { note: changes.note } : {}),
                   ...(changes.client_name !== undefined ? { client_name: changes.client_name } : {}),
                   ...(changes.revisit_at !== undefined ? { revisit_at: changes.revisit_at } : {}),
+                  ...(changes.mat_toit_confirme !== undefined
+                    ? { mat_toit_confirme: changes.mat_toit_confirme }
+                    : {}),
                 }
               : x,
           ),
