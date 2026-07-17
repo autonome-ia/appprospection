@@ -59,7 +59,14 @@ export function usePoints(profile: Profile | null) {
 
   const addPoint = useCallback(
     (lng: number, lat: number, status: PointStatus, note?: string | null): AddPointResult => {
-      const temp: MapPoint = { id: `temp-${crypto.randomUUID()}`, lng, lat, status, note: note ?? null }
+      const temp: MapPoint = {
+        id: `temp-${crypto.randomUUID()}`,
+        lng,
+        lat,
+        status,
+        note: note ?? null,
+        client_name: null,
+      }
       setPoints((prev) => [...prev, temp])
 
       if (!online || !profile) {
@@ -98,7 +105,10 @@ export function usePoints(profile: Profile | null) {
   )
 
   const updatePoint = useCallback(
-    async (id: string, changes: { status?: PointStatus; note?: string | null }) => {
+    async (
+      id: string,
+      changes: { status?: PointStatus; note?: string | null; client_name?: string | null },
+    ) => {
       const mapped = tempIdsRef.current.get(id)
       const realId = mapped && mapped !== 'pending' && mapped !== 'cancelled' ? mapped : id
       if (online && profile && mapped !== 'pending') {
@@ -114,6 +124,7 @@ export function usePoints(profile: Profile | null) {
                   ...x,
                   ...(changes.status !== undefined ? { status: changes.status } : {}),
                   ...(changes.note !== undefined ? { note: changes.note } : {}),
+                  ...(changes.client_name !== undefined ? { client_name: changes.client_name } : {}),
                 }
               : x,
           ),

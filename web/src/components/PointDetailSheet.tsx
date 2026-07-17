@@ -11,7 +11,10 @@ interface Props {
   open: boolean
   point: MapPoint | null
   onOpenChange: (open: boolean) => void
-  onUpdate: (id: string, changes: { status?: PointStatus; note?: string | null }) => Promise<void>
+  onUpdate: (
+    id: string,
+    changes: { status?: PointStatus; note?: string | null; client_name?: string | null },
+  ) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onRdvNeeded?: (point: MapPoint) => void
 }
@@ -30,14 +33,16 @@ export function PointDetailSheet({ open, point, onOpenChange, onUpdate, onDelete
   const [detail, setDetail] = useState<PointDetail | null>(null)
   const [status, setStatus] = useState<PointStatus>('absent')
   const [note, setNote] = useState('')
+  const [clientName, setClientName] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!point) return
     setStatus(point.status)
-    // La note vient du point déjà chargé (carte) : éditable même si le fetch
-    // du détail (date/auteur) échoue ou traîne.
+    // Note et client viennent du point déjà chargé (carte) : éditables même
+    // si le fetch du détail (date/auteur) échoue ou traîne.
     setNote(point.note ?? '')
+    setClientName(point.client_name ?? '')
     setDetail(null)
     // Point en cours d'enregistrement (id temporaire, pose optimiste) : pas
     // encore de détail en base.
@@ -55,14 +60,19 @@ export function PointDetailSheet({ open, point, onOpenChange, onUpdate, onDelete
 
   if (!point) return null
 
-  const dirty = status !== point.status || note !== (point.note ?? '')
+  const dirty =
+    status !== point.status ||
+    note !== (point.note ?? '') ||
+    clientName !== (point.client_name ?? '')
 
   async function save() {
     if (!point) return
     setSaving(true)
-    const changes: { status?: PointStatus; note?: string | null } = {}
+    const changes: { status?: PointStatus; note?: string | null; client_name?: string | null } = {}
     if (status !== point.status) changes.status = status
     if (note !== (point.note ?? '')) changes.note = note.trim() ? note.trim() : null
+    if (clientName !== (point.client_name ?? ''))
+      changes.client_name = clientName.trim() ? clientName.trim() : null
     const becameRdv = changes.status === 'rdv_pris'
     try {
       await onUpdate(point.id, changes)
@@ -134,6 +144,15 @@ export function PointDetailSheet({ open, point, onOpenChange, onUpdate, onDelete
               </button>
             ))}
           </div>
+
+          <p className="eyebrow field-label">Client</p>
+          <input
+            className="field-input"
+            type="text"
+            placeholder="Nom (facultatif)"
+            value={clientName}
+            onChange={(e) => setClientName(e.target.value)}
+          />
 
           <p className="eyebrow field-label">Note</p>
           <textarea

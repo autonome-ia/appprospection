@@ -37,7 +37,8 @@
 
 ## Système de notes (audit juillet 2026 — plainte : notes invisibles dans l'agenda)
 - [x] **Quick wins notes** : note du RDV affichée sur la carte agenda (tous statuts) + note terrain du point lié (jointure) + bouton « Carte » (bascule d'onglet + flyTo + sélection) ; Modifier/Supprimer accessibles quel que soit le statut du RDV ; champ « Note (facultatif) » dans la barre de visée (capture à chaud, écrite dans `points.notes` ET `point_events.note`) ; pastille « a une note » sur les marqueurs ; fin du faux succès (erreur RLS/réseau → toast d'erreur) ; note éditable même si le fetch détail échoue ; note du point affichée dans le formulaire RDV.
-- [ ] ⬜ **Journal de visites** (chantier suivant) : historique horodaté par visite avec auteur dans la fiche point (`point_events.note` désormais alimentée), fin des écrasements de note, mémoire d'équipe. Standard SalesRabbit/Badger.
+- [x] **Flux de pose clarifié (retour briac)** : le champ note de la barre de visée est retiré (il laissait croire que c'était la seule saisie possible) ; désormais **chaque pose ouvre une fiche** — formulaire RDV complet pour « RDV pris », fiche du point (statut, **client**, note) pour les autres statuts. Nouvelle colonne `points.client_name` (**migration `db/0003_point_client_name.sql` à exécuter dans Supabase**).
+- [ ] ⬜ **Journal de visites** (chantier suivant) : historique horodaté par visite avec auteur dans la fiche point (`point_events.note` alimentée par les changements de statut avec note), fin des écrasements de note, mémoire d'équipe. Standard SalesRabbit/Badger.
 
 ## Design — DA « Clair & précis » (Linear/Vercel/Emil Kowalski)
 - [x] Système de design (tokens, police Geist, icônes Lucide, Sonner, Vaul, Motion)

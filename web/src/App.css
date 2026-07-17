@@ -130,9 +130,6 @@
   position: static;
   padding: 0;
 }
-.place-note {
-  font-size: 14px;
-}
 .place-actions {
   display: flex;
   gap: 10px;

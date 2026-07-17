@@ -16,4 +16,6 @@ export interface MapPoint {
   status: PointStatus
   /** Note terrain (contexte de la maison) — aussi source de la pastille "a une note". */
   note: string | null
+  /** Nom du client / occupant (mini-CRM). */
+  client_name: string | null
 }

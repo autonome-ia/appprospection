@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase'
 import type { MapPoint, Profile } from '../domain/types'
 import type { PointStatus } from '../domain/status'
 
-const COLS = 'id, lng, lat, status, notes'
+const COLS = 'id, lng, lat, status, notes, client_name'
 
 /** Détail complet d'un point (panneau au clic). */
 export interface PointDetail extends MapPoint {
@@ -18,6 +18,7 @@ function rowToPoint(r: Record<string, unknown>): MapPoint {
     lat: r.lat as number,
     status: r.status as PointStatus,
     note: (r.notes as string | null) ?? null,
+    client_name: (r.client_name as string | null) ?? null,
   }
 }
 
@@ -92,13 +93,14 @@ export async function insertPoint(
 export async function updatePoint(
   profile: Profile,
   id: string,
-  changes: { status?: PointStatus; note?: string | null },
+  changes: { status?: PointStatus; note?: string | null; client_name?: string | null },
 ): Promise<MapPoint> {
   if (!supabase) throw new Error('Supabase non configuré')
 
   const patch: Record<string, unknown> = {}
   if (changes.status !== undefined) patch.status = changes.status
   if (changes.note !== undefined) patch.notes = changes.note
+  if (changes.client_name !== undefined) patch.client_name = changes.client_name
 
   const { data, error } = await supabase.from('points').update(patch).eq('id', id).select(COLS).single()
   if (error) throw error

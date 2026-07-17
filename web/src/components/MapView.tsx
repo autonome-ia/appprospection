@@ -94,8 +94,6 @@ export function MapView({
   // Mode visée : réticule au centre, on déplace la carte sous le viseur puis
   // on valide — le doigt ne masque jamais la maison, aucun tap accidentel.
   const [placing, setPlacing] = useState(false)
-  // Note saisie au moment de la pose (capture du contexte "à chaud").
-  const [placeNote, setPlaceNote] = useState('')
 
   // Le handler de clic lit toujours les dernières valeurs via des refs.
   const selectedIdRef = useRef(selectedId)
@@ -415,16 +413,19 @@ export function MapView({
       return
     }
     const { lng, lat } = map.getCenter()
-    const note = placeNote.trim() ? placeNote.trim() : null
-    const { point, saved } = addPoint(lng, lat, activeStatus, note)
-    setPlaceNote('')
+    const { point, saved } = addPoint(lng, lat, activeStatus)
     toast.success(`Point posé — ${STATUS_BY_VALUE[activeStatus].label}`, {
       action: { label: 'Annuler', onClick: () => void removePoint(point.id) },
     })
     void saved.then((created) => {
-      // Poser un "RDV pris" enchaîne sur la saisie du rendez-vous.
-      if (created && activeStatus === 'rdv_pris' && isSupabaseConfigured) {
+      if (!created) return
+      if (activeStatus === 'rdv_pris' && isSupabaseConfigured) {
+        // "RDV pris" enchaîne sur la saisie du rendez-vous (client, date…).
         setRdvPoint(created)
+      } else {
+        // Autres statuts : la fiche s'ouvre pour saisir le contexte à chaud
+        // (client, note "pourquoi à revoir"…) — refermable d'un geste.
+        setSelectedId(created.id)
       }
     })
     setPlacing(false)
@@ -616,10 +617,7 @@ export function MapView({
         <button
           type="button"
           className="map-fab"
-          onClick={() => {
-            setPlaceNote('')
-            setPlacing(true)
-          }}
+          onClick={() => setPlacing(true)}
           aria-label="Poser un point"
         >
           <Plus size={26} strokeWidth={2.2} />
@@ -642,13 +640,6 @@ export function MapView({
           <div className="place-bar">
             <p className="eyebrow place-hint">Déplacez la carte — la maison sous le viseur</p>
             <StatusPicker active={activeStatus} onChange={setActiveStatus} />
-            <input
-              className="field-input place-note"
-              type="text"
-              placeholder="Note (facultatif) : repasser en soirée, portail bleu…"
-              value={placeNote}
-              onChange={(e) => setPlaceNote(e.target.value)}
-            />
             <div className="place-actions">
               <button type="button" className="btn btn-ghost" onClick={() => setPlacing(false)}>
                 Annuler
