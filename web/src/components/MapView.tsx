@@ -10,6 +10,12 @@ import {
   orthoSource,
 } from '../config/map'
 import { generateMarkerImages, MARKER_PREFIX } from '../config/markers'
+import {
+  clusterCountProperties,
+  clusterSignature,
+  createClusterDonut,
+  type ClusterProps,
+} from '../config/clusters'
 import { toast } from 'sonner'
 import { STATUS_BY_VALUE, statusColorExpression, type PointStatus } from '../domain/status'
 import { StatusPicker } from './StatusPicker'
@@ -25,15 +31,13 @@ import type { FeatureCollection, Point } from 'geojson'
 const POINTS_SOURCE = 'points'
 const BUILDINGS_LAYER_ID = 'buildings-3d'
 const MARKERS_LAYER = 'points-markers'
-const CLUSTERS_LAYER = 'clusters'
 const SELECTED_LAYER = 'point-selected'
 const SELECTED_BUILDING_SRC = 'selected-building'
 const SELECTED_BUILDING_LAYER = 'selected-building-3d'
 const NO_ID = '__none__'
-// Couleurs de la DA (mêmes valeurs que --accent / --ink dans index.css :
-// MapLibre ne lit pas les variables CSS).
+// Couleur de la DA (même valeur que --accent dans index.css : MapLibre ne
+// lit pas les variables CSS).
 const ACCENT = '#2f6bff'
-const INK = '#16161a'
 // Tolérance du tap (px) : un doigt n'est pas un curseur — on cherche les
 // marqueurs dans un carré autour du point touché plutôt qu'au pixel exact.
 const HIT_TOLERANCE = 14
@@ -134,12 +138,6 @@ export function MapView({ profile, active }: { profile: Profile | null; active: 
         .map((l) => l.id)
       // Labels du fond IGN (capturés AVANT l'ajout de nos propres couches symbol).
       baseLabelLayersRef.current = layers.filter((l) => l.type === 'symbol').map((l) => l.id)
-      const fontStack =
-        firstSymbol && 'layout' in firstSymbol
-          ? ((firstSymbol.layout as Record<string, unknown> | undefined)?.['text-font'] as
-              | string[]
-              | undefined)
-          : undefined
 
       // Voile chaud : teinte le sol (ton papier) pour que les routes blanches
       // ressortent. Inséré SOUS les routes si on les trouve (elles restent
@@ -258,41 +256,54 @@ export function MapView({ profile, active }: { profile: Profile | null; active: 
         if (!map.hasImage(name)) map.addImage(name, images[status], { pixelRatio: 2 })
       }
 
-      // Source des points, avec regroupement (clustering).
+      // Source des points, avec regroupement (clustering) et compteurs par
+      // statut agrégés dans chaque bulle (pour les donuts).
       map.addSource(POINTS_SOURCE, {
         type: 'geojson',
         data: toFeatureCollection([]),
         cluster: true,
         clusterRadius: 45,
         clusterMaxZoom: 15,
+        clusterProperties: clusterCountProperties as never,
       })
 
-      // Bulles de regroupement : blanches à anneau accent (distinctes du
-      // marqueur sombre "impossible", lisibles sur plan comme sur ortho).
-      map.addLayer({
-        id: CLUSTERS_LAYER,
-        type: 'circle',
-        source: POINTS_SOURCE,
-        filter: ['has', 'point_count'],
-        paint: {
-          'circle-color': '#ffffff',
-          'circle-radius': ['step', ['get', 'point_count'], 16, 10, 20, 50, 26],
-          'circle-stroke-width': 3,
-          'circle-stroke-color': ACCENT,
-        },
+      // Bulles de regroupement en DONUT (composition par statut) : marqueurs
+      // DOM synchronisés avec les clusters visibles à chaque mouvement.
+      const donuts = new Map<string, maplibregl.Marker>()
+      const updateDonuts = () => {
+        const visible = new Set<string>()
+        for (const f of map.querySourceFeatures(POINTS_SOURCE)) {
+          const p = f.properties as ClusterProps | null
+          if (!p || !p.cluster) continue
+          const coords = (f.geometry as Point).coordinates as [number, number]
+          // Clé = id + composition : si la composition change, on redessine.
+          const key = `${p.cluster_id}:${clusterSignature(p)}`
+          if (visible.has(key)) continue // dédoublonne (tuiles voisines)
+          visible.add(key)
+          if (donuts.has(key)) continue
+          const el = createClusterDonut(p)
+          el.addEventListener('click', (ev) => {
+            ev.stopPropagation()
+            const src = map.getSource(POINTS_SOURCE) as maplibregl.GeoJSONSource
+            void src.getClusterExpansionZoom(p.cluster_id).then((zoom) => {
+              map.easeTo({ center: coords, zoom })
+            })
+          })
+          donuts.set(key, new maplibregl.Marker({ element: el }).setLngLat(coords).addTo(map))
+        }
+        for (const [key, m] of donuts) {
+          if (!visible.has(key)) {
+            m.remove()
+            donuts.delete(key)
+          }
+        }
+      }
+      map.on('data', (e) => {
+        const ev = e as maplibregl.MapSourceDataEvent
+        if (ev.sourceId === POINTS_SOURCE && ev.isSourceLoaded) updateDonuts()
       })
-      map.addLayer({
-        id: 'cluster-count',
-        type: 'symbol',
-        source: POINTS_SOURCE,
-        filter: ['has', 'point_count'],
-        layout: {
-          'text-field': ['get', 'point_count_abbreviated'],
-          'text-size': 14,
-          ...(fontStack ? { 'text-font': fontStack } : {}),
-        },
-        paint: { 'text-color': INK },
-      })
+      map.on('move', updateDonuts)
+      map.on('moveend', updateDonuts)
 
       // Surbrillance du point sélectionné (halo, sous les marqueurs).
       map.addLayer({
@@ -335,39 +346,29 @@ export function MapView({ profile, active }: { profile: Profile | null; active: 
       }
     })
 
-    // Curseur "main" au survol des marqueurs / bulles.
+    // Curseur "main" au survol des marqueurs (les donuts sont des éléments
+    // DOM avec leur propre curseur).
     const hover = (cursor: string) => () => {
       map.getCanvas().style.cursor = cursor
     }
     map.on('mouseenter', MARKERS_LAYER, hover('pointer'))
     map.on('mouseleave', MARKERS_LAYER, hover(''))
-    map.on('mouseenter', CLUSTERS_LAYER, hover('pointer'))
-    map.on('mouseleave', CLUSTERS_LAYER, hover(''))
 
-    // Clic : bulle -> zoom ; marqueur -> détail ; zone vide -> ferme le détail.
-    // La POSE d'un point ne passe plus par le tap (source d'erreurs terrain)
-    // mais par le mode visée (réticule + bouton), voir confirmPlace().
+    // Clic : marqueur -> détail ; zone vide -> ferme le détail. Le zoom sur
+    // une bulle est géré par le donut lui-même (élément DOM). La POSE d'un
+    // point ne passe plus par le tap (source d'erreurs terrain) mais par le
+    // mode visée (réticule + bouton), voir confirmPlace().
     map.on('click', (e) => {
       // En mode visée, le tap ne sert qu'à naviguer.
       if (placingRef.current) return
 
-      const queryable = [CLUSTERS_LAYER, MARKERS_LAYER].filter((l) => map.getLayer(l))
       const bbox: [[number, number], [number, number]] = [
         [e.point.x - HIT_TOLERANCE, e.point.y - HIT_TOLERANCE],
         [e.point.x + HIT_TOLERANCE, e.point.y + HIT_TOLERANCE],
       ]
-      const hits = queryable.length ? map.queryRenderedFeatures(bbox, { layers: queryable }) : []
-
-      const cluster = hits.find((f) => f.layer.id === CLUSTERS_LAYER)
-      if (cluster) {
-        const clusterId = cluster.properties?.cluster_id
-        const src = map.getSource(POINTS_SOURCE) as maplibregl.GeoJSONSource
-        void src.getClusterExpansionZoom(clusterId).then((zoom) => {
-          const [lng, lat] = (cluster.geometry as Point).coordinates
-          map.easeTo({ center: [lng, lat], zoom })
-        })
-        return
-      }
+      const hits = map.getLayer(MARKERS_LAYER)
+        ? map.queryRenderedFeatures(bbox, { layers: [MARKERS_LAYER] })
+        : []
 
       const marker = hits.find((f) => f.layer.id === MARKERS_LAYER)
       if (marker) {

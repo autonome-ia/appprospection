@@ -50,6 +50,15 @@
   transform: scale(0.94);
 }
 
+/* Bulles de regroupement en donut (composition par statut) */
+.cluster-donut {
+  cursor: pointer;
+  filter: drop-shadow(0 2px 8px rgba(16, 16, 26, 0.22));
+}
+.cluster-donut svg {
+  display: block;
+}
+
 /* Réticule de visée (centre exact de la carte = point posé) */
 .map-crosshair {
   position: absolute;

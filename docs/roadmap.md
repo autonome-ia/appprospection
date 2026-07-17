@@ -32,7 +32,8 @@
 - [x] **Lot 3a — Carte persistante** : la carte reste montée entre les onglets (masquée en `visibility`), retour instantané, position/zoom conservés, pas de re-téléchargement des tuiles. Quitter l'onglet ferme drawers et mode visée.
 - [x] **Lot 3b — Pose au réticule** (pattern Badger/SalesRabbit) : FAB « + » (zone pouce) → réticule au centre, on déplace la carte sous le viseur → statut + « Poser ici ». La pose au tap est retirée (plus de point accidentel possible, le doigt ne masque plus la maison). Garde-fou : zoom ≥ 15 requis.
 - [x] **Lot 3c — Sheet détail non modale** : la carte reste visible et manipulable derrière le détail d'un point ; le point sélectionné est recadré au-dessus de la sheet (`easeTo` + padding bas, rendu à la fermeture) ; le halo de sélection prend la couleur du statut.
-- [ ] ⬜ **Lot 3 (suite, à choisir)** : clusters en donut par statut · filtres carte (statut/commercial).
+- [x] **Lot 3d — Clusters en donut par statut** : chaque bulle de regroupement montre la composition (arc coloré par statut, total au centre en Geist Mono) — marqueurs DOM SVG (`config/clusters.ts`) synchronisés avec les clusters visibles, clic = zoom comme avant.
+- [ ] ⬜ **Lot 3 (suite, à choisir)** : filtres carte (statut/commercial).
 
 ## Design — DA « Clair & précis » (Linear/Vercel/Emil Kowalski)
 - [x] Système de design (tokens, police Geist, icônes Lucide, Sonner, Vaul, Motion)
