@@ -56,7 +56,9 @@ function AppointmentCard({ appt, who, profile, onChanged, onEdit, onShowOnMap, t
           <span>{appt.notes}</span>
         </div>
       )}
-      {appt.point?.notes && appt.point.notes !== appt.notes && (
+      {/* Contexte terrain masqué s'il répète la note du RDV (comparaison
+          nettoyée : les données historiques peuvent différer d'un espace). */}
+      {appt.point?.notes && appt.point.notes.trim() !== (appt.notes ?? '').trim() && (
         <div className="appt-note is-context">
           <MapPin size={13} strokeWidth={1.9} />
           <span>{appt.point.notes}</span>

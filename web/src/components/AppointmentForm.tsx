@@ -57,10 +57,12 @@ export function AppointmentForm({ open, onOpenChange, profile, existing, pointId
     try {
       const scheduled_at = new Date(when).toISOString()
       const payload = {
-        client_name: clientName || null,
-        client_phone: clientPhone || null,
-        address: address || null,
-        notes: notes || null,
+        client_name: clientName.trim() || null,
+        client_phone: clientPhone.trim() || null,
+        address: address.trim() || null,
+        // Nettoyée : la copie vers le journal de la maison l'est aussi, et
+        // l'agenda masque le contexte du point quand les textes sont égaux.
+        notes: notes.trim() || null,
       }
       if (existing) {
         await updateAppointment(existing.id, { scheduled_at, ...payload })
