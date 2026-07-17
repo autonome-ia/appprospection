@@ -13,8 +13,12 @@ import './App.css'
 function AppInner() {
   const { loading, session, profile } = useSession()
   const [tab, setTab] = useState<Tab>('carte')
-  // Cible « Voir sur la carte » (depuis l'agenda) : consommée par MapView.
+  // Cible « Voir sur la carte » (depuis l'agenda ou l'accueil) : consommée par MapView.
   const [mapFocus, setMapFocus] = useState<MapFocus | null>(null)
+  const showOnMap = (target: MapFocus) => {
+    setMapFocus(target)
+    setTab('carte')
+  }
 
   if (loading) {
     return (
@@ -43,16 +47,8 @@ function AppInner() {
             onFocusHandled={() => setMapFocus(null)}
           />
         </div>
-        {tab === 'accueil' ? <AccueilScreen /> : null}
-        {tab === 'agenda' ? (
-          <AgendaScreen
-            profile={profile}
-            onShowOnMap={(target) => {
-              setMapFocus(target)
-              setTab('carte')
-            }}
-          />
-        ) : null}
+        {tab === 'accueil' ? <AccueilScreen onShowOnMap={showOnMap} /> : null}
+        {tab === 'agenda' ? <AgendaScreen profile={profile} onShowOnMap={showOnMap} /> : null}
         {tab === 'stats' ? <StatsScreen profile={profile} /> : null}
       </main>
 

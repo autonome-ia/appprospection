@@ -67,6 +67,8 @@ export function usePoints(profile: Profile | null) {
         status,
         note: note ?? null,
         client_name: null,
+        address: null,
+        revisit_at: null,
       }
       setPoints((prev) => [...prev, temp])
 
@@ -108,7 +110,12 @@ export function usePoints(profile: Profile | null) {
   const updatePoint = useCallback(
     async (
       id: string,
-      changes: { status?: PointStatus; note?: string | null; client_name?: string | null },
+      changes: {
+        status?: PointStatus
+        note?: string | null
+        client_name?: string | null
+        revisit_at?: string | null
+      },
     ) => {
       const mapped = tempIdsRef.current.get(id)
       const realId = mapped && mapped !== 'pending' && mapped !== 'cancelled' ? mapped : id
@@ -126,6 +133,7 @@ export function usePoints(profile: Profile | null) {
                   ...(changes.status !== undefined ? { status: changes.status } : {}),
                   ...(changes.note !== undefined ? { note: changes.note } : {}),
                   ...(changes.client_name !== undefined ? { client_name: changes.client_name } : {}),
+                  ...(changes.revisit_at !== undefined ? { revisit_at: changes.revisit_at } : {}),
                 }
               : x,
           ),

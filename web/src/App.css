@@ -29,6 +29,27 @@
   inset: 0;
 }
 
+/* Barre de filtres par statut (bas de carte, à gauche du FAB) */
+.map-filterbar {
+  position: absolute;
+  left: 14px;
+  right: 86px;
+  bottom: 26px;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.map-filterbar::-webkit-scrollbar {
+  display: none;
+}
+.map-filterbar .chip {
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
 /* Bouton "Poser un point" (zone pouce) */
 .map-fab {
   position: absolute;
@@ -1210,6 +1231,64 @@
   box-shadow: var(--shadow-lg);
   outline: none;
 }
+/* Accueil : sections « À relancer » et « Activité récente » */
+.home-section {
+  width: 100%;
+  margin-top: 22px;
+}
+.home-section .section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+.home-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.home-row.is-static {
+  cursor: default;
+}
+.home-row .status-dot {
+  flex: 0 0 auto;
+  margin-top: 5px;
+}
+.home-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.home-row-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home-row-sub {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home-row-when {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
 /* Journal de notes de la maison (fiche point) : horodaté, auteur, empilé */
 .note-history {
   list-style: none;

@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase'
 import type { MapPoint, Profile } from '../domain/types'
 import type { PointStatus } from '../domain/status'
 
-const COLS = 'id, lng, lat, status, notes, client_name'
+const COLS = 'id, lng, lat, status, notes, client_name, address, revisit_at'
 
 /** Détail complet d'un point (panneau au clic). */
 export interface PointDetail extends MapPoint {
@@ -19,6 +19,19 @@ function rowToPoint(r: Record<string, unknown>): MapPoint {
     status: r.status as PointStatus,
     note: (r.notes as string | null) ?? null,
     client_name: (r.client_name as string | null) ?? null,
+    address: (r.address as string | null) ?? null,
+    revisit_at: (r.revisit_at as string | null) ?? null,
+  }
+}
+
+/** Adresse la plus proche (géocodage inverse BAN). */
+async function reverseGeocode(lng: number, lat: number): Promise<string | null> {
+  try {
+    const r = await fetch(`https://data.geopf.fr/geocodage/reverse/?lon=${lng}&lat=${lat}`)
+    const j = (await r.json()) as { features?: { properties?: { label?: string } }[] }
+    return j.features?.[0]?.properties?.label ?? null
+  } catch {
+    return null
   }
 }
 
@@ -86,6 +99,13 @@ export async function insertPoint(
 
   const point = rowToPoint(data as Record<string, unknown>)
   await logEvent(profile, point.id, status, note)
+  // Adresse en arrière-plan (n'attend pas : la pose doit rester instantanée).
+  // Le temps réel propage la mise à jour à tous les clients.
+  void reverseGeocode(lng, lat).then((label) => {
+    if (label && supabase) {
+      void supabase.from('points').update({ address: label }).eq('id', point.id)
+    }
+  })
   return point
 }
 
@@ -93,7 +113,12 @@ export async function insertPoint(
 export async function updatePoint(
   profile: Profile,
   id: string,
-  changes: { status?: PointStatus; note?: string | null; client_name?: string | null },
+  changes: {
+    status?: PointStatus
+    note?: string | null
+    client_name?: string | null
+    revisit_at?: string | null
+  },
 ): Promise<MapPoint> {
   if (!supabase) throw new Error('Supabase non configuré')
 
@@ -101,6 +126,7 @@ export async function updatePoint(
   if (changes.status !== undefined) patch.status = changes.status
   if (changes.note !== undefined) patch.notes = changes.note
   if (changes.client_name !== undefined) patch.client_name = changes.client_name
+  if (changes.revisit_at !== undefined) patch.revisit_at = changes.revisit_at
 
   const { data, error } = await supabase.from('points').update(patch).eq('id', id).select(COLS).single()
   if (error) throw error
@@ -114,6 +140,21 @@ export async function deletePoint(id: string): Promise<void> {
   if (!supabase) return
   const { error } = await supabase.from('points').delete().eq('id', id)
   if (error) throw error
+}
+
+/** Points « à revoir » dont la date de relance est atteinte ou dépassée. */
+export async function fetchRelances(): Promise<MapPoint[]> {
+  if (!supabase) return []
+  const today = new Date().toISOString().slice(0, 10)
+  const { data, error } = await supabase
+    .from('points')
+    .select(COLS)
+    .eq('status', 'a_revoir')
+    .not('revisit_at', 'is', null)
+    .lte('revisit_at', today)
+    .order('revisit_at')
+  if (error) throw error
+  return (data ?? []).map(rowToPoint)
 }
 
 /** Une entrée du journal de notes d'une maison (table point_notes). */

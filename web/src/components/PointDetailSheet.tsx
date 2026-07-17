@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
-import { X, Trash2, Clock, User } from 'lucide-react'
+import { X, Trash2, Clock, User, MapPin } from 'lucide-react'
 import { getPointDetail, fetchPointNotes, type PointDetail, type PointNote } from '../data/points'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { STATUSES, STATUS_BY_VALUE, type PointStatus } from '../domain/status'
@@ -13,7 +13,12 @@ interface Props {
   onOpenChange: (open: boolean) => void
   onUpdate: (
     id: string,
-    changes: { status?: PointStatus; note?: string | null; client_name?: string | null },
+    changes: {
+      status?: PointStatus
+      note?: string | null
+      client_name?: string | null
+      revisit_at?: string | null
+    },
   ) => Promise<void>
   /** Ajoute une note au journal de la maison (jamais d'écrasement). */
   onAddNote: (id: string, body: string) => Promise<void>
@@ -45,12 +50,14 @@ export function PointDetailSheet({
   const [history, setHistory] = useState<PointNote[]>([])
   const [newNote, setNewNote] = useState('')
   const [clientName, setClientName] = useState('')
+  const [revisitAt, setRevisitAt] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!point) return
     setStatus(point.status)
     setClientName(point.client_name ?? '')
+    setRevisitAt(point.revisit_at ?? '')
     setNewNote('')
     setDetail(null)
     setHistory([])
@@ -78,6 +85,7 @@ export function PointDetailSheet({
   const dirty =
     status !== point.status ||
     clientName !== (point.client_name ?? '') ||
+    (status === 'a_revoir' && revisitAt !== (point.revisit_at ?? '')) ||
     newNote.trim().length > 0
 
   // Journal affiché : le vrai journal, ou à défaut la dernière note connue
@@ -97,10 +105,20 @@ export function PointDetailSheet({
   async function save() {
     if (!point) return
     setSaving(true)
-    const changes: { status?: PointStatus; client_name?: string | null } = {}
+    const changes: {
+      status?: PointStatus
+      client_name?: string | null
+      revisit_at?: string | null
+    } = {}
     if (status !== point.status) changes.status = status
     if (clientName !== (point.client_name ?? ''))
       changes.client_name = clientName.trim() ? clientName.trim() : null
+    // Date de relance : suivie seulement pour « à revoir », effacée sinon.
+    if (status === 'a_revoir') {
+      if (revisitAt !== (point.revisit_at ?? '')) changes.revisit_at = revisitAt || null
+    } else if (point.revisit_at) {
+      changes.revisit_at = null
+    }
     const becameRdv = changes.status === 'rdv_pris'
     try {
       if (Object.keys(changes).length > 0) await onUpdate(point.id, changes)
@@ -145,12 +163,19 @@ export function PointDetailSheet({
             </button>
           </div>
 
-          {detail && (
+          {(detail || point.address) && (
             <div className="drawer-meta">
-              <span>
-                <Clock size={13} /> {formatDate(detail.created_at)}
-              </span>
-              {detail.author_name && (
+              {point.address && (
+                <span>
+                  <MapPin size={13} /> {point.address}
+                </span>
+              )}
+              {detail && (
+                <span>
+                  <Clock size={13} /> {formatDate(detail.created_at)}
+                </span>
+              )}
+              {detail?.author_name && (
                 <span>
                   <User size={13} /> {detail.author_name}
                 </span>
@@ -173,6 +198,18 @@ export function PointDetailSheet({
               </button>
             ))}
           </div>
+
+          {status === 'a_revoir' && (
+            <>
+              <p className="eyebrow field-label">Revoir le</p>
+              <input
+                className="field-input"
+                type="date"
+                value={revisitAt}
+                onChange={(e) => setRevisitAt(e.target.value)}
+              />
+            </>
+          )}
 
           <p className="eyebrow field-label">Client</p>
           <input

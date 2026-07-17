@@ -51,6 +51,13 @@
 ## Déploiement ✅
 - [x] Render (Static Site via `render.yaml`), repo GitHub `autonome-ia/appprospection`, HTTPS + PWA installable. Redéploiement auto à chaque `git push`.
 
+## Quick wins SalesRabbit (étude `etude-salesrabbit.md`, juillet 2026)
+- [x] **Relances datées** : champ « Revoir le » sur les points « à revoir » (**migration `db/0005_revisit_at.sql` à exécuter**), bloc « À relancer » sur l'Accueil (clic → carte + fiche). La date s'efface si le statut change.
+- [x] **Adresse automatique** : géocodage inverse BAN en arrière-plan à la pose → adresse sur la fiche, l'Accueil et l'agenda.
+- [x] **Filtres carte par statut** : chips en bas de carte (multi-sélection, vide = tout). « Vendu » seul = voir les chantiers pour prospecter autour (Customer Locator de SalesRabbit).
+- [x] **Feed d'activité** sur l'Accueil : dernières actions de l'équipe (auteur, statut, client/adresse, il y a X min) depuis `point_events`.
+- [ ] ⬜ **Territoires** (chantier suivant validé) : polygones dessinés par le manager + assignation + % de couverture. Puis équipe/invitations avant la prod.
+
 ## Prochains chantiers (à choisir avec briac)
 - [ ] ⬜ **Écran de connexion** — dernier écran encore à l'ancien style ; l'habiller avec la DA (Geist/Lucide). Petit, rapide.
 - [ ] ⬜ **Équipe (invitations)** — le manager partage un code ; les commerciaux s'inscrivent avec ce code et rejoignent SON agence (aujourd'hui chaque inscription = nouvelle agence isolée). Débloque le test réel à plusieurs. *Dépend un peu de l'ami (Q13-16).*

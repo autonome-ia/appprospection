@@ -32,6 +32,35 @@ function previousNow(period: Period, now = new Date()): Date {
   return d
 }
 
+/** Une action récente de l'équipe (feed d'activité de l'Accueil). */
+export interface ActivityItem {
+  id: string
+  status: PointStatus
+  occurred_at: string
+  author_name: string | null
+  client_name: string | null
+  address: string | null
+}
+
+/** Dernières actions de l'équipe (journal point_events, plus récentes d'abord). */
+export async function fetchRecentActivity(limit = 12): Promise<ActivityItem[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('point_events')
+    .select('id, status, occurred_at, author:profiles(full_name), point:points(client_name, address)')
+    .order('occurred_at', { ascending: false })
+    .limit(limit)
+  if (error) throw error
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
+    id: r.id as string,
+    status: r.status as PointStatus,
+    occurred_at: r.occurred_at as string,
+    author_name: (r.author as { full_name?: string | null } | null)?.full_name ?? null,
+    client_name: (r.point as { client_name?: string | null } | null)?.client_name ?? null,
+    address: (r.point as { address?: string | null } | null)?.address ?? null,
+  }))
+}
+
 // Un "contact" = quelqu'un a répondu (à revoir / RDV pris / vendu).
 // (Absent et Impossible = pas de contact.) — définition à valider avec le métier.
 const CONTACT_STATUSES: PointStatus[] = ['a_revoir', 'rdv_pris', 'vendu']

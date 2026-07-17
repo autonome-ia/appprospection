@@ -12,7 +12,7 @@ import {
 import { generateMarkerImages, MARKER_PREFIX, NOTE_SUFFIX } from '../config/markers'
 import { createClusterBadge, type ClusterProps } from '../config/clusters'
 import { toast } from 'sonner'
-import { STATUS_BY_VALUE, statusColorExpression, type PointStatus } from '../domain/status'
+import { STATUSES, STATUS_BY_VALUE, statusColorExpression, type PointStatus } from '../domain/status'
 import { StatusPicker } from './StatusPicker'
 import { PointDetailSheet } from './PointDetailSheet'
 import { AddressSearch } from './AddressSearch'
@@ -94,6 +94,9 @@ export function MapView({
   // Mode visée : réticule au centre, on déplace la carte sous le viseur puis
   // on valide — le doigt ne masque jamais la maison, aucun tap accidentel.
   const [placing, setPlacing] = useState(false)
+  // Filtre par statut (vide = tout afficher). Ex. « Vendu » seul = voir les
+  // chantiers pour prospecter autour.
+  const [statusFilter, setStatusFilter] = useState<ReadonlySet<PointStatus>>(new Set())
 
   // Le handler de clic lit toujours les dernières valeurs via des refs.
   const selectedIdRef = useRef(selectedId)
@@ -431,14 +434,19 @@ export function MapView({
     setPlacing(false)
   }
 
-  // Met à jour la source GeoJSON quand la liste de points change OU quand la
-  // carte devient prête (évite le 1er rendu manqué si les points arrivent avant).
+  // Met à jour la source GeoJSON quand la liste de points ou le filtre change
+  // OU quand la carte devient prête (évite le 1er rendu manqué si les points
+  // arrivent avant). Filtre appliqué à la SOURCE : les bulles de regroupement
+  // restent cohérentes avec ce qui est affiché.
   useEffect(() => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
     const source = map.getSource(POINTS_SOURCE) as maplibregl.GeoJSONSource | undefined
-    source?.setData(toFeatureCollection(points))
-  }, [points, mapLoaded])
+    const visible = statusFilter.size
+      ? points.filter((p) => statusFilter.has(p.status))
+      : points
+    source?.setData(toFeatureCollection(visible))
+  }, [points, mapLoaded, statusFilter])
 
   // Surbrillance du point sélectionné.
   useEffect(() => {
@@ -614,14 +622,37 @@ export function MapView({
       </div>
 
       {!placing && (
-        <button
-          type="button"
-          className="map-fab"
-          onClick={() => setPlacing(true)}
-          aria-label="Poser un point"
-        >
-          <Plus size={26} strokeWidth={2.2} />
-        </button>
+        <>
+          <div className="map-filterbar">
+            {STATUSES.map((s) => (
+              <button
+                key={s.value}
+                type="button"
+                className={`chip ${statusFilter.has(s.value) ? 'is-active' : ''}`}
+                style={{ ['--chip' as string]: s.color }}
+                onClick={() =>
+                  setStatusFilter((prev) => {
+                    const next = new Set(prev)
+                    if (next.has(s.value)) next.delete(s.value)
+                    else next.add(s.value)
+                    return next
+                  })
+                }
+              >
+                <span className="chip-dot" style={{ background: s.color }} />
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="map-fab"
+            onClick={() => setPlacing(true)}
+            aria-label="Poser un point"
+          >
+            <Plus size={26} strokeWidth={2.2} />
+          </button>
+        </>
       )}
 
       {placing && (
