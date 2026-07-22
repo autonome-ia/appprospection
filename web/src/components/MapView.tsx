@@ -7,7 +7,7 @@ import {
   FRANCE_ZOOM,
   ORTHO_LAYER_ID,
   ORTHO_SOURCE_ID,
-  orthoSource,
+  getOrthoSource,
 } from '../config/map'
 import { generateMarkerImages, MARKER_PREFIX, NOTE_SUFFIX } from '../config/markers'
 import { createClusterBadge, type ClusterProps } from '../config/clusters'
@@ -90,6 +90,11 @@ export function MapView({
   const mapRef = useRef<maplibregl.Map | null>(null)
   // Couches de bâtiments du fond Plan IGN (à masquer en mode Toits).
   const baseBatiLayersRef = useRef<string[]>([])
+  // Couches NON-texte du Plan IGN dessinées AU-DESSUS de l'ortho (routes en
+  // rubans blancs/jaunes, plans d'eau aplats, voile papier…) : masquées en mode
+  // Toits pour que la photo soit pure (les routes restent visibles… en photo),
+  // restaurées à leur visibilité d'origine en mode plan.
+  const basePlanOverlayLayersRef = useRef<Map<string, 'visible' | 'none'>>(new Map())
   // Couches de labels du fond (noms de rues…) : halo blanc ajouté en mode
   // Toits (illisibles sinon sur la photo), valeurs d'origine restaurées en plan.
   const baseLabelLayersRef = useRef<string[]>([])
@@ -176,6 +181,22 @@ export function MapView({
         .map((l) => l.id)
       // Labels du fond IGN (capturés AVANT l'ajout de nos propres couches symbol).
       baseLabelLayersRef.current = layers.filter((l) => l.type === 'symbol').map((l) => l.id)
+
+      // Le style Plan IGN entremêle textes et tracés : ~370 couches non-texte
+      // (routes, hydro, aplats bâti…) sont rendues APRÈS le premier symbol,
+      // donc PAR-DESSUS l'ortho (insérée sous les labels). En mode Toits elles
+      // recouvraient la photo (rubans de routes opaques, lacs aplats). On les
+      // recense ici avec leur visibilité d'origine pour pouvoir les masquer.
+      const firstSymbolIndex = firstSymbol ? layers.indexOf(firstSymbol) : layers.length
+      basePlanOverlayLayersRef.current = new Map(
+        layers
+          .slice(firstSymbolIndex)
+          .filter((l) => l.type !== 'symbol')
+          .map((l) => [
+            l.id,
+            (l.layout?.visibility === 'none' ? 'none' : 'visible') as 'visible' | 'none',
+          ]),
+      )
 
       // Voile chaud : teinte le sol (ton papier) pour que les routes blanches
       // ressortent. Inséré SOUS les routes si on les trouve (elles restent
@@ -269,19 +290,22 @@ export function MapView({
 
       // Ortho-photo (mode "Toits") : insérée SOUS les libellés pour que les noms
       // de rues restent visibles PAR-DESSUS la photo (vue hybride). Masquée par défaut.
-      map.addSource(ORTHO_SOURCE_ID, orthoSource)
+      map.addSource(ORTHO_SOURCE_ID, getOrthoSource())
       map.addLayer(
         {
           id: ORTHO_LAYER_ID,
           type: 'raster',
           source: ORTHO_SOURCE_ID,
           layout: { visibility: 'none' },
-          // La BD ORTHO est voilée/laiteuse aux zooms moyens : contraste appuyé,
-          // blancs légèrement rabaissés, saturation relevée.
+          // Correction douce, dégressive avec le zoom : la mosaïque IGN est
+          // voilée aux zooms moyens mais la photo 20 cm est propre au zoom
+          // maison — la sur-corriger la rendait artificielle. (Le gros du
+          // « voile laiteux » venait en fait de base-wash, désormais masqué
+          // en mode Toits.)
           paint: {
-            'raster-saturation': 0.25,
-            'raster-contrast': 0.12,
-            'raster-brightness-max': 0.95,
+            'raster-saturation': ['interpolate', ['linear'], ['zoom'], 13, 0.25, 17, 0.15, 19, 0.08],
+            'raster-contrast': ['interpolate', ['linear'], ['zoom'], 13, 0.12, 17, 0.07, 19, 0.03],
+            'raster-brightness-max': ['interpolate', ['linear'], ['zoom'], 13, 0.95, 19, 0.99],
           },
         },
         beforeLabels,
@@ -654,6 +678,19 @@ export function MapView({
       if (map.getLayer(id)) {
         map.setLayoutProperty(id, 'visibility', orthoOn ? 'none' : 'visible')
       }
+    }
+    // Tracés du plan rendus au-dessus de la photo (routes en rubans, hydro…) :
+    // masqués en mode Toits — les routes redeviennent de vraies routes photo,
+    // seuls les noms de rues restent. Restaurés à l'identique en mode plan.
+    for (const [id, originalVisibility] of basePlanOverlayLayersRef.current) {
+      if (map.getLayer(id)) {
+        map.setLayoutProperty(id, 'visibility', orthoOn ? 'none' : originalVisibility)
+      }
+    }
+    // Voile papier (contraste du mode plan) : lui aussi dessiné au-dessus de
+    // l'ortho — il laiteusait toute la photo, on le coupe en mode Toits.
+    if (map.getLayer('base-wash')) {
+      map.setLayoutProperty('base-wash', 'visibility', orthoOn ? 'none' : 'visible')
     }
     // Les bâtiments 3D ne s'affichent qu'en mode Plan (masqués sous l'ortho).
     for (const id of [BUILDINGS_LAYER_ID, SELECTED_BUILDING_LAYER]) {
