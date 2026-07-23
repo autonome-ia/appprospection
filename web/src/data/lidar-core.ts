@@ -356,8 +356,86 @@ export interface RoofMeasure {
   coverage: number
 }
 
+// Un plan RANSAC peut capturer DEUX faces physiques distinctes quand elles
+// sont coplanaires (lotissements en L/T : ailes symétriques, même pente et
+// mêmes hauteurs) : sa « région » est alors en morceaux disjoints et le
+// dessin part en chaos (audit briac, other bad 3D). On découpe chaque pan en
+// COMPOSANTES spatialement connexes (cellules dilatées de 2 pour ponter les
+// trous d'échantillonnage — les ardoises sombres et dalles plates renvoient
+// peu de points, un rayon 1 sur-découpait des faces réelles, régression Rosa
+// attrapée au banc) ; une composante ≥ SPLIT_MIN_M2 devient un pan à part
+// entière (même plan), les miettes restent avec la plus grosse.
+const SPLIT_MIN_M2 = 12
+
+function splitDisjointPans(pts: Pt[], pans: RawPan[]): RawPan[] {
+  const out: RawPan[] = []
+  for (const pan of pans) {
+    const cellIdx = new Map<string, number[]>()
+    for (const i of pan.inliers) {
+      const k = `${Math.floor(pts[i][0] / CELL)}:${Math.floor(pts[i][1] / CELL)}`
+      cellIdx.set(k, [...(cellIdx.get(k) ?? []), i])
+    }
+    // Dilatation de 2 cellules : deux faces coplanaires d'ailes distinctes
+    // restent séparées (> 2 m d'écart), les trous d'échantillonnage non.
+    const dilated = new Set<string>()
+    for (const k of cellIdx.keys()) {
+      const [x, y] = k.split(':').map(Number)
+      for (let dx = -2; dx <= 2; dx++) {
+        for (let dy = -2; dy <= 2; dy++) dilated.add(`${x + dx}:${y + dy}`)
+      }
+    }
+    // Composantes connexes (8-conn) sur les cellules dilatées.
+    const comp = new Map<string, number>()
+    let nComp = 0
+    for (const seed of [...cellIdx.keys()].sort()) {
+      if (comp.has(seed)) continue
+      const id = nComp++
+      const stack = [seed]
+      comp.set(seed, id)
+      while (stack.length) {
+        const [x, y] = stack.pop()!.split(':').map(Number)
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            const nk = `${x + dx}:${y + dy}`
+            if (dilated.has(nk) && !comp.has(nk)) {
+              comp.set(nk, id)
+              if (cellIdx.has(nk)) stack.push(nk)
+            }
+          }
+        }
+      }
+    }
+    const byComp = new Map<number, number[]>()
+    for (const [k, idx] of cellIdx) {
+      const c = comp.get(k)!
+      byComp.set(c, [...(byComp.get(c) ?? []), ...idx])
+    }
+    const groups = [...byComp.entries()]
+      .map(([, idx]) => idx)
+      .sort((a, b) => b.length - a.length)
+    if (groups.length <= 1) {
+      out.push(pan)
+      continue
+    }
+    const main: number[] = [...groups[0]]
+    for (let g = 1; g < groups.length; g++) {
+      const cells = new Set(
+        groups[g].map((i) => `${Math.floor(pts[i][0] / CELL)}:${Math.floor(pts[i][1] / CELL)}`),
+      )
+      if (cells.size * CELL * CELL >= SPLIT_MIN_M2) {
+        out.push({ plane: pan.plane, inliers: groups[g] })
+      } else {
+        main.push(...groups[g]) // miette : reste avec la face principale
+      }
+    }
+    out.push({ plane: pan.plane, inliers: main })
+  }
+  return out
+}
+
 export function measureRoof(pts: Pt[], ring: Ring): RoofMeasure {
-  const { pans, density } = segmentPans(pts)
+  const { pans: rawPans, density } = segmentPans(pts)
+  const pans = splitDisjointPans(pts, rawPans)
   // Seuil de densité pour les cellules HORS emprise murale : un vrai débord
   // de toit est aussi dense que le toit, les tranches de façade découpées par
   // le RANSAC ne laissent que des lignes clairsemées le long des murs.

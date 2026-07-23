@@ -30,6 +30,21 @@
     "pitched_share": 0.912
   },
   {
+    "fixture": "etalon-danton130",
+    "n_pts": 1992,
+    "n_pans": 6,
+    "total_m2": 247.3,
+    "recon_null": false,
+    "fallback_pans": 1,
+    "out_of_outline_m": 0,
+    "coverage_ratio": 0.846,
+    "sail_factor": 2.41,
+    "max_vertices": 12,
+    "self_intersect": true,
+    "body_share": 0.944,
+    "pitched_share": 0.944
+  },
+  {
     "fixture": "etalon-deschard",
     "n_pts": 1048,
     "n_pans": 4,
@@ -58,6 +73,21 @@
     "self_intersect": false,
     "body_share": 0.974,
     "pitched_share": 0.974
+  },
+  {
+    "fixture": "etalon-menez8",
+    "n_pts": 4093,
+    "n_pans": 11,
+    "total_m2": 261.8,
+    "recon_null": false,
+    "fallback_pans": 0,
+    "out_of_outline_m": 0,
+    "coverage_ratio": 1.244,
+    "sail_factor": 0.68,
+    "max_vertices": 38,
+    "self_intersect": true,
+    "body_share": 0.747,
+    "pitched_share": 1
   },
   {
     "fixture": "etalon-rosa-floch",
@@ -197,13 +227,13 @@
   {
     "fixture": "relecq-2",
     "n_pts": 5754,
-    "n_pans": 11,
+    "n_pans": 15,
     "total_m2": 583.9,
     "recon_null": false,
     "fallback_pans": 0,
     "out_of_outline_m": 0,
-    "coverage_ratio": 0.964,
-    "sail_factor": 0.69,
+    "coverage_ratio": 1.125,
+    "sail_factor": 0.77,
     "max_vertices": 22,
     "self_intersect": true,
     "body_share": 0.972,

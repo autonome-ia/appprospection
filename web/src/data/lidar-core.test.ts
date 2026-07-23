@@ -211,6 +211,37 @@ describe('measureRoof (banc synthétique)', () => {
     }
   })
 
+  it('deux faces COPLANAIRES disjointes → deux pans distincts (lotissements en L)', () => {
+    // Deux nappes sur le MÊME plan incliné, séparées de 4 m : un seul plan
+    // RANSAC, mais deux faces physiques — le dessin exige deux pans.
+    const rand = makeRand(9)
+    const gauss = makeGauss(rand)
+    const ring: Ring = [
+      [0, 0],
+      [26, 0],
+      [26, 8],
+      [0, 8],
+      [0, 0],
+    ]
+    const pts: Pt[] = []
+    const addPatch = (x0: number, x1: number) => {
+      for (let i = 0; i < Math.round((x1 - x0) * 8 * DENSITY); i++) {
+        const x = x0 + rand() * (x1 - x0)
+        const y = rand() * 8
+        pts.push([x, y, 10 + 0.7 * y + gauss() * NOISE]) // même plan z=10+0,7y
+      }
+    }
+    addPatch(0, 11)
+    addPatch(15, 26)
+    const m = measureRoof(pts, ring)
+    const big = m.pans.filter((p) => p.realDedup >= 20)
+    expect(big.length).toBe(2)
+    // Chaque face garde sa propre emprise (~11×8 en projeté, à ±20 %).
+    for (const p of big) {
+      expect(Math.abs(p.realDedup * Math.cos((p.slopeDeg * Math.PI) / 180) - 88) / 88).toBeLessThanOrEqual(0.2)
+    }
+  })
+
   it('toit plat : un pan unique typé plat, couverture pleine', () => {
     const c = makeFlatRoof(20, 15, 4)
     const m = measureRoof(c.pts, c.ring)

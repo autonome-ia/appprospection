@@ -92,8 +92,13 @@ export interface HouseEnrichment {
  *      (F5) ; garde « part inclinée significative » du corps principal ;
  *      redressement split-and-merge des frontières (F1) ; corde testée tous
  *      les 50 cm + ré-assemblage simple si auto-intersection (F2).
+ * v14 : découpage des pans RANSAC en composantes spatialement connexes —
+ *      deux faces COPLANAIRES d'ailes distinctes (lotissements en L/T, 2e
+ *      série de captures briac) ne forment plus un « pan » unique en deux
+ *      morceaux qui rendait le dessin chaotique. Pontage rayon 2 (les toits
+ *      à points épars ne se sur-découpent pas), composante minimale 12 m².
  */
-export const LIDAR_VERSION = 13
+export const LIDAR_VERSION = 14
 
 /** Un pan de toiture mesuré (stocké en jsonb sur le point). */
 export interface LidarPan {

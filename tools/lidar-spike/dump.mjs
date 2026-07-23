@@ -1,4 +1,4 @@
-// Capture le nuage de points d'un bâtiment (ring L93 + voisins + points
+﻿// Capture le nuage de points d'un bÃ¢timent (ring L93 + voisins + points
 // classe 6) vers un JSON, pour rejouer le pipeline TS de l'app dans vitest.
 // Usage : node dump.mjs <lon> <lat> <sortie.json>
 import { writeFileSync } from 'node:fs'
@@ -36,13 +36,13 @@ const ringOf = (f) => {
   return outer.map(([x, y]) => toL93(x, y))
 }
 
-// Même logique que l'app : INTERSECTS, sinon le plus proche <= 10 m.
+// MÃªme logique que l'app : INTERSECTS, sinon le plus proche <= 10 m.
 const hits = await wfs(`INTERSECTS(geometrie,POINT(${lat} ${lon}))`, 1)
 const near = await wfs(`DWITHIN(geometrie,POINT(${lat} ${lon}),25,meters)`)
 let main = hits[0] ?? null
 if (!main) {
   const [px, py] = toL93(lon, lat)
-  let bestD = 10
+  let bestD = Number(process.argv[5] ?? 10)
   for (const f of near) {
     const r = ringOf(f)
     const d = pointInRing(px, py, r) ? 0 : distToRing(px, py, r)
@@ -52,10 +52,10 @@ if (!main) {
     }
   }
 }
-if (!main) throw new Error('aucun bâtiment')
+if (!main) throw new Error('aucun bÃ¢timent')
 const ring = ringOf(main)
 const neighbors = near.filter((f) => f.properties?.cleabs !== main.properties?.cleabs).map(ringOf)
-console.log(`bâtiment ${main.properties?.cleabs}, ${neighbors.length} voisins`)
+console.log(`bÃ¢timent ${main.properties?.cleabs}, ${neighbors.length} voisins`)
 
 const xs = ring.map((p) => p[0])
 const ys = ring.map((p) => p[1])

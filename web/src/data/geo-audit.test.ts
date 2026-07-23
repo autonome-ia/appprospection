@@ -221,4 +221,4 @@ describe('audit gÃ©omÃ©trique des pans dessinÃ©s (banc de diagnostic)', ()
 
     expect(true).toBe(true) // banc de diagnostic : rien de bloquant
   })
-})
+}, 180_000)
