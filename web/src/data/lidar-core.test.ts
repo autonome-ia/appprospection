@@ -187,15 +187,15 @@ describe('measureRoof (banc synthétique)', () => {
     // largeur — le pan côté y faible descend vers le sud, l'autre vers le nord.
     const c = makeGableRoof(11, 7, 0.4, 40, 3)
     const m = measureRoof(c.pts, c.ring)
-    const azimuts = m.pans
-      .filter((p) => p.type !== 'plat')
-      .map((p) => p.azimutDeg)
-      .sort((a, b) => a - b)
+    const azimuts = m.pans.filter((p) => p.type !== 'plat').map((p) => p.azimutDeg)
     expect(azimuts.length).toBe(2)
-    // écart angulaire au nord (0° modulo 360) et au sud (180°)
-    const distNord = Math.min(azimuts[0], 360 - azimuts[0])
-    expect(distNord).toBeLessThanOrEqual(5)
-    expect(Math.abs(azimuts[1] - 180)).toBeLessThanOrEqual(5)
+    // écart angulaire modulo 360 (359,99° ≈ nord)
+    const gap = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b))
+    const distSud = azimuts.map((az) => gap(az, 180))
+    const distNord = azimuts.map((az) => gap(az, 0))
+    expect(Math.min(...distSud)).toBeLessThanOrEqual(5) // un pan plein sud
+    expect(Math.min(...distNord)).toBeLessThanOrEqual(5) // un pan plein nord
+    expect(gap(azimuts[0], azimuts[1])).toBeGreaterThanOrEqual(175) // opposés
   })
 
   it('toit plat : un pan unique typé plat, couverture pleine', () => {
