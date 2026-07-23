@@ -133,3 +133,24 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
     les maisons de référence.
   4. Sur-segmentation légère (pans parallèles décalés fusionnables) : à traiter en phase 1.
   **Reste pour clore la phase 0 : le Gate G0** — 3-4 maisons de surface connue (action briac).
+- **23/07/2026 (soir)** — **Validation sans vérité terrain externe** (briac indisponible côté
+  chef des ventes) : deux dispositifs ajoutés.
+  1. **Banc synthétique** (`bench.mjs`) : toits générés mathématiquement (croupe 35°/45°,
+     bâtière 40°, plat) avec le réalisme du LiDAR (12 pts/m², bruit 3 cm, cheminée, 2 %
+     d'aberrants), passés dans le MÊME code de mesure (`lib.mjs`, partagé avec le spike).
+     **Erreur max : 5,7 %, dispersion quasi nulle** (objectif G0 : ≤ 8 %). Biais résiduels
+     compris et corrigeables en phase 1 : cellules vides de la grille (~5 % en sous-mesure,
+     corrigeable par facteur de densité ou fermeture morphologique) ; débord de bordure.
+  2. **Toits plats réels** (surface = emprise BD TOPO connue) : deux bâtiments commerciaux de
+     Lesneven. A révélé un vrai bug — **double comptage des cellules entre pans superposés**
+     (toits multi-niveaux, sur-segmentation) : +18 % sur un centre commercial. **Corrigé**
+     (déduplication des cellules dans `measureRoof`, chaque cellule attribuée au premier pan) ;
+     retombe à +9 % de l'emprise murs (cohérent avec parapets/débords réels). Le correctif
+     stabilise aussi les pavillons (maison test : 150 → **135 m²**, plus de jitter RANSAC).
+  Nouvelles valeurs de référence après dédup : maison test **135 m²**, dalles voisines
+  (Lesneven nord) millésimées **01/2025** — couverture très fraîche confirmée.
+  **Le Gate G0 reste ouvert** : la vérité terrain externe (surfaces facturées par le chef des
+  ventes) reste le juge de paix ; briac peut aussi auto-tester sur une maison accessible
+  (plans du permis de construire, facture de couverture, ou mesure du pignon : largeur +
+  angle mesuré à l'inclinomètre du téléphone → surface = 2 × longueur × (largeur/2)/cos(angle)
+  + débords).

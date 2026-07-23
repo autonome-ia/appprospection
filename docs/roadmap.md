@@ -69,7 +69,8 @@
 ## Mesure de toiture LiDAR HD (SOP `sop-mesure-toiture-lidar.md`, juillet 2026)
 - [x] **Cadrage + fondations vérifiées** : surface de toit quasi réelle (±3-5 % visés) depuis le nuage de points LiDAR HD IGN (open data, 0 €), en fond de fiche maison — pas de nouvelle carte. Dalle de test (Lesneven) trouvée via WFS, acquisition 12/2024, format COPC streamable (Range 206 testé). Phases avec GO/NO-GO dans le SOP.
 - [x] **Phase 0 — spike technique** (`tools/lidar-spike/`) : pipeline complet fonctionnel sur 3 maisons de Lesneven (streaming COPC 2 Mo/maison en 3-6 s, pans + pentes + azimuts cohérents, cas « 2 dalles » résolu). Mesures +15 à +48 % vs estimation actuelle (débords + pentes réelles).
-- [ ] ⬜ **Gate G0 (précision)** : comparer sur 3-4 maisons de surface réellement connue. **Attend de briac : adresses + surfaces réelles (chantiers du chef des ventes).**
+- [x] **Validation interne (sans vérité terrain)** : banc synthétique (`bench.mjs`, vérité mathématique, même code de mesure) → **erreur max 5,7 %** ; test toits plats réels (surface = emprise connue) → bug de double comptage multi-pans trouvé et corrigé (dédup des cellules).
+- [ ] ⬜ **Gate G0 (précision externe)** : comparer sur 3-4 maisons de surface réellement connue — surfaces facturées du chef des ventes, ou auto-test briac (plans / facture / mesure pignon à l'inclinomètre).
 - [ ] ⬜ Phase 1 durcissement · Phase 2 intégration (Edge Function + migration `db/0008`) · Phase 3 pans dessinés sur l'ortho (option).
 - [ ] ⬜ **Quick wins estimation actuelle** (« étage 1 », ½ j, à valider) : débords de toit, toits plats, formes en L — améliore le fallback partout où le LiDAR ne peut rien.
 
