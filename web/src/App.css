@@ -222,6 +222,11 @@
 .address-results li {
   margin: 0;
 }
+/* En-tête « Récentes » de la liste (champ vide : dernières adresses choisies). */
+.address-caption {
+  padding: 6px 10px 4px;
+  color: var(--ink-3);
+}
 .address-results button {
   display: flex;
   align-items: center;

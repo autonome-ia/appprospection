@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Search, X, MapPin } from 'lucide-react'
+import { Search, X, MapPin, History } from 'lucide-react'
 
 export interface AddressResult {
   label: string
@@ -14,10 +14,36 @@ interface Props {
 
 const BAN_URL = 'https://data.geopf.fr/geocodage/search/'
 
+// Dernières adresses CHOISIES (pas les frappes), mémorisées sur l'appareil :
+// proposées quand on touche le champ vide — retour rapide sur ses secteurs.
+const RECENT_KEY = 'recent-addresses'
+const MAX_RECENT = 5
+
+function loadRecents(): AddressResult[] {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY)
+    const list = raw ? (JSON.parse(raw) as AddressResult[]) : []
+    return Array.isArray(list) ? list.filter((r) => r && typeof r.label === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+function saveRecent(r: AddressResult): AddressResult[] {
+  const next = [r, ...loadRecents().filter((x) => x.label !== r.label)].slice(0, MAX_RECENT)
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next))
+  } catch {
+    /* stockage plein ou privé : tant pis, les récentes sont un confort */
+  }
+  return next
+}
+
 /** Barre de recherche d'adresse française via la BAN (Base Adresse Nationale). */
 export function AddressSearch({ onSelect }: Props) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<AddressResult[]>([])
+  const [recents, setRecents] = useState<AddressResult[]>(loadRecents)
   const [open, setOpen] = useState(false)
   // Évite de relancer une recherche après avoir choisi un résultat.
   const skipNextRef = useRef(false)
@@ -30,7 +56,6 @@ export function AddressSearch({ onSelect }: Props) {
     const q = query.trim()
     if (q.length < 3) {
       setResults([])
-      setOpen(false)
       return
     }
 
@@ -69,8 +94,13 @@ export function AddressSearch({ onSelect }: Props) {
     setQuery(r.label)
     setResults([])
     setOpen(false)
+    setRecents(saveRecent(r))
     onSelect(r)
   }
+
+  // Champ (quasi) vide : on propose les dernières adresses visitées.
+  const showRecents = query.trim().length < 3 && recents.length > 0
+  const shown = showRecents ? recents : results
 
   return (
     <div className="address-search">
@@ -82,7 +112,8 @@ export function AddressSearch({ onSelect }: Props) {
           placeholder="Rechercher une adresse…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => results.length > 0 && setOpen(true)}
+          onFocus={() => (results.length > 0 || showRecents) && setOpen(true)}
+          onBlur={() => window.setTimeout(() => setOpen(false), 150)}
         />
         {query && (
           <button
@@ -99,12 +130,18 @@ export function AddressSearch({ onSelect }: Props) {
           </button>
         )}
       </div>
-      {open && results.length > 0 && (
+      {open && shown.length > 0 && (
         <ul className="address-results">
-          {results.map((r, i) => (
+          {showRecents && <li className="address-caption eyebrow">Récentes</li>}
+          {shown.map((r, i) => (
             <li key={i}>
-              <button type="button" onClick={() => choose(r)}>
-                <MapPin size={15} strokeWidth={1.8} className="address-result-icon" />
+              {/* onMouseDown : le tap doit gagner contre le blur du champ. */}
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => choose(r)}>
+                {showRecents ? (
+                  <History size={15} strokeWidth={1.8} className="address-result-icon" />
+                ) : (
+                  <MapPin size={15} strokeWidth={1.8} className="address-result-icon" />
+                )}
                 <span className="address-texts">
                   <span className="address-label">{r.label}</span>
                   {r.context && <span className="address-context">{r.context}</span>}
