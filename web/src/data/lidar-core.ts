@@ -278,7 +278,7 @@ export function traceOutline(
 }
 
 // Douglas-Peucker sur une polyligne OUVERTE.
-function dpOpen(line: [number, number][], eps: number): [number, number][] {
+export function dpOpen(line: [number, number][], eps: number): [number, number][] {
   if (line.length <= 2) return line
   const keep = new Array<boolean>(line.length).fill(false)
   keep[0] = true
@@ -340,6 +340,9 @@ export interface PanMetrics {
   /** Plan ajusté z = ax + by + c (coordonnées L93/altitude absolues) —
       sert à donner une altitude aux sommets du contour (maquette 3D). */
   plane: Plane
+  /** Nombre de points LiDAR du pan par cellule (AVANT déduplication) —
+      graines de l'étiquetage de la reconstruction (lidar-recon). */
+  counts: Map<string, number>
 }
 
 export interface RoofMeasure {
@@ -417,6 +420,7 @@ export function measureRoof(pts: Pt[], ring: Ring): RoofMeasure {
       realDedup: (freshCells.size * CELL * CELL) / Math.cos(slope),
       freshCells,
       plane: pan.plane,
+      counts,
     })
   }
   // Typage des pans : plat / principal (plus grand pan incliné ± 8°) / secondaire.
