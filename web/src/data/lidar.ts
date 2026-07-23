@@ -151,6 +151,11 @@ function featureRing(f: WfsFeature): Ring | null {
   return outer.map(([x, y]) => toL93(x, y))
 }
 
+// Tap hors de tout polygone (trottoir, jardin) : au-delà de cette distance,
+// aucun bâtiment ne peut être raisonnablement désigné -> no_data plutôt que
+// de mesurer (et afficher comme « sûre ») la toiture d'une autre maison.
+const MAX_SNAP_M = 10
+
 /** Bâtiment tapé + polygones des voisins accolés (mitoyens, à exclure). */
 async function fetchBuildingAndNeighbors(
   lng: number,
@@ -166,7 +171,21 @@ async function fetchBuildingAndNeighbors(
     features?: WfsFeature[]
   }
   const feats = near.features ?? []
-  if (!main) main = feats[0] ?? null
+  if (!main) {
+    // L'ordre de DWITHIN est arbitraire (serveur WFS) : on choisit le bâtiment
+    // le PLUS PROCHE du point, et seulement s'il est à portée de tap.
+    const [px, py] = toL93(lng, lat)
+    let bestD = MAX_SNAP_M
+    for (const f of feats) {
+      const r = featureRing(f)
+      if (!r) continue
+      const d = pointInRing(px, py, r) ? 0 : distToRing(px, py, r)
+      if (d < bestD) {
+        bestD = d
+        main = f
+      }
+    }
+  }
   if (!main) return null
   const ring = featureRing(main)
   if (!ring) return null
