@@ -21,7 +21,7 @@
 
 ## Visuel carte (« beau & lisible »)
 - [x] **Lisibilité** — fond adouci (voile sous les labels), marqueurs à icônes par statut (ombre, halo de sélection), regroupement/clustering avec bulles cliquables
-- [x] **Effet 3D waouh** — éclairage des bâtiments, surbrillance (bleu) de la maison sélectionnée (ciel/brouillard retirés, invisibles). ~~Bâtiments sombres~~ → **bâtiments clairs** (réf. Apple Plans, cohérent DA) depuis le lot visuel de juillet 2026.
+- [x] **Effet 3D waouh** — éclairage des bâtiments, surbrillance (bleu) de la maison sélectionnée (ciel/brouillard retirés, invisibles). ~~Bâtiments sombres~~ → **bâtiments clairs** (réf. Apple Plans, cohérent DA) depuis le lot visuel de juillet 2026. **→ RETIRÉE (fin juillet 2026, décision briac)** : les prismes à toit plat (LOD1) n'apportaient rien sur le terrain et juraient avec les pans dessinés ; remplacée par la **maquette 3D du toit** dans la fiche (voir section LiDAR).
 - [x] **Vue Toits hybride** — ortho-photo + noms de rues par-dessus (bâtiments blancs du plan masqués). **Vue Toits par défaut** à l'ouverture. (Contours des bâtiments testés puis retirés.)
 - [x] **Vue rue / immersion** — explorée puis **ABANDONNÉE** : Mapillary trop juste en pavillonnaire, Google Street View écarté (dépendance + facturation), 3D photoréaliste Google bloquée en France. Code retiré.
 

@@ -22,18 +22,15 @@ import type { LidarResult } from '../data/lidar'
 import type { LidarPan } from '../domain/house'
 import { AddressSearch } from './AddressSearch'
 import { AppointmentForm } from './AppointmentForm'
-import { Layers, Box, Plus, SlidersHorizontal } from 'lucide-react'
+import { Layers, Plus, SlidersHorizontal } from 'lucide-react'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { usePoints } from '../hooks/usePoints'
 import type { MapPoint, Profile } from '../domain/types'
 import type { FeatureCollection, Point } from 'geojson'
 
 const POINTS_SOURCE = 'points'
-const BUILDINGS_LAYER_ID = 'buildings-3d'
 const MARKERS_LAYER = 'points-markers'
 const SELECTED_LAYER = 'point-selected'
-const SELECTED_BUILDING_SRC = 'selected-building'
-const SELECTED_BUILDING_LAYER = 'selected-building-3d'
 // Surbrillance de la maison consultée (fiche maison avant prospection).
 const HOUSE_SRC = 'house-preview'
 const HOUSE_FILL_LAYER = 'house-preview-fill'
@@ -113,7 +110,6 @@ export function MapView({
   const { points, addPoint, updatePoint, addNote, removePoint } = usePoints(profile)
   const [activeStatus, setActiveStatus] = useState<PointStatus>('absent')
   const [orthoOn, setOrthoOn] = useState(true) // vue Toits par défaut
-  const [is3d, setIs3d] = useState(false)
   const [mapLoaded, setMapLoaded] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   // Point pour lequel on saisit un RDV (après avoir posé/marqué "RDV pris").
@@ -251,54 +247,6 @@ export function MapView({
           /* couche non modifiable : on ignore */
         }
       }
-
-      // Bâtiments en 3D : extrusion de la couche bati_surf du Plan IGN (champ "hauteur").
-      map.addLayer({
-        id: BUILDINGS_LAYER_ID,
-        type: 'fill-extrusion',
-        source: 'plan_ign',
-        'source-layer': 'bati_surf',
-        minzoom: 14,
-        paint: {
-          'fill-extrusion-height': ['case', ['has', 'hauteur'], ['to-number', ['get', 'hauteur']], 3],
-          'fill-extrusion-base': 0,
-          'fill-extrusion-opacity': 0.96,
-          'fill-extrusion-vertical-gradient': true,
-          // Bâtiments CLAIRS (réf. Apple Plans / DA "Clair & précis") : le
-          // relief vient de la lumière, la couleur reste aux marqueurs.
-          // Les plus hauts sont à peine plus soutenus pour lire la ville.
-          'fill-extrusion-color': [
-            'interpolate',
-            ['linear'],
-            ['case', ['has', 'hauteur'], ['to-number', ['get', 'hauteur']], 3],
-            0, '#eae7e0',
-            15, '#dedad1',
-            40, '#cfcabf',
-          ],
-        },
-      })
-
-      // Lumière directionnelle un peu plus marquée : sur des façades claires,
-      // c'est elle qui donne le relief.
-      map.setLight({ anchor: 'viewport', color: '#ffffff', intensity: 0.6, position: [1.4, 200, 30] })
-
-      // Surbrillance du bâtiment sous le point sélectionné (la "maison s'illumine").
-      map.addSource(SELECTED_BUILDING_SRC, { type: 'geojson', data: EMPTY_FC })
-      map.addLayer({
-        id: SELECTED_BUILDING_LAYER,
-        type: 'fill-extrusion',
-        source: SELECTED_BUILDING_SRC,
-        paint: {
-          'fill-extrusion-color': ACCENT,
-          'fill-extrusion-opacity': 0.7,
-          'fill-extrusion-height': [
-            '+',
-            ['case', ['has', 'hauteur'], ['to-number', ['get', 'hauteur']], 3],
-            1,
-          ],
-          'fill-extrusion-base': 0,
-        },
-      })
 
       // Ortho-photo (mode "Toits") : insérée SOUS les libellés pour que les noms
       // de rues restent visibles PAR-DESSUS la photo (vue hybride). Masquée par défaut.
@@ -755,37 +703,6 @@ export function MapView({
     onFocusHandled?.()
   }, [focus, mapLoaded, onFocusHandled])
 
-  // Surbrillance du bâtiment (maison) sous le point sélectionné.
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !mapLoaded) return
-    const src = map.getSource(SELECTED_BUILDING_SRC) as maplibregl.GeoJSONSource | undefined
-    if (!src) return
-
-    const pt = selectedId ? points.find((p) => p.id === selectedId) : null
-    if (!pt || !map.getLayer(BUILDINGS_LAYER_ID)) {
-      src.setData(EMPTY_FC)
-      return
-    }
-    try {
-      const p = map.project([pt.lng, pt.lat])
-      const feats = map.queryRenderedFeatures(
-        [
-          [p.x - 6, p.y - 6],
-          [p.x + 6, p.y + 6],
-        ],
-        { layers: [BUILDINGS_LAYER_ID] },
-      )
-      src.setData(
-        feats.length
-          ? { type: 'FeatureCollection', features: [feats[0] as unknown as FeatureCollection<Point>['features'][number]] }
-          : EMPTY_FC,
-      )
-    } catch {
-      src.setData(EMPTY_FC)
-    }
-  }, [selectedId, points, mapLoaded])
-
   // Bascule de la couche ortho-photo (voir les toits). S'applique aussi au
   // chargement (mapLoaded) pour honorer la vue Toits par défaut.
   useEffect(() => {
@@ -813,12 +730,6 @@ export function MapView({
     if (map.getLayer('base-wash')) {
       map.setLayoutProperty('base-wash', 'visibility', orthoOn ? 'none' : 'visible')
     }
-    // Les bâtiments 3D ne s'affichent qu'en mode Plan (masqués sous l'ortho).
-    for (const id of [BUILDINGS_LAYER_ID, SELECTED_BUILDING_LAYER]) {
-      if (map.getLayer(id)) {
-        map.setLayoutProperty(id, 'visibility', orthoOn ? 'none' : 'visible')
-      }
-    }
     // Halo blanc sous les labels (noms de rues) : indispensable sur la photo
     // (toits sombres, végétation) ; en plan, on restaure le style IGN d'origine.
     for (const id of baseLabelLayersRef.current) {
@@ -842,18 +753,6 @@ export function MapView({
     }
   }, [orthoOn, mapLoaded])
 
-  // Inclinaison de la carte pour la vue 3D (+ zoom suffisant pour voir les bâtiments).
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map) return
-    if (is3d) {
-      const zoom = map.getZoom() < 15.5 ? 16.5 : map.getZoom()
-      map.easeTo({ pitch: 60, zoom, duration: 800 })
-    } else {
-      map.easeTo({ pitch: 0, duration: 600 })
-    }
-  }, [is3d])
-
   const selectedPoint = points.find((p) => p.id === selectedId) ?? null
   // Conserve le dernier point sélectionné le temps de l'animation de fermeture.
   const lastSelectedRef = useRef<MapPoint | null>(null)
@@ -871,25 +770,10 @@ export function MapView({
         <button
           type="button"
           className={`map-tool ${orthoOn ? 'is-on' : ''}`}
-          onClick={() => {
-            const next = !orthoOn
-            setOrthoOn(next)
-            // Les bâtiments 3D sont masqués sous l'ortho : passer en Toits
-            // sort de la 3D (sinon on incline une photo plate).
-            if (next && is3d) setIs3d(false)
-          }}
+          onClick={() => setOrthoOn((v) => !v)}
           title={orthoOn ? 'Vue plan' : 'Vue toits (satellite)'}
         >
           <Layers size={20} strokeWidth={1.8} />
-        </button>
-        <button
-          type="button"
-          className={`map-tool ${is3d ? 'is-on' : ''}`}
-          onClick={() => setIs3d((v) => !v)}
-          disabled={orthoOn}
-          title={orthoOn ? 'Vue 3D indisponible en vue Toits' : is3d ? 'Vue 2D' : 'Vue 3D'}
-        >
-          <Box size={20} strokeWidth={1.8} />
         </button>
         <button
           type="button"
