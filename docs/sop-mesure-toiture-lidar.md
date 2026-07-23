@@ -154,3 +154,27 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
   (plans du permis de construire, facture de couverture, ou mesure du pignon : largeur +
   angle mesuré à l'inclinomètre du téléphone → surface = 2 × longueur × (largeur/2)/cos(angle)
   + débords).
+- **23/07/2026 (nuit)** — **Validation croisée contre le cadastre solaire du Grand Lyon**
+  (question briac : « tester sans le chef des ventes ? »). Presse locale et marchés publics
+  inexploitables en pratique (crawlers bloqués, PDF non parsables ici) ; en revanche le
+  **cadastre solaire open data du Grand Lyon** fournit 1,1 M de pans avec surface/orientation
+  par bâtiment (`validate-lyon.mjs`, commune test : Mions, pavillonnaire).
+  Résultats et enseignements :
+  1. **Nouveau bug réel trouvé et corrigé** : les points de **façade** dans le tampon de
+     1,2 m gonflaient la mesure proportionnellement au périmètre (invisible au banc
+     synthétique, qui n'avait pas de murs). Correctif : tampon 0,8 m + les cellules hors
+     emprise murale exigent ≥ 2 points (`lib.mjs`). Écart médian vs Lyon : 40 % → **23 %**.
+     Banc synthétique après correctif : erreur max 7,9 % (toujours sous le gate, biais
+     désormais uniformément négatif ≈ −5-8 %, recalibrable).
+  2. **Maisons anciennes « stables » : accord à ±8 %** entre deux mesures totalement
+     indépendantes (notre LiDAR vs photogrammétrie professionnelle Lyon) — très bon signe.
+  3. **Lotissement récent (parcelles ZH) : +20-40 % d'écart persistant**, expliqué par le
+     **millésime** : modèle lyonnais ≈ 2012 vs LiDAR 2021 (extensions/vérandas/carports en
+     classe 6 — visibles sur l'ortho), et pans lyonnais apparemment rognés à l'emprise
+     (sans débords) sur certaines maisons. Leçon produit : notre mesure inclura les annexes
+     accolées → en phase 1, **ventiler par pan** (toit principal vs annexes plates) plutôt
+     qu'un total unique.
+  4. La densité de points varie du simple au quadruple selon les zones de recouvrement des
+     lignes de vol (56 pts/m² à Mions) : les seuils fixes doivent devenir relatifs (phase 1).
+  Scripts : `validate-lyon.mjs` (validation de masse contre Lyon), `diag-lyon.mjs`
+  (pente implicite des pans lyonnais). Le Gate G0 sur factures reste le juge de paix.

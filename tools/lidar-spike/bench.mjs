@@ -114,7 +114,7 @@ for (const c of cases) {
   const errors = []
   let lastPans = 0
   for (let r = 0; r < RUNS; r++) {
-    const { pans, total } = measureRoof(c.pts)
+    const { pans, total } = measureRoof(c.pts, c.ring)
     errors.push(((total - c.exact) / c.exact) * 100)
     lastPans = pans.length
   }

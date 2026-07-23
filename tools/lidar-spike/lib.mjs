@@ -99,12 +99,28 @@ export function segmentPans(pts) {
   return { pans, leftover: remaining.length }
 }
 
-export function panMetrics(pts, pan) {
+export function panMetrics(pts, pan, ring) {
   const [a, b] = pan.plane
   const slope = Math.atan(Math.hypot(a, b))
-  const cells = new Set()
+  // Comptage de points par cellule. Les cellules HORS emprise murale (zone
+  // de débord) doivent contenir ≥ 2 points : un vrai débord de toit est
+  // aussi dense que le toit, alors que les points de FAÇADE tranchés par le
+  // RANSAC ne laissent que des lignes clairsemées le long des murs — c'était
+  // la source d'une sur-mesure proportionnelle au périmètre (vu à Mions).
+  const counts = new Map()
   for (const i of pan.inliers) {
-    cells.add(`${Math.floor(pts[i][0] / CELL)}:${Math.floor(pts[i][1] / CELL)}`)
+    const k = `${Math.floor(pts[i][0] / CELL)}:${Math.floor(pts[i][1] / CELL)}`
+    counts.set(k, (counts.get(k) ?? 0) + 1)
+  }
+  const cells = new Set()
+  for (const [k, n] of counts) {
+    if (n >= 2) {
+      cells.add(k)
+      continue
+    }
+    if (!ring) continue
+    const [cx, cy] = k.split(':').map(Number)
+    if (pointInRing((cx + 0.5) * CELL, (cy + 0.5) * CELL, ring)) cells.add(k)
   }
   const projected = cells.size * CELL * CELL
   return {
@@ -124,13 +140,13 @@ export function panMetrics(pts, pan) {
  * la même surface au sol qu'une fois — chaque cellule est attribuée au
  * premier pan (le plus gros) qui la contient.
  */
-export function measureRoof(pts) {
+export function measureRoof(pts, ring) {
   const { pans, leftover } = segmentPans(pts)
   const kept = []
   let total = 0
   const used = new Set()
   for (const pan of pans) {
-    const m = panMetrics(pts, pan)
+    const m = panMetrics(pts, pan, ring)
     if (m.projected < MIN_PAN_M2) continue
     let fresh = 0
     for (const c of m.cells) {

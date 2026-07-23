@@ -26,7 +26,8 @@ const [lon, lat] = [
   Number(process.argv[2] ?? -4.327291),
   Number(process.argv[3] ?? 48.568813),
 ]
-const BUFFER_M = 1.2 // débords de toit au-delà du mur
+const BUFFER_M = 0.8 // débords de toit au-delà du mur (réduit : 1,2 m gonflait
+// la mesure des petites maisons via les points de façade — cf. SOP, Mions)
 
 // --- 1. Bâtiment (BD TOPO) --------------------------------------------------
 async function fetchBuilding() {
@@ -212,7 +213,7 @@ if (pts.length < 100) {
   process.exit(1)
 }
 
-const { pans, leftover, total } = measureRoof(pts)
+const { pans, leftover, total } = measureRoof(pts, ring)
 console.log('\nPans détectés :')
 for (const m of pans) {
   console.log(
