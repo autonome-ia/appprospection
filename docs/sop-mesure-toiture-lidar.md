@@ -385,3 +385,22 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
      niveaux, **bandeau de rive** blanc, lumière hémisphérique ciel/sol.
   Les mêmes contours rectilignes s'appliquent sur l'ortho. À valider : les 4 maisons
   témoins, puis démo chef des ventes.
+- **25/07/2026 — Maquette 3D v4 : finition (2e série de captures briac, 6 maisons).**
+  Diagnostic : 5 familles de défauts restantes — échardes de pans qui débordent
+  (Baley, Huntziger), coins de mur dans les noues des L (Kerbriant), « maisons
+  donjons » aux murs trop hauts (Botrel), fentes verticales dans les murs, pastilles
+  qui se chevauchent sur les toits à 6-7 pans. Correctifs (`LIDAR_VERSION` 9) :
+  1. régions minuscules (< 6 m²) ou filiformes (érosion vide) **absorbées** par le
+     voisin au plus long contact (aire dessinée par le voisin, m² en légende) ;
+  2. jonctions **aimantées aux sommets du polygone** (< 0,9 m) — noues alignées sur
+     le coin rentrant des L ;
+  3. **garde de silhouette** : une frontière redressée dont la corde sort de l'emprise
+     décalée garde son tracé DP ;
+  4. murs = **hauteur BD TOPO (faîtage−sol) − comble mesuré au LiDAR**, borné
+     1,8-6 m (le repli gouttière−sol surestimait sur terrain en pente) ;
+  5. viewer : fentes comblées (échantillon sans pan → plan du pan le plus proche),
+     pastilles 3D réservées aux pans ≥ 20 m² ou aux 2 plus grands.
+  Tests : +2 (L avec noue : aucun sommet hors silhouette ; écharde absorbée sans
+  perte d'aire) — 22/22. Prochaine étape possible : campagne de sous-agents
+  (générateurs de scénarios + invariants géométriques + vraies emprises BD TOPO)
+  pour débusquer les familles non encore vues — sur demande de briac.
