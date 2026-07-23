@@ -464,7 +464,12 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
     toit_lidar_statut: statut,
     toit_lidar_m2: Math.round(m.total),
     toit_lidar_principal_m2: Math.round(m.totalPrincipal),
-    toit_lidar_pans: { mur_m: building.murM, pans },
+    toit_lidar_pans: {
+      mur_m: building.murM,
+      // Emprise murale : silhouette des murs de la maquette (le toit déborde).
+      emprise: building.ring.map(([x, y]) => roundLL(fromL93(x, y))),
+      pans,
+    },
     toit_lidar_millesime: millesime,
   }
 }
