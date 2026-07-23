@@ -336,3 +336,30 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
   - Usage attendu : le commercial fait pivoter le toit du client devant la porte —
     différenciateur fort pour la phase SaaS (EagleView/RoofSnap vendent ce visuel).
     Avis du chef des ventes à recueillir.
+- **25/07/2026 — Maquette 3D v2 : pans JOINTIFS + rendu maquette (retours captures
+  briac : rotation morte, trous entre pans, « épées », pas esthétique).** Diagnostic
+  et refonte :
+  1. **Rotation figée = bug d'événements** : le `stopPropagation` en phase de *capture*
+     (anti-drag de la sheet vaul) interceptait le geste AVANT le canvas — OrbitControls
+     ne recevait rien. Corrigé : blocage en phase de *bulle* (le canvas voit le geste,
+     la sheet non).
+  2. **Trous/chevauchements = vectorisation indépendante par pan** (cellules dédupliquées
+     + dilatation/lissage par pan : frontières jamais coïncidentes ; contours débordant
+     du domaine du pan → altitudes extrapolées, « épées » traversantes en 3D).
+     **Refonte `lidar-recon.ts`** (module pur, testé) : partition de l'emprise
+     (étiquetage des cellules par votes des points LiDAR + remplissage → zéro trou par
+     construction), contours simplifiés PAR FRONTIÈRE PARTAGÉE (sommets de jonction
+     protégés, tronçons simplifiés une fois via cache canonique, réutilisés des deux
+     côtés), altitude d'un sommet = moyenne des plans riverains (faîtage : même z des
+     deux côtés). Repli pan par pan sur l'ancienne vectorisation si une région est
+     dégénérée. Tests : couverture ±8 %, faîtage partagé, altitudes égales, déterminisme.
+  3. **`LIDAR_VERSION` 7** : le jsonb devient `{ mur_m, pans }` (hauteur de gouttière
+     BD TOPO) ; `parseRoofPans` lit les deux générations. Les MÊMES polygones propres
+     servent sur l'ortho (fini les espaces entre pans en 2D aussi) et en 3D.
+  4. **Rendu « maquette d'architecte »** : murs plâtre jusqu'au sol sous les arêtes
+     extérieures (détectées par comptage — pignons triangulaires inclus), ombre portée
+     douce, lumière chaude, entrée animée + lente autorotation stoppée au premier
+     toucher, pastilles « XX m² » projetées SUR les pans, boussole nord, **plein écran**
+     (portal — l'API Fullscreen n'existe pas sur iPhone) pour la démo client.
+  À valider sur le terrain : rendu réel sur les 4 maisons des captures, geste tactile,
+  toits en L/T (le repli doit rester rare), avis du chef des ventes.
