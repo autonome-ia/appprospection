@@ -4,7 +4,13 @@
 // entre niveaux (annexe basse), déterminisme.
 import { describe, expect, it } from 'vitest'
 import { distToRing, measureRoof, ringArea, type Pt, type Ring } from './lidar-core'
-import { offsetRing, reconstructRoof, type ReconPan } from './lidar-recon'
+import {
+  mainBodyPans,
+  offsetRing,
+  reconstructRoof,
+  type ReconPan,
+  type ReconResult,
+} from './lidar-recon'
 
 const DENSITY = 12
 const NOISE = 0.03
@@ -88,8 +94,8 @@ function recon(pts: Pt[], ring: Ring) {
   return reconstructRoof(inputs, ring, OVERHANG)
 }
 
-const kept = (r: (ReconPan | null)[] | null): ReconPan[] =>
-  (r ?? []).filter((p): p is ReconPan => p !== null)
+const kept = (r: ReconResult | null): ReconPan[] =>
+  (r?.pans ?? []).filter((p): p is ReconPan => p !== null)
 
 function pointInRingLocal(px: number, py: number, ring: Ring): boolean {
   let inside = false
@@ -308,12 +314,49 @@ describe('reconstructRoof v3', () => {
     ]
     const r = reconstructRoof(pans, ring, OVERHANG)
     expect(r).not.toBeNull()
-    expect(r![2]).toBeNull() // l'écharde n'est pas dessinée…
+    expect(r!.pans[2]).toBeNull() // l'écharde n'est pas dessinée…
+    // …son absorption est tracée (elle rejoint le corps de son absorbeur)…
+    expect(r!.absorbed.length).toBe(1)
+    expect(r!.absorbed[0][0]).toBe(2)
     const drawn = kept(r)
     const total = drawn.reduce((s, x) => s + ringArea(x.contour), 0)
     const target = ringArea(offsetRing(ring, OVERHANG)!)
-    // …mais son aire est reprise par les voisins : rien ne manque.
+    // …et son aire est reprise par les voisins : rien ne manque.
     expect(Math.abs(total - target) / target).toBeLessThanOrEqual(0.05)
+  })
+
+  it('bâtière : les 2 pans sont SOUDÉS (welds) — même toit physique', () => {
+    const { pts, ring } = gable(11, 7, 0.4, 40, 3)
+    const r = recon(pts, ring)
+    expect(r!.welds).toContainEqual([0, 1])
+  })
+
+  it('deux niveaux : la marche n’est PAS une soudure, la « maison » exclut l’annexe', () => {
+    const { pts, ring } = twoLevels(10, 6, 4, 40, 5)
+    const m = measureRoof(pts, ring)
+    const r = reconstructRoof(
+      m.pans.map((x) => ({ plane: x.plane, counts: x.counts })),
+      ring,
+      OVERHANG,
+    )
+    expect(r).not.toBeNull()
+    const flatIdx = m.pans.findIndex((p) => p.type === 'plat')
+    expect(flatIdx).toBeGreaterThanOrEqual(0)
+    // L'annexe plate (7,5 m vs murs 10 m) n'est soudée à aucun pan de la bâtière.
+    for (const [a, b] of r!.welds) {
+      expect(a === flatIdx || b === flatIdx).toBe(false)
+    }
+    // « La maison » = les pans de la bâtière, sans l'annexe.
+    const body = mainBodyPans(
+      m.pans.map((p) => p.realDedup),
+      m.pans.map((p) => p.type === 'plat'),
+      r!.welds,
+      r!.absorbed,
+    )
+    expect(body.has(flatIdx)).toBe(false)
+    const bodyM2 = m.pans.reduce((s, p, i) => (body.has(i) ? s + p.realDedup : s), 0)
+    const gableM2 = m.pans.reduce((s, p, i) => (i !== flatIdx ? s + p.realDedup : s), 0)
+    expect(bodyM2).toBeGreaterThanOrEqual(0.85 * gableM2)
   })
 
   it('déterminisme : mêmes entrées → même reconstruction', () => {

@@ -73,8 +73,13 @@ export interface HouseEnrichment {
  *      jonctions aimantées aux coins du polygone (noues des L), garde de
  *      silhouette sur les frontières redressées, murs = hauteur BD TOPO
  *      moins comble mesuré (fini les « maisons donjons »).
+ * v10 : `toit_lidar_principal_m2` devient « LA MAISON » par connectivité
+ *      (pans reliés au plus grand pan incliné par frontières SOUDÉES — un
+ *      décroché coupe : extensions/annexes/garages exclus, même à pente
+ *      égale). C'est lui que la fiche affiche (validation factures : Rosa
+ *      Floch 219 vs 223 facturés). Le total reste stocké.
  */
-export const LIDAR_VERSION = 9
+export const LIDAR_VERSION = 10
 
 /** Un pan de toiture mesuré (stocké en jsonb sur le point). */
 export interface LidarPan {

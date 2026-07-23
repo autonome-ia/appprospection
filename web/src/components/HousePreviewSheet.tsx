@@ -74,7 +74,7 @@ export function HousePreviewSheet({
               annee={info.annee_construction}
               matCode={info.mat_toit}
               toitM2={info.toit_surface_m2}
-              lidarM2={lidarOk ? lidar.toit_lidar_m2 : null}
+              lidarM2={lidarOk ? lidar.toit_lidar_principal_m2 || lidar.toit_lidar_m2 : null}
               lidarMillesime={lidarOk ? lidar.toit_lidar_millesime : null}
               lidarPending={lidar === null}
               dpe={info.dpe_classe}

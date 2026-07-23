@@ -77,7 +77,7 @@ export type LidarStatut = 'ok' | 'faible_confiance' | 'grand_batiment' | 'no_dat
 
 export type { LidarPan, RoofData } from '../domain/house'
 import type { LidarPan, RoofData } from '../domain/house'
-import { reconstructRoof } from './lidar-recon'
+import { mainBodyPans, reconstructRoof } from './lidar-recon'
 
 export interface LidarResult {
   toit_lidar_statut: LidarStatut
@@ -429,7 +429,7 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
     OVERHANG_M,
   )
   const shapes = m.pans.map((p, i) => {
-    const r = recon?.[i]
+    const r = recon?.pans[i]
     if (r) {
       let cx = 0
       let cy = 0
@@ -466,6 +466,23 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
         : {}),
     }
   })
+  // « La MAISON » (donnée couvreur, badge de la fiche) : composante des pans
+  // reliés au plus grand pan incliné par des frontières SOUDÉES — un décroché
+  // de niveau (extension, annexe, garage, toit plat accolé) coupe la
+  // composante, même à pente égale. Repli : typage par pente (totalPrincipal).
+  let principal = m.totalPrincipal
+  if (recon) {
+    const body = mainBodyPans(
+      m.pans.map((p) => p.realDedup),
+      m.pans.map((p) => p.type === 'plat'),
+      recon.welds,
+      recon.absorbed,
+    )
+    if (body.size) {
+      principal = m.pans.reduce((s, p, i) => (body.has(i) ? s + p.realDedup : s), 0)
+    }
+  }
+
   // Hauteur de gouttière pour les murs de la maquette : hauteur BD TOPO
   // (faîtage − sol, la plus fiable) MOINS le comble MESURÉ au LiDAR. Repli :
   // gouttière − sol (bruité sur terrain en pente — les « maisons donjons »).
@@ -478,7 +495,7 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
   return {
     toit_lidar_statut: statut,
     toit_lidar_m2: Math.round(m.total),
-    toit_lidar_principal_m2: Math.round(m.totalPrincipal),
+    toit_lidar_principal_m2: Math.round(principal),
     toit_lidar_pans: {
       mur_m: murM,
       // Emprise murale : silhouette des murs de la maquette (le toit déborde).

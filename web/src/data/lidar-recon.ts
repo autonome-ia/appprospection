@@ -54,6 +54,56 @@ export interface ReconPan {
   alts: number[]
 }
 
+export interface ReconResult {
+  pans: (ReconPan | null)[]
+  /** Paires de pans SOUDÉS (faîtage/arêtier continu — même toit physique). */
+  welds: [number, number][]
+  /** Échardes absorbées : [pan absorbé, pan absorbeur] (même toit physique). */
+  absorbed: [number, number][]
+}
+
+/**
+ * « La maison » : composante connexe du plus grand pan incliné à travers les
+ * frontières SOUDÉES (un décroché de niveau — extension, annexe, garage —
+ * n'est pas soudé et coupe donc la composante). Les échardes absorbées
+ * rejoignent leur absorbeur. Rend les index des pans du corps principal.
+ */
+export function mainBodyPans(
+  m2: number[],
+  isFlat: boolean[],
+  welds: [number, number][],
+  absorbed: [number, number][],
+): Set<number> {
+  const adj = new Map<number, number[]>()
+  const link = (a: number, b: number) => {
+    adj.set(a, [...(adj.get(a) ?? []), b])
+    adj.set(b, [...(adj.get(b) ?? []), a])
+  }
+  for (const [a, b] of welds) link(a, b)
+  for (const [a, b] of absorbed) link(a, b)
+  let seed = -1
+  for (let i = 0; i < m2.length; i++) {
+    if (!isFlat[i] && (seed < 0 || m2[i] > m2[seed])) seed = i
+  }
+  if (seed < 0) {
+    // Toit entièrement plat : le plus grand pan fait office de maison.
+    for (let i = 0; i < m2.length; i++) if (seed < 0 || m2[i] > m2[seed]) seed = i
+  }
+  if (seed < 0) return new Set()
+  const body = new Set<number>([seed])
+  const stack = [seed]
+  while (stack.length) {
+    const cur = stack.pop()!
+    for (const n of adj.get(cur) ?? []) {
+      if (!body.has(n)) {
+        body.add(n)
+        stack.push(n)
+      }
+    }
+  }
+  return body
+}
+
 // --- Décalage du polygone d'emprise (débord de toit) ----------------------------
 
 function signedArea(ring: Ring): number {
@@ -397,7 +447,8 @@ interface Chain {
 const planeZ = ([a, b, c]: Plane, x: number, y: number) => a * x + b * y + c
 
 /**
- * Reconstruit les pans jointifs et rectilignes du toit.
+ * Reconstruit les pans jointifs et rectilignes du toit, avec le graphe des
+ * frontières soudées (corps principal vs annexes — mainBodyPans).
  * `wallRing` : emprise BD TOPO (mètres L93, fermée) ; `overhang` : débord (m).
  * Rend `null` en cas d'échec global ; un pan peut individuellement rendre
  * `null` (l'appelant replie sur l'ancienne vectorisation pour ce pan).
@@ -406,7 +457,7 @@ export function reconstructRoof(
   pans: ReconPanInput[],
   wallRing: Ring,
   overhang: number,
-): (ReconPan | null)[] | null {
+): ReconResult | null {
   if (!pans.length) return null
   const outline = offsetRing(wallRing, overhang) ?? wallRing
   const walk = makeWalk(outline)
@@ -421,6 +472,7 @@ export function reconstructRoof(
   // sur-segmenté), est fusionnée dans le voisin au plus long contact — son
   // aire est alors dessinée par le voisin, ses m² restent dans la légende.
   const absorbed = new Set<number>()
+  const absorbedPairs: [number, number][] = []
   let changed = true
   while (changed) {
     changed = false
@@ -469,6 +521,7 @@ export function reconstructRoof(
       }
       regions[i] = new Set()
       absorbed.add(i)
+      absorbedPairs.push([i, best])
       changed = true
     }
   }
@@ -565,6 +618,8 @@ export function reconstructRoof(
   }
 
   const out: (ReconPan | null)[] = []
+  // Frontières soudées observées pendant l'assemblage (paires dédupliquées).
+  const weldPairs = new Set<string>()
   for (let i = 0; i < pans.length; i++) {
     const cells = regions[i]
     if (!cells.size) {
@@ -648,9 +703,11 @@ export function reconstructRoof(
         const isLoop = first[0] === last[0] && first[1] === last[1]
         // Boucle fermée (île) : déjà simplifiée, pas de redressement en corde.
         const s = isLoop ? ch.raw : straighten(ch.raw)
-        const welded = isWelded(i, ch.partner, ch.raw)
-          ? new Set([ch.partner])
-          : new Set<number>()
+        const isW = isWelded(i, ch.partner, ch.raw)
+        if (isW) {
+          weldPairs.add(i < ch.partner ? `${i}:${ch.partner}` : `${ch.partner}:${i}`)
+        }
+        const welded = isW ? new Set([ch.partner]) : new Set<number>()
         for (let v = 0; v < s.length - 1; v++) {
           // Extrémités de chaîne : accrochées au polygone si elles touchent
           // l'extérieur (les sommets intermédiaires restent en grille).
@@ -687,5 +744,9 @@ export function reconstructRoof(
     }
     out.push({ contour, alts })
   }
-  return out
+  return {
+    pans: out,
+    welds: [...weldPairs].sort().map((k) => k.split(':').map(Number) as [number, number]),
+    absorbed: absorbedPairs,
+  }
 }

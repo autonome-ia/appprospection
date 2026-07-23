@@ -67,7 +67,7 @@ export function HouseBadges({
       {lidarM2 != null ? (
         <span
           className="house-badge is-measured tnum"
-          title={`Surface mesurée au laser (nuage de points LiDAR HD IGN${
+          title={`Toit de la maison, hors annexes et extensions — mesuré au laser (nuage de points LiDAR HD IGN${
             lidarMillesime ? `, survol ${lidarMillesime.slice(0, 4)}` : ''
           })`}
         >

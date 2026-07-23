@@ -231,11 +231,13 @@ export function PointDetailSheet({
   // c'est que le cache était absent, périmé (version d'algo) ou en erreur —
   // et pour un point d'un collègue, le realtime ne corrigera pas toujours.
   const lidarStatut = liveLidar?.toit_lidar_statut ?? point.toit_lidar_statut ?? null
+  // Badge = « LA MAISON » (corps principal, hors annexes/extensions — demande
+  // du chef des ventes) ; repli sur le total pour les mesures anciennes.
   const lidarM2 =
     lidarStatut === 'ok'
       ? liveLidar
-        ? liveLidar.toit_lidar_m2
-        : point.toit_lidar_m2
+        ? liveLidar.toit_lidar_principal_m2 || liveLidar.toit_lidar_m2
+        : point.toit_lidar_principal_m2 || point.toit_lidar_m2
       : null
   const lidarMillesime = liveLidar
     ? liveLidar.toit_lidar_millesime

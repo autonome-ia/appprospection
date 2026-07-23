@@ -404,3 +404,24 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
   perte d'aire) — 22/22. Prochaine étape possible : campagne de sous-agents
   (générateurs de scénarios + invariants géométriques + vraies emprises BD TOPO)
   pour débusquer les familles non encore vues — sur demande de briac.
+- **25/07/2026 — Confrontation aux factures du chef des ventes (2 maisons) + autopsie.**
+  Réel 223 m² vs app 303 (Rosa Floch, Le Relecq-Kerhuon) ; réel 143 vs app 121
+  (Maryan Deschard, Brest). Outil `tools/lidar-spike/autopsy.mjs` (mesure TOUS les
+  bâtiments autour d'un point — le point BAN tombe sur la chaussée) : les deux valeurs
+  de l'app retrouvées exactement.
+  - **Rosa Floch : écart de PÉRIMÈTRE, pas de précision.** Le polygone tapé (192 m²
+    d'emprise) fusionne maison + annexe : 3 pans du corps principal = **219 m² vs 223
+    facturés (−1,8 %)** + pan d'extension 24 m² + **toit plat 58 m²** que le couvreur
+    ne chiffre pas. Le badge affichait le total (303).
+  - **Maryan Deschard : sous-mesure réelle (−15 %)**, suspects : pan de 17 m² ajusté à
+    23° au milieu de pans à 45° (mauvais /cos), toit physique possiblement éclaté en
+    plusieurs polygones BD TOPO (rue en bande, le voisin ne couvre que 54 % de son
+    emprise), et facture incluant probablement ~10 % de chutes (143 facturé ≈ 130
+    géométrique → écart réel ~−7 %).
+  - **Décision briac (demande du chef des ventes) : le badge affiche « LA MAISON »,
+    pas le grand total.** `LIDAR_VERSION` 10 : `toit_lidar_principal_m2` devient le
+    **corps principal par CONNECTIVITÉ** — les pans reliés au plus grand pan incliné
+    par des frontières SOUDÉES (les marches coupent : extensions, annexes, garages
+    exclus même à pente égale ; les échardes absorbées suivent leur absorbeur).
+    Repli : ancien typage par pente. Le total reste stocké (stats, SaaS). Tests : +2
+    (bâtière soudée ; l'annexe plate à deux niveaux exclue du corps) — 24/24.
