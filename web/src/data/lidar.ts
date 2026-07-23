@@ -453,24 +453,46 @@ export function fetchHouseLidar(lng: number, lat: number): Promise<LidarResult> 
   return p
 }
 
+// Écriture en vol par point : la pose déclenche la mesure (data/points.ts) ET
+// la fiche qui s'ouvre dans la foulée la redéclenche — le calcul est déjà
+// dédupliqué par coordonnées, ceci évite la DOUBLE écriture en base (et son
+// double événement realtime).
+const pointInFlight = new Map<string, Promise<LidarResult>>()
+
 /**
  * Mesure la toiture du point et met le résultat en cache définitif sur la
- * ligne `points` (best effort, comme l'enrichissement). En cas d'erreur
- * réseau, le statut `error` est enregistré : la prochaine ouverture de la
- * fiche re-tentera.
+ * ligne `points` — via le RPC `cache_point_lidar` (migration db/0009), qui
+ * autorise le cache sur les points des collègues (la policy d'update générale
+ * reste réservée à l'auteur/manager). Repli sur l'update direct tant que la
+ * migration n'est pas exécutée. En cas d'erreur réseau, le statut `error` est
+ * enregistré : la prochaine ouverture de la fiche re-tentera.
  */
-export async function measurePointRoof(
-  pointId: string,
-  lng: number,
-  lat: number,
-): Promise<LidarResult> {
-  const result = await fetchHouseLidar(lng, lat)
-  if (supabase) {
-    const { error } = await supabase
-      .from('points')
-      .update({ ...result, toit_lidar_version: LIDAR_VERSION })
-      .eq('id', pointId)
-    if (error) console.error('Cache mesure LiDAR :', error.message)
-  }
-  return result
+export function measurePointRoof(pointId: string, lng: number, lat: number): Promise<LidarResult> {
+  const hit = pointInFlight.get(pointId)
+  if (hit) return hit
+  const p = (async () => {
+    const result = await fetchHouseLidar(lng, lat)
+    if (supabase) {
+      const { error } = await supabase.rpc('cache_point_lidar', {
+        p_point_id: pointId,
+        p_m2: result.toit_lidar_m2,
+        p_principal_m2: result.toit_lidar_principal_m2,
+        p_pans: result.toit_lidar_pans,
+        p_statut: result.toit_lidar_statut,
+        p_millesime: result.toit_lidar_millesime,
+        p_version: LIDAR_VERSION,
+      })
+      if (error) {
+        const { error: e2 } = await supabase
+          .from('points')
+          .update({ ...result, toit_lidar_version: LIDAR_VERSION })
+          .eq('id', pointId)
+        if (e2) console.error('Cache mesure LiDAR :', e2.message)
+      }
+    }
+    return result
+  })()
+  pointInFlight.set(pointId, p)
+  void p.finally(() => pointInFlight.delete(pointId))
+  return p
 }
