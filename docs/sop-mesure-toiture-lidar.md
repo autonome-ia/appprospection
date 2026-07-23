@@ -363,3 +363,25 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
      (portal — l'API Fullscreen n'existe pas sur iPhone) pour la démo client.
   À valider sur le terrain : rendu réel sur les 4 maisons des captures, geste tactile,
   toits en L/T (le repli doit rester rare), avis du chef des ventes.
+- **25/07/2026 — Maquette 3D v3 : silhouette ancrée sur le polygone BD TOPO (retours
+  captures « new 3D » : nets progrès mais bords fondus, murs rainurés, jonction
+  maison/annexe écrasée).** Le polygone d'emprise devient la source de vérité de toute
+  la silhouette — la grille ne décide plus que de l'attribution des zones aux pans :
+  1. **`lidar-recon` v3** : `offsetRing` (emprise décalée du débord de 0,5 m, joints en
+     onglet, garde anti-explosion) ; partition calculée DANS le polygone décalé ;
+     frontières extérieures remplacées par l'**arc du polygone** entre jonctions
+     (gouttières droites, angles vrais) ; jonctions touchant l'extérieur **accrochées**
+     au polygone (le faîtage se termine exactement sur la rive, des deux côtés) ;
+     frontières intérieures quasi droites redressées en **segment exact** ; **marche**
+     détectée quand les plans diffèrent de > 40 cm (annexe basse : chaque pan garde son
+     altitude). Tests : bâtière = 2 rectangles parfaits (96,0 m² = polygone au m² près),
+     croupe 4 pans nets, marche ≥ 1,5 m, déterminisme — 21/21. Deux bugs attrapés au
+     débogage : wrap du parcours de périmètre qui sautait un coin, et chaînes
+     intérieures/arcs qui ne partageaient plus leurs extrémités.
+  2. **`LIDAR_VERSION` 8** : l'`emprise` (polygone mural lng/lat) rejoint le jsonb.
+  3. **Viewer v3** : murs plâtre **extrudés de l'emprise** (droits par définition),
+     hauteur échantillonnée sur les plans des pans (pignons triangulaires automatiques),
+     débord de toit réel qui projette son ombre sur les murs, faces de **marche** entre
+     niveaux, **bandeau de rive** blanc, lumière hémisphérique ciel/sol.
+  Les mêmes contours rectilignes s'appliquent sur l'ortho. À valider : les 4 maisons
+  témoins, puis démo chef des ventes.
