@@ -201,11 +201,20 @@ export function PointDetailSheet({
   const toitM2 = point.toit_surface_m2 ?? liveEnrich?.toit_surface_m2 ?? null
   const dpe = point.dpe_classe ?? liveEnrich?.dpe_classe ?? null
   // Mesure LiDAR : affichée seulement si le verdict est fiable (statut ok) —
-  // sinon la fiche garde l'estimation, sans mentir.
-  const lidarStatut = point.toit_lidar_statut ?? liveLidar?.toit_lidar_statut ?? null
+  // sinon la fiche garde l'estimation, sans mentir. La re-mesure à la volée
+  // (liveLidar) PRIME sur le cache du point : quand elle a été déclenchée,
+  // c'est que le cache était absent, périmé (version d'algo) ou en erreur —
+  // et pour un point d'un collègue, le realtime ne corrigera pas toujours.
+  const lidarStatut = liveLidar?.toit_lidar_statut ?? point.toit_lidar_statut ?? null
   const lidarM2 =
-    lidarStatut === 'ok' ? (point.toit_lidar_m2 ?? liveLidar?.toit_lidar_m2 ?? null) : null
-  const lidarMillesime = point.toit_lidar_millesime ?? liveLidar?.toit_lidar_millesime ?? null
+    lidarStatut === 'ok'
+      ? liveLidar
+        ? liveLidar.toit_lidar_m2
+        : point.toit_lidar_m2
+      : null
+  const lidarMillesime = liveLidar
+    ? liveLidar.toit_lidar_millesime
+    : (point.toit_lidar_millesime ?? null)
   const hasHouseInfo = annee !== null || matCode !== null || toitM2 !== null || dpe !== null
 
   return (
