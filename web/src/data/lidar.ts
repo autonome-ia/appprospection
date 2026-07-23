@@ -330,7 +330,10 @@ function panShape(
   // dévient d'au plus ~0,35 m de la diagonale qu'elles approximent).
   const meters = raw.map(([x, y]) => [x * CELL, y * CELL] as [number, number])
   meters.push(meters[0])
-  const smooth = simplify(meters, 0.55)
+  // Lissage musclé (1 m) : des formes franches sans pointes ni crénelures —
+  // retour captures briac. La surface affichée reste celle des cellules, le
+  // contour n'est que de l'habillage.
+  const smooth = simplify(meters, 1.0)
   if (smooth.length < 4) return null
   let cx = 0
   let cy = 0

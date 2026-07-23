@@ -54,8 +54,9 @@ export interface HouseEnrichment {
  * chunk lidar : un recalibrage incrémente la version, les points déjà
  * mesurés se re-mesurent paresseusement à l'ouverture de leur fiche.
  * v2 : ajout des contours de pans (dessin sur l'ortho, phase 3).
+ * v3 : contours lissés plus fort (1 m) — formes franches, sans crénelures.
  */
-export const LIDAR_VERSION = 2
+export const LIDAR_VERSION = 3
 
 /** Un pan de toiture mesuré (stocké en jsonb sur le point). */
 export interface LidarPan {

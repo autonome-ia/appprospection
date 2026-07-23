@@ -353,13 +353,15 @@ export function MapView({
         id: PANS_FILL_LAYER,
         type: 'fill',
         source: PANS_SRC,
-        paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.34 },
+        // Aplat léger : le toit photo reste lisible dessous, c'est le contour
+        // qui structure (retour captures briac).
+        paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.24 },
       })
       map.addLayer({
         id: PANS_LINE_LAYER,
         type: 'line',
         source: PANS_SRC,
-        paint: { 'line-color': ['get', 'color'], 'line-width': 2 },
+        paint: { 'line-color': ['get', 'color'], 'line-width': 2.5 },
       })
 
       // Source des points, avec regroupement (clustering). Seuils bas : dès
@@ -632,7 +634,11 @@ export function MapView({
     }
     // La surbrillance bleue de la maison ferait double emploi sous les pans.
     const houseSrc = map.getSource(HOUSE_SRC) as maplibregl.GeoJSONSource | undefined
-    const drawable = (pans ?? []).filter((p) => p.contour && p.contour.length >= 4)
+    // Seuls les pans significatifs sont dessinés : les miettes (< 10 m²)
+    // restent comptées dans le badge total mais morcelaient la lecture.
+    const drawable = (pans ?? []).filter(
+      (p) => p.contour && p.contour.length >= 4 && p.m2 >= 10,
+    )
     if (!drawable.length) {
       src.setData(EMPTY_FC)
       return
