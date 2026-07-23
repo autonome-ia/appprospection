@@ -316,3 +316,23 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
   annulation de pose qui n'interrompt pas la mesure en vol (amortie par le cache par
   coordonnées) ; centroïde d'étiquette = moyenne des sommets (peut déborder d'un pan
   en L, cosmétique).
+- **24/07/2026 (tard) — Maquette 3D du toit dans la fiche (décision briac) + retrait de
+  la carte 3D.**
+  - **Carte 3D retirée** : les prismes à toit plat (LOD1, hauteur IGN) n'apportaient rien
+    sur le terrain et juraient avec les pans dessinés. MapLibre ne sait de toute façon pas
+    extruder des pans inclinés (il aurait fallu une couche WebGL custom sur la carte).
+  - **`LIDAR_VERSION` 6** : le cœur expose le plan ajusté `z = ax + by + c` de chaque pan
+    (testé au banc) ; l'altitude de chaque sommet du contour lissé est stockée dans le
+    jsonb (`alts`, relative à la gouttière la plus basse, arrondie à 0,1 m). Re-mesure
+    paresseuse du stock ; sans `alts` (mesures < v6), pas de maquette — la fiche reste
+    comme avant.
+  - **Composant `Roof3D`** (fiche point + fiche avant prospection) : bouton « Voir le
+    toit en 3D » → canvas three.js (chunk séparé ~139 Ko gz, chargé AU TAP, jamais dans
+    le bundle principal), pans triangulés (earcut) dans un repère est/nord/altitude
+    local, palette partagée avec l'ortho (`domain/colors.PAN_COLORS`), OrbitControls
+    (rotation au doigt, drag capturé pour ne pas tirer la sheet vaul), grille discrète,
+    légende « XX m² · pente » par pan. Pas de murs ni d'ombres v1 : une maquette du
+    TOIT, pas de la maison.
+  - Usage attendu : le commercial fait pivoter le toit du client devant la porte —
+    différenciateur fort pour la phase SaaS (EagleView/RoofSnap vendent ce visuel).
+    Avis du chef des ventes à recueillir.
