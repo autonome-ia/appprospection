@@ -74,16 +74,22 @@ function fetchT(url: string, init?: RequestInit): Promise<Response> {
 
 export type LidarStatut = 'ok' | 'faible_confiance' | 'grand_batiment' | 'no_data' | 'error'
 
-export type { LidarPan } from '../domain/house'
-import type { LidarPan } from '../domain/house'
+export type { LidarPan, RoofData } from '../domain/house'
+import type { LidarPan, RoofData } from '../domain/house'
+import { reconstructRoof } from './lidar-recon'
 
 export interface LidarResult {
   toit_lidar_statut: LidarStatut
   toit_lidar_m2: number | null
   toit_lidar_principal_m2: number | null
-  toit_lidar_pans: LidarPan[] | null
+  toit_lidar_pans: RoofData | null
   toit_lidar_millesime: string | null
 }
+
+const roundLL = ([lng, lat]: [number, number]): [number, number] => [
+  Math.round(lng * 1e6) / 1e6,
+  Math.round(lat * 1e6) / 1e6,
+]
 
 /**
  * Contour lissé du pan en lng/lat (fermé), + centroïde pour l'étiquette,
@@ -119,14 +125,10 @@ function panShape(
   }
   cx /= smooth.length - 1
   cy /= smooth.length - 1
-  const round = ([lng, lat]: [number, number]): [number, number] => [
-    Math.round(lng * 1e6) / 1e6,
-    Math.round(lat * 1e6) / 1e6,
-  ]
   const [a, b, c] = plane
   return {
-    contour: smooth.map(([x, y]) => round(fromL93(x, y))),
-    centre: round(fromL93(cx, cy)),
+    contour: smooth.map(([x, y]) => roundLL(fromL93(x, y))),
+    centre: roundLL(fromL93(cx, cy)),
     alts: smooth.map(([x, y]) => a * x + b * y + c),
   }
 }
@@ -180,7 +182,7 @@ const MAX_SNAP_M = 10
 async function fetchBuildingAndNeighbors(
   lng: number,
   lat: number,
-): Promise<{ ring: Ring; neighbors: Ring[] } | null> {
+): Promise<{ ring: Ring; neighbors: Ring[]; murM: number | null } | null> {
   // ⚠ ordre lat lng (axe nord d'abord) — même convention que data/enrich.ts.
   const j =
     ((await wfsBatiment(`INTERSECTS(geometrie,POINT(${lat} ${lng}))`)) as {
@@ -216,7 +218,17 @@ async function fetchBuildingAndNeighbors(
     const r = featureRing(f)
     if (r) neighbors.push(r)
   }
-  return { ring, neighbors }
+  // Hauteur de gouttière au-dessus du sol (murs de la maquette 3D).
+  const props = main.properties ?? {}
+  const altToit =
+    typeof props.altitude_minimale_toit === 'number' ? props.altitude_minimale_toit : null
+  const altSol =
+    typeof props.altitude_minimale_sol === 'number' ? props.altitude_minimale_sol : null
+  const murM =
+    altToit != null && altSol != null && altToit > altSol
+      ? Math.round(Math.min(8, Math.max(1.8, altToit - altSol)) * 10) / 10
+      : null
+  return { ring, neighbors, murM }
 }
 
 async function fetchDalles(bb: Bbox): Promise<{ url: string; acquisition: string | null }[]> {
@@ -400,10 +412,35 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
   }
   const m = measureRoof(pts, building.ring)
   const statut: LidarStatut = m.coverage < MIN_COVERAGE ? 'faible_confiance' : 'ok'
-  const shapes = m.pans.map((p) => panShape(p.freshCells, p.plane))
+
+  // Reconstruction JOINTIVE (partition de l'emprise, frontières partagées) ;
+  // repli pan par pan sur l'ancienne vectorisation (enveloppe morphologique)
+  // si une région est dégénérée. Rendu en L93 mètres -> lng/lat + centroïde.
+  const recon = reconstructRoof(
+    m.pans.map((p) => ({ plane: p.plane, counts: p.counts })),
+    building.ring,
+  )
+  const shapes = m.pans.map((p, i) => {
+    const r = recon?.[i]
+    if (r) {
+      let cx = 0
+      let cy = 0
+      for (const [x, y] of r.contour.slice(0, -1)) {
+        cx += x
+        cy += y
+      }
+      const n = r.contour.length - 1
+      return {
+        contour: r.contour.map(([x, y]) => roundLL(fromL93(x, y))),
+        centre: roundLL(fromL93(cx / n, cy / n)),
+        alts: r.alts,
+      }
+    }
+    return panShape(p.freshCells, p.plane)
+  })
   // Altitudes relatives à la gouttière la plus basse du toit (0 = point le
-  // plus bas dessiné) : suffisant pour la maquette 3D, et des petits nombres
-  // dans le jsonb.
+  // plus bas dessiné) : petits nombres dans le jsonb, et la maquette pose ses
+  // murs sous ce zéro.
   const zMin = Math.min(...shapes.flatMap((s) => s?.alts ?? []))
   const pans: LidarPan[] = m.pans.map((p, i) => {
     const shape = shapes[i]
@@ -425,7 +462,7 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
     toit_lidar_statut: statut,
     toit_lidar_m2: Math.round(m.total),
     toit_lidar_principal_m2: Math.round(m.totalPrincipal),
-    toit_lidar_pans: pans,
+    toit_lidar_pans: { mur_m: building.murM, pans },
     toit_lidar_millesime: millesime,
   }
 }

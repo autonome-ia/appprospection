@@ -83,7 +83,7 @@ export function HousePreviewSheet({
             <p className="house-loading">Pas d’informations pour ce bâtiment.</p>
           )}
 
-          {lidarOk && lidar.toit_lidar_pans && <Roof3D pans={lidar.toit_lidar_pans} />}
+          {lidarOk && lidar.toit_lidar_pans && <Roof3D roof={lidar.toit_lidar_pans} />}
 
           <p className="eyebrow field-label">Poser un point</p>
           <StatusPicker active={activeStatus} onChange={onStatusChange} />

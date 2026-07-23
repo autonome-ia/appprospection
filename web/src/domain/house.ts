@@ -62,8 +62,12 @@ export interface HouseEnrichment {
  *      précédentes stockaient un angle mathématique depuis l'est (audit).
  * v6 : altitude de chaque sommet de contour (`alts`, relatif à la gouttière la
  *      plus basse) — alimente la maquette 3D du toit dans la fiche.
+ * v7 : pans JOINTIFS reconstruits par partition de l'emprise (lidar-recon) —
+ *      fini les trous/chevauchements entre pans ; le jsonb devient un objet
+ *      { mur_m, pans } (hauteur de gouttière BD TOPO pour les murs de la
+ *      maquette). Les anciens tableaux restent lisibles (parseRoofPans).
  */
-export const LIDAR_VERSION = 6
+export const LIDAR_VERSION = 7
 
 /** Un pan de toiture mesuré (stocké en jsonb sur le point). */
 export interface LidarPan {
@@ -78,6 +82,27 @@ export interface LidarPan {
   /** Altitude (m) de chaque sommet du contour, relative au point le plus bas
       du toit — pour la maquette 3D (absente sur les mesures < v6). */
   alts?: number[]
+}
+
+/**
+ * Données de toit stockées dans le jsonb `toit_lidar_pans`.
+ * v7+ : objet `{ mur_m, pans }` ; < v7 : simple tableau de pans.
+ */
+export interface RoofData {
+  /** Hauteur de gouttière au-dessus du sol (m, BD TOPO) — murs de la maquette. */
+  mur_m: number | null
+  pans: LidarPan[]
+}
+
+/** Lit le jsonb `toit_lidar_pans`, quelle que soit sa génération. */
+export function parseRoofPans(raw: unknown): RoofData | null {
+  if (!raw) return null
+  if (Array.isArray(raw)) return { mur_m: null, pans: raw as LidarPan[] }
+  if (typeof raw === 'object' && Array.isArray((raw as { pans?: unknown }).pans)) {
+    const o = raw as { mur_m?: unknown; pans: LidarPan[] }
+    return { mur_m: typeof o.mur_m === 'number' ? o.mur_m : null, pans: o.pans }
+  }
+  return null
 }
 
 /** La mesure LiDAR du point est-elle absente, périmée ou à re-tenter ? */

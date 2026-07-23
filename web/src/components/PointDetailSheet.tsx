@@ -13,7 +13,7 @@ import {
   CONFIRMED_MAT_OPTIONS,
   lidarNeedsMeasure,
   type HouseEnrichment,
-  type LidarPan,
+  type RoofData,
 } from '../domain/house'
 import type { LidarResult } from '../data/lidar'
 import { HouseBadges } from './HouseBadges'
@@ -79,7 +79,7 @@ export function PointDetailSheet({
   const [lidarPending, setLidarPending] = useState(false)
   // Pans du toit (contours + altitudes) : hors du SELECT global des points,
   // récupérés à la demande pour la maquette 3D (cache côté data/points).
-  const [cachedPans, setCachedPans] = useState<LidarPan[] | null>(null)
+  const [cachedPans, setCachedPans] = useState<RoofData | null>(null)
 
   useEffect(() => {
     if (!point) return
@@ -310,7 +310,7 @@ export function PointDetailSheet({
             dpe={dpe}
           />
 
-          {lidarPans && <Roof3D pans={lidarPans} />}
+          {lidarPans && <Roof3D roof={lidarPans} />}
 
           {status === 'a_revoir' && (
             <>

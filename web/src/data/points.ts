@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { MapPoint, Profile } from '../domain/types'
-import type { LidarPan } from '../domain/house'
+import { parseRoofPans, type RoofData } from '../domain/house'
 import type { PointStatus } from '../domain/status'
 
 // `toit_lidar_pans` (contours dessinés sur l'ortho) est volontairement ABSENT :
@@ -38,7 +38,7 @@ function rowToPoint(r: Record<string, unknown>): MapPoint {
     toit_lidar_statut: (r.toit_lidar_statut as string | null) ?? null,
     toit_lidar_millesime: (r.toit_lidar_millesime as string | null) ?? null,
     toit_lidar_version: (r.toit_lidar_version as number | null) ?? null,
-    toit_lidar_pans: (r.toit_lidar_pans as MapPoint['toit_lidar_pans']) ?? null,
+    toit_lidar_pans: parseRoofPans(r.toit_lidar_pans),
   }
 }
 
@@ -74,9 +74,9 @@ export async function fetchPoints(): Promise<MapPoint[]> {
 
 // Pans du toit d'un point (contours) : à la demande, à l'ouverture de la fiche.
 // Le cache est rafraîchi par le temps réel (une re-mesure écrase l'entrée).
-const pansCache = new Map<string, LidarPan[] | null>()
+const pansCache = new Map<string, RoofData | null>()
 
-export async function fetchPointPans(pointId: string): Promise<LidarPan[] | null> {
+export async function fetchPointPans(pointId: string): Promise<RoofData | null> {
   if (!supabase) return null
   const hit = pansCache.get(pointId)
   if (hit !== undefined) return hit
@@ -86,7 +86,7 @@ export async function fetchPointPans(pointId: string): Promise<LidarPan[] | null
     .eq('id', pointId)
     .maybeSingle()
   if (error) throw error
-  const pans = ((data?.toit_lidar_pans as LidarPan[] | null | undefined) ?? null)
+  const pans = parseRoofPans(data?.toit_lidar_pans)
   pansCache.set(pointId, pans)
   return pans
 }
@@ -310,7 +310,7 @@ export function subscribePoints(handlers: RealtimeHandlers): () => void {
       // Le temps réel transporte la ligne complète (pans inclus) : on en
       // profite pour rafraîchir le cache des contours (re-mesure, bump d'algo).
       if ('toit_lidar_pans' in row) {
-        pansCache.set(row.id as string, (row.toit_lidar_pans as LidarPan[] | null) ?? null)
+        pansCache.set(row.id as string, parseRoofPans(row.toit_lidar_pans))
       }
       handlers.onUpdate?.(rowToPoint(row))
     })

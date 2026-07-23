@@ -20,7 +20,7 @@ import { HousePreviewSheet } from './HousePreviewSheet'
 import { fetchPointPans, reverseGeocode } from '../data/points'
 import type { HouseInfo } from '../data/enrich'
 import type { LidarResult } from '../data/lidar'
-import type { LidarPan } from '../domain/house'
+import type { LidarPan, RoofData } from '../domain/house'
 import { AddressSearch } from './AddressSearch'
 import { AppointmentForm } from './AppointmentForm'
 import { Layers, Plus, SlidersHorizontal } from 'lucide-react'
@@ -563,7 +563,7 @@ export function MapView({
   // (cache côté data/points, rafraîchi par le temps réel). Les inserts et
   // updates realtime des AUTRES points ne redessinent plus rien (la référence
   // ne change pas), fini le clignotement des pastilles.
-  const [selPans, setSelPans] = useState<LidarPan[] | null>(null)
+  const [selPans, setSelPans] = useState<RoofData | null>(null)
   useEffect(() => {
     const sel = selectedId ? (points.find((p) => p.id === selectedId) ?? null) : null
     if (!sel || sel.toit_lidar_statut !== 'ok') {
@@ -601,9 +601,9 @@ export function MapView({
 
     let pans: LidarPan[] | null = null
     if (housePreview) {
-      if (houseLidar?.toit_lidar_statut === 'ok') pans = houseLidar.toit_lidar_pans
+      if (houseLidar?.toit_lidar_statut === 'ok') pans = houseLidar.toit_lidar_pans?.pans ?? null
     } else {
-      pans = selPans
+      pans = selPans?.pans ?? null
     }
     // La surbrillance bleue de la maison ferait double emploi sous les pans.
     const houseSrc = map.getSource(HOUSE_SRC) as maplibregl.GeoJSONSource | undefined

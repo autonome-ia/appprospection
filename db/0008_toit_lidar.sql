@@ -9,7 +9,8 @@
 alter table public.points
   add column if not exists toit_lidar_m2 real,            -- surface totale mesurée (tous pans)
   add column if not exists toit_lidar_principal_m2 real,  -- toit principal seul (donnée couvreur)
-  add column if not exists toit_lidar_pans jsonb,         -- [{type, pente_deg, azimut_deg, m2}]
+  add column if not exists toit_lidar_pans jsonb,         -- v7+ : {mur_m, pans:[{type, pente_deg, azimut_deg, m2, contour, centre, alts}]}
+                                                          -- (< v7 : simple tableau de pans — lu par parseRoofPans)
   add column if not exists toit_lidar_statut text,        -- ok | faible_confiance | grand_batiment | no_data | error
   add column if not exists toit_lidar_millesime text,     -- date d'acquisition du survol LiDAR (fraîcheur)
   add column if not exists toit_lidar_version smallint;   -- version de l'algo : un recalibrage

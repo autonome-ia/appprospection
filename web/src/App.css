@@ -1383,12 +1383,59 @@
 .roof3d-canvas canvas {
   display: block;
 }
-.roof3d-close {
+.roof3d-tools {
   position: absolute;
   top: 8px;
   right: 8px;
-  z-index: 1;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+}
+.roof3d-tools .icon-btn {
   background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow-sm);
+}
+/* Pastille m² projetée SUR le pan (position pilotée par la boucle de rendu). */
+.roof3d-chip {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+.roof3d-compass {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  pointer-events: none;
+}
+.roof3d-compass svg {
+  display: block;
+}
+/* Plein écran (portal hors de la sheet) : la maquette pour la démo client. */
+.roof3d-full {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  margin: 0;
+  padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.roof3d-full .roof3d-canvas {
+  flex: 1;
+  height: auto;
+}
+.roof3d-full .roof3d-legend {
+  justify-content: center;
 }
 .roof3d-legend {
   display: flex;
