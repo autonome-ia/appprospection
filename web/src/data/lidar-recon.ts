@@ -529,6 +529,12 @@ export function reconstructRoof(
   const corners = cornerLabels(labels)
 
   // Soudure / marche par paire de pans : décidée sur la frontière réelle.
+  // ⚠ Les coins de grille de la frontière zigzaguent jusqu'à ~0,5 m du vrai
+  // faîtage : sur un toit pentu (46°), 35 cm d'écart latéral = 0,7 m d'écart
+  // vertical entre les plans — la MÉDIANE classait les faîtages raides en
+  // marche (Rosa Floch : badge à 110 au lieu de 219). On teste donc le
+  // QUARTILE BAS : au vrai faîtage une partie des coins tombe quasi dessus
+  // (écart ≈ 0) ; à une vraie marche l'écart reste grand PARTOUT.
   const weldCache = new Map<string, boolean>()
   const isWelded = (i: number, j: number, at: [number, number][]): boolean => {
     const key = i < j ? `${i}:${j}` : `${j}:${i}`
@@ -540,7 +546,7 @@ export function reconstructRoof(
       return Math.abs(planeZ(pans[i].plane, x, y) - planeZ(pans[j].plane, x, y))
     })
     gaps.sort((a, b) => a - b)
-    const welded = gaps[Math.floor(gaps.length / 2)] <= STEP_TOL_M
+    const welded = gaps[Math.floor(gaps.length * 0.25)] <= STEP_TOL_M
     weldCache.set(key, welded)
     return welded
   }

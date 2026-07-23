@@ -331,6 +331,24 @@ describe('reconstructRoof v3', () => {
     expect(r!.welds).toContainEqual([0, 1])
   })
 
+  it('bâtière RAIDE (48°, toits bretons) : le faîtage reste soudé', () => {
+    // Régression Rosa Floch : la médiane des écarts de plans sur les coins de
+    // grille (zigzag ±0,5 m du faîtage) classait les toits pentus en marche —
+    // badge à 110 m² au lieu de 219 (le corps ne contenait plus qu'un pan).
+    const { pts, ring } = gable(11, 7, 0.4, 48, 7)
+    const r = recon(pts, ring)
+    expect(r!.welds).toContainEqual([0, 1])
+    const m = measureRoof(pts, ring)
+    const body = mainBodyPans(
+      m.pans.map((p) => p.realDedup),
+      m.pans.map((p) => p.type === 'plat'),
+      r!.welds,
+      r!.absorbed,
+    )
+    const bodyM2 = m.pans.reduce((s, p, i) => (body.has(i) ? s + p.realDedup : s), 0)
+    expect(bodyM2 / m.total).toBeGreaterThanOrEqual(0.95)
+  })
+
   it('deux niveaux : la marche n’est PAS une soudure, la « maison » exclut l’annexe', () => {
     const { pts, ring } = twoLevels(10, 6, 4, 40, 5)
     const m = measureRoof(pts, ring)

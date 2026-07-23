@@ -78,8 +78,11 @@ export interface HouseEnrichment {
  *      décroché coupe : extensions/annexes/garages exclus, même à pente
  *      égale). C'est lui que la fiche affiche (validation factures : Rosa
  *      Floch 219 vs 223 facturés). Le total reste stocké.
+ * v11 : soudure au QUARTILE BAS des écarts de plans (la médiane classait les
+ *      faîtages > ~42° en marche : zigzag de grille × pente raide — Rosa
+ *      Floch affichait 110 au lieu de 219).
  */
-export const LIDAR_VERSION = 10
+export const LIDAR_VERSION = 11
 
 /** Un pan de toiture mesuré (stocké en jsonb sur le point). */
 export interface LidarPan {
