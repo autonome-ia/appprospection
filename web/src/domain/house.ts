@@ -47,3 +47,20 @@ export interface HouseEnrichment {
   toit_surface_m2: number | null
   dpe_classe: string | null
 }
+
+/**
+ * Version courante de l'algorithme de mesure LiDAR (voir data/lidar.ts).
+ * Déclarée ici (module léger) pour décider d'un re-calcul SANS charger le
+ * chunk lidar : un recalibrage incrémente la version, les points déjà
+ * mesurés se re-mesurent paresseusement à l'ouverture de leur fiche.
+ */
+export const LIDAR_VERSION = 1
+
+/** La mesure LiDAR du point est-elle absente, périmée ou à re-tenter ? */
+export function lidarNeedsMeasure(p: {
+  toit_lidar_statut: string | null
+  toit_lidar_version: number | null
+}): boolean {
+  if (!p.toit_lidar_statut || p.toit_lidar_statut === 'error') return true
+  return (p.toit_lidar_version ?? 0) < LIDAR_VERSION
+}

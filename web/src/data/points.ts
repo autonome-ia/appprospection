@@ -3,7 +3,7 @@ import type { MapPoint, Profile } from '../domain/types'
 import type { PointStatus } from '../domain/status'
 
 const COLS =
-  'id, lng, lat, status, notes, client_name, address, revisit_at, annee_construction, mat_toit, mat_toit_confirme, toit_surface_m2, dpe_classe, enriched_at'
+  'id, lng, lat, status, notes, client_name, address, revisit_at, annee_construction, mat_toit, mat_toit_confirme, toit_surface_m2, dpe_classe, enriched_at, toit_lidar_m2, toit_lidar_principal_m2, toit_lidar_statut, toit_lidar_millesime, toit_lidar_version'
 
 /** Détail complet d'un point (panneau au clic). */
 export interface PointDetail extends MapPoint {
@@ -28,6 +28,11 @@ function rowToPoint(r: Record<string, unknown>): MapPoint {
     toit_surface_m2: (r.toit_surface_m2 as number | null) ?? null,
     dpe_classe: (r.dpe_classe as string | null) ?? null,
     enriched_at: (r.enriched_at as string | null) ?? null,
+    toit_lidar_m2: (r.toit_lidar_m2 as number | null) ?? null,
+    toit_lidar_principal_m2: (r.toit_lidar_principal_m2 as number | null) ?? null,
+    toit_lidar_statut: (r.toit_lidar_statut as string | null) ?? null,
+    toit_lidar_millesime: (r.toit_lidar_millesime as string | null) ?? null,
+    toit_lidar_version: (r.toit_lidar_version as number | null) ?? null,
   }
 }
 
@@ -118,6 +123,11 @@ export async function insertPoint(
   void import('./enrich')
     .then((m) => m.enrichPoint(point.id, lng, lat))
     .catch((e) => console.error('Enrichissement :', e))
+  // Mesure de la toiture au LiDAR (chunk séparé : copc + laz-perf), en fond
+  // elle aussi — le résultat arrive sur la fiche via le temps réel.
+  void import('./lidar')
+    .then((m) => m.measurePointRoof(point.id, lng, lat))
+    .catch((e) => console.error('Mesure LiDAR :', e))
   return point
 }
 

@@ -228,3 +228,25 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
     pour la phase 2 (l'usage app = 1 maison à la fois, non concerné).
   **Prochaines étapes** : Gate G0 (factures du chef des ventes → recalibrage éventuel),
   puis phase 2 (intégration app).
+- **24/07/2026 — Phase 2 : intégrée dans l'app** (décision briac : shipper pour que le chef
+  des ventes fasse le Gate G0 en conditions réelles sur ses chantiers).
+  - **Architecture : 100 % navigateur** — le serveur de téléchargement IGN expose
+    `Access-Control-Allow-Origin: *` et accepte `Range` au preflight (vérifié) → pas d'Edge
+    Function, zéro infra, le « git push → Render » reste inchangé.
+  - `web/src/data/lidar.ts` : portage TS du pipeline validé (G1), chunk séparé chargé à la
+    demande (copc + glue laz-perf ≈ 100 Ko js + **wasm 214 Ko émis en asset via `?url` +
+    `locateFile`** — piège Emscripten/Vite réglé, le wasm serait introuvable en prod sinon).
+  - Déclenchement : à la pose du point (`data/points.ts`) + backfill paresseux à l'ouverture
+    des fiches anciennes (`PointDetailSheet`). Anti-doublon par point (promesse en vol).
+  - Cache définitif : migration **`db/0008_toit_lidar.sql`** (⚠️ à exécuter dans Supabase
+    AVANT tout test — les colonnes sont dans le SELECT des points). Champs : total,
+    toit principal, pans (jsonb), statut, millésime du survol, **version d'algo**
+    (`LIDAR_VERSION` dans `domain/house.ts` : l'incrémenter après un recalibrage re-mesure
+    paresseusement tous les points).
+  - UI : badge `137 m² toit` (style « confirmé », sans ~, title « mesuré au laser… survol
+    AAAA ») uniquement si statut `ok` ; tout autre verdict laisse l'estimation actuelle
+    affichée. La fiche AVANT prospection (HousePreviewSheet) garde volontairement
+    l'estimation (pas de téléchargement de 2-3 Mo à chaque consultation sans pose).
+  - **Gate G0 terrain** : le chef des ventes tape ses chantiers passés (backfill immédiat à
+    l'ouverture de la fiche) et compare aux factures. Écart systématique → recalibrage +
+    bump de version.

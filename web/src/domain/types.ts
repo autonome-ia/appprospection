@@ -30,4 +30,11 @@ export interface MapPoint {
   toit_surface_m2: number | null
   dpe_classe: string | null
   enriched_at: string | null
+  /** Surface de toiture MESURÉE (nuage de points LiDAR HD IGN, cache définitif). */
+  toit_lidar_m2: number | null
+  toit_lidar_principal_m2: number | null
+  /** ok | faible_confiance | grand_batiment | no_data | error (voir data/lidar.ts). */
+  toit_lidar_statut: string | null
+  toit_lidar_millesime: string | null
+  toit_lidar_version: number | null
 }

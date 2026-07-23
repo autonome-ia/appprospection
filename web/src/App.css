@@ -1312,6 +1312,14 @@
   border-color: var(--accent);
   color: var(--accent);
 }
+/* Surface MESURÉE (LiDAR) : même langage visuel que « confirmé » — donnée
+   sûre, sans le ~ d'estimation. */
+.house-badge.is-measured {
+  background: var(--accent-weak);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
 .house-badge.dpe {
   color: #ffffff;
   border-color: transparent;

@@ -3,7 +3,8 @@ import { Drawer } from 'vaul'
 import { toast } from 'sonner'
 import { X, Trash2, Clock, User, MapPin } from 'lucide-react'
 import { getPointDetail, fetchPointNotes, type PointDetail, type PointNote } from '../data/points'
-import { CONFIRMED_MAT_OPTIONS, type HouseEnrichment } from '../domain/house'
+import { CONFIRMED_MAT_OPTIONS, lidarNeedsMeasure, type HouseEnrichment } from '../domain/house'
+import type { LidarResult } from '../data/lidar'
 import { HouseBadges } from './HouseBadges'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { STATUSES, STATUS_BY_VALUE, type PointStatus } from '../domain/status'
@@ -59,6 +60,9 @@ export function PointDetailSheet({
   // Fiche maison récupérée à la volée (backfill des points posés avant le
   // chantier, ou point d'un autre commercial dont le cache RLS a échoué).
   const [liveEnrich, setLiveEnrich] = useState<HouseEnrichment | null>(null)
+  // Mesure LiDAR calculée à la volée (backfill des points anciens, ou re-mesure
+  // après montée de version de l'algo).
+  const [liveLidar, setLiveLidar] = useState<LidarResult | null>(null)
 
   useEffect(() => {
     if (!point) return
@@ -70,6 +74,7 @@ export function PointDetailSheet({
     setDetail(null)
     setHistory([])
     setLiveEnrich(null)
+    setLiveLidar(null)
     // Point en cours d'enregistrement (id temporaire, pose optimiste) : pas
     // encore de détail ni de journal en base.
     if (!isSupabaseConfigured || point.id.startsWith('temp-')) return
@@ -83,6 +88,16 @@ export function PointDetailSheet({
           if (active) setLiveEnrich(e)
         })
         .catch((e) => console.error('Enrichissement :', e))
+    }
+    // Mesure LiDAR : backfill paresseux (points anciens, erreurs à re-tenter,
+    // montée de version de l'algo). Chunk séparé, chargé à la demande.
+    if (lidarNeedsMeasure(point)) {
+      void import('../data/lidar')
+        .then((m) => m.measurePointRoof(point.id, point.lng, point.lat))
+        .then((r) => {
+          if (active) setLiveLidar(r)
+        })
+        .catch((e) => console.error('Mesure LiDAR :', e))
     }
     getPointDetail(point.id)
       .then((d) => {
@@ -176,6 +191,12 @@ export function PointDetailSheet({
   const matCode = point.mat_toit ?? liveEnrich?.mat_toit ?? null
   const toitM2 = point.toit_surface_m2 ?? liveEnrich?.toit_surface_m2 ?? null
   const dpe = point.dpe_classe ?? liveEnrich?.dpe_classe ?? null
+  // Mesure LiDAR : affichée seulement si le verdict est fiable (statut ok) —
+  // sinon la fiche garde l'estimation, sans mentir.
+  const lidarStatut = point.toit_lidar_statut ?? liveLidar?.toit_lidar_statut ?? null
+  const lidarM2 =
+    lidarStatut === 'ok' ? (point.toit_lidar_m2 ?? liveLidar?.toit_lidar_m2 ?? null) : null
+  const lidarMillesime = point.toit_lidar_millesime ?? liveLidar?.toit_lidar_millesime ?? null
   const hasHouseInfo = annee !== null || matCode !== null || toitM2 !== null || dpe !== null
 
   return (
@@ -237,6 +258,8 @@ export function PointDetailSheet({
             matCode={matCode}
             matConfirme={point.mat_toit_confirme}
             toitM2={toitM2}
+            lidarM2={lidarM2}
+            lidarMillesime={lidarMillesime}
             dpe={dpe}
           />
 
