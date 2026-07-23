@@ -115,3 +115,21 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
 
 - **23/07/2026** — SOP créé. Fondations vérifiées (dalle Lesneven 12/2024, COPC + Range OK,
   WFS de découverte OK, licence OK). Phase 0 : prête à démarrer.
+- **23/07/2026 (après-midi)** — **Spike technique exécuté et concluant** (`tools/lidar-spike/`,
+  lib npm `copc` + proj4, Node 22). Trois maisons de Lesneven, 3/3 réussies :
+  | Maison | Emprise | Estimation actuelle | **Mesure LiDAR** | Pans détectés |
+  |---|---|---|---|---|
+  | Rue du Retalaire (test) | 100 m² | ~125 m² | **~150 m²** | 4 pans ~40° (croupe) + annexe plate 31 m² |
+  | 35 rue de l'Argoat | 116 m² | ~145 m² | **~215 m²** | 2 pans ~48° (bâtière) + extensions |
+  | 18 rue du Retalaire | 120 m² | ~140 m² | **~165 m²** | 4 pans ~34°, 3 points orphelins seulement |
+  Perfs : **2,1-2,4 Mo transférés, 3-6 s par maison** (budget < 10 Mo / < 5 s quasi tenu,
+  optimisable en parallélisant les nœuds). Densité toit : 11-13 pts/m².
+  Enseignements pour la phase 1 :
+  1. **Maison à cheval sur 2 dalles** (frontière au km L93) : résolu — chercher les dalles par
+     la bbox du bâtiment, pas par le point cliqué ; agréger les points.
+  2. **RANSAC non déterministe** : ±2 m² d'un run à l'autre → seed fixe en phase 1.
+  3. Les mesures dépassent systématiquement l'estimation actuelle (+15 à +48 %) — cohérent
+    (débords réels + pentes réelles plus fortes que le forfait), à confirmer au Gate G0 avec
+    les maisons de référence.
+  4. Sur-segmentation légère (pans parallèles décalés fusionnables) : à traiter en phase 1.
+  **Reste pour clore la phase 0 : le Gate G0** — 3-4 maisons de surface connue (action briac).
