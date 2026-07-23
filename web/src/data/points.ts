@@ -1,9 +1,14 @@
 import { supabase } from '../lib/supabase'
 import type { MapPoint, Profile } from '../domain/types'
+import type { LidarPan } from '../domain/house'
 import type { PointStatus } from '../domain/status'
 
+// `toit_lidar_pans` (contours dessinés sur l'ortho) est volontairement ABSENT :
+// ce jsonb (~0,5-2 Ko par pan) ne sert qu'à la fiche ouverte — le transporter
+// pour tous les points à chaque chargement (carte, accueil, agenda) croîtrait
+// avec l'activité de l'équipe. Récupéré à la demande via fetchPointPans.
 const COLS =
-  'id, lng, lat, status, notes, client_name, address, revisit_at, annee_construction, mat_toit, mat_toit_confirme, toit_surface_m2, dpe_classe, enriched_at, toit_lidar_m2, toit_lidar_principal_m2, toit_lidar_statut, toit_lidar_millesime, toit_lidar_version, toit_lidar_pans'
+  'id, lng, lat, status, notes, client_name, address, revisit_at, annee_construction, mat_toit, mat_toit_confirme, toit_surface_m2, dpe_classe, enriched_at, toit_lidar_m2, toit_lidar_principal_m2, toit_lidar_statut, toit_lidar_millesime, toit_lidar_version'
 
 /** Détail complet d'un point (panneau au clic). */
 export interface PointDetail extends MapPoint {
@@ -51,9 +56,39 @@ export async function reverseGeocode(lng: number, lat: number): Promise<string |
 /** Charge tous les points visibles (RLS = ceux de l'organisation de l'utilisateur). */
 export async function fetchPoints(): Promise<MapPoint[]> {
   if (!supabase) return []
-  const { data, error } = await supabase.from('points').select(COLS)
+  // Supabase tronque silencieusement à 1 000 lignes : on pagine.
+  const PAGE = 1000
+  const all: MapPoint[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('points')
+      .select(COLS)
+      .order('created_at')
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    const rows = data ?? []
+    for (const r of rows) all.push(rowToPoint(r as Record<string, unknown>))
+    if (rows.length < PAGE) return all
+  }
+}
+
+// Pans du toit d'un point (contours) : à la demande, à l'ouverture de la fiche.
+// Le cache est rafraîchi par le temps réel (une re-mesure écrase l'entrée).
+const pansCache = new Map<string, LidarPan[] | null>()
+
+export async function fetchPointPans(pointId: string): Promise<LidarPan[] | null> {
+  if (!supabase) return null
+  const hit = pansCache.get(pointId)
+  if (hit !== undefined) return hit
+  const { data, error } = await supabase
+    .from('points')
+    .select('toit_lidar_pans')
+    .eq('id', pointId)
+    .maybeSingle()
   if (error) throw error
-  return (data ?? []).map(rowToPoint)
+  const pans = ((data?.toit_lidar_pans as LidarPan[] | null | undefined) ?? null)
+  pansCache.set(pointId, pans)
+  return pans
 }
 
 /** Détail d'un point + nom de l'auteur (2 requêtes, robuste sans jointure implicite). */
@@ -270,12 +305,20 @@ export function subscribePoints(handlers: RealtimeHandlers): () => void {
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'points' }, (p) =>
       handlers.onInsert?.(rowToPoint(p.new as Record<string, unknown>)),
     )
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'points' }, (p) =>
-      handlers.onUpdate?.(rowToPoint(p.new as Record<string, unknown>)),
-    )
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'points' }, (p) =>
-      handlers.onDelete?.((p.old as Record<string, unknown>).id as string),
-    )
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'points' }, (p) => {
+      const row = p.new as Record<string, unknown>
+      // Le temps réel transporte la ligne complète (pans inclus) : on en
+      // profite pour rafraîchir le cache des contours (re-mesure, bump d'algo).
+      if ('toit_lidar_pans' in row) {
+        pansCache.set(row.id as string, (row.toit_lidar_pans as LidarPan[] | null) ?? null)
+      }
+      handlers.onUpdate?.(rowToPoint(row))
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'points' }, (p) => {
+      const id = (p.old as Record<string, unknown>).id as string
+      pansCache.delete(id)
+      handlers.onDelete?.(id)
+    })
     .subscribe()
   return () => {
     supabase?.removeChannel(channel)

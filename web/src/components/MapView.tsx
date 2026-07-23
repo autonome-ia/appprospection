@@ -16,7 +16,7 @@ import { STATUSES, STATUS_BY_VALUE, statusColorExpression, type PointStatus } fr
 import { StatusPicker } from './StatusPicker'
 import { PointDetailSheet } from './PointDetailSheet'
 import { HousePreviewSheet } from './HousePreviewSheet'
-import { reverseGeocode } from '../data/points'
+import { fetchPointPans, reverseGeocode } from '../data/points'
 import type { HouseInfo } from '../data/enrich'
 import type { LidarResult } from '../data/lidar'
 import type { LidarPan } from '../domain/house'
@@ -612,6 +612,34 @@ export function MapView({
     }
   }, [housePreview, houseInfo, mapLoaded])
 
+  // Pans du point sélectionné : le SELECT global ne transporte plus le jsonb
+  // des contours (poids) — récupérés à la demande à l'ouverture de la fiche
+  // (cache côté data/points, rafraîchi par le temps réel). Les inserts et
+  // updates realtime des AUTRES points ne redessinent plus rien (la référence
+  // ne change pas), fini le clignotement des pastilles.
+  const [selPans, setSelPans] = useState<LidarPan[] | null>(null)
+  useEffect(() => {
+    const sel = selectedId ? (points.find((p) => p.id === selectedId) ?? null) : null
+    if (!sel || sel.toit_lidar_statut !== 'ok') {
+      setSelPans(null)
+      return
+    }
+    // Ligne realtime (complète) : les pans sont déjà là. Sinon : fetch ciblé.
+    if (sel.toit_lidar_pans) {
+      setSelPans(sel.toit_lidar_pans)
+      return
+    }
+    let alive = true
+    fetchPointPans(sel.id)
+      .then((ps) => {
+        if (alive) setSelPans(ps)
+      })
+      .catch((e) => console.error('Pans du point :', e))
+    return () => {
+      alive = false
+    }
+  }, [selectedId, points])
+
   // Pans de toiture mesurés : dessinés quand la fiche d'une maison mesurée
   // est ouverte (fiche avant prospection OU fiche d'un point), avec une
   // pastille « XX m² » par pan (marqueurs DOM : police et tokens de la DA).
@@ -629,8 +657,7 @@ export function MapView({
     if (housePreview) {
       if (houseLidar?.toit_lidar_statut === 'ok') pans = houseLidar.toit_lidar_pans
     } else {
-      const sel = points.find((p) => p.id === selectedId) ?? null
-      if (sel?.toit_lidar_statut === 'ok') pans = sel.toit_lidar_pans
+      pans = selPans
     }
     // La surbrillance bleue de la maison ferait double emploi sous les pans.
     const houseSrc = map.getSource(HOUSE_SRC) as maplibregl.GeoJSONSource | undefined
@@ -664,7 +691,7 @@ export function MapView({
     }
     // houseInfo dans les deps : si la surbrillance bleue arrive APRÈS la
     // mesure, ce nettoyage doit rejouer.
-  }, [housePreview, houseInfo, houseLidar, selectedId, points, mapLoaded])
+  }, [housePreview, houseInfo, houseLidar, selPans, mapLoaded])
 
   // Met à jour la source GeoJSON quand la liste de points ou le filtre change
   // OU quand la carte devient prête (évite le 1er rendu manqué si les points
