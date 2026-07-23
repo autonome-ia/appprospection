@@ -66,6 +66,12 @@
 - [x] **Étape 1 — IGN au maximum réel (gratuit)** : `maxzoom` 21→19 (zoom natif réel depuis que l'IGN a retiré la THR en mars 2025 — on demandait des tuiles inexistantes au zoom maison) ; **photo pure en mode Toits** : le voile papier `base-wash` et ~370 tracés du plan (routes en rubans blancs/jaunes, plans d'eau en aplats) étaient dessinés PAR-DESSUS l'ortho → masqués en Toits, restaurés en plan (seuls les noms de rues restent sur la photo) ; paint ortho adouci, dégressif avec le zoom ; variante « retina » WMS 512 px testable via `?ortho=wms2x` (A/B — colorimétrie du niveau pyramide à valider à l'écran).
 - [ ] ⬜ **Étape 2 — POC Mapbox Satellite** (source raster dans MapLibre, autorisé officiellement, 750k tuiles/mois gratuites, @2x natif) : briac crée un token public gratuit → `VITE_MAPBOX_TOKEN` → comparaison côte à côte sur les zones prospectées, verdict du chef des ventes. Repli : Google 2D Tiles. MapKit JS non écarté mais dernier recours (réécriture complète, gain non démontré en pavillonnaire breton).
 
+## Mesure de toiture LiDAR HD (SOP `sop-mesure-toiture-lidar.md`, juillet 2026)
+- [x] **Cadrage + fondations vérifiées** : surface de toit quasi réelle (±3-5 % visés) depuis le nuage de points LiDAR HD IGN (open data, 0 €), en fond de fiche maison — pas de nouvelle carte. Dalle de test (Lesneven) trouvée via WFS, acquisition 12/2024, format COPC streamable (Range 206 testé). Phases avec GO/NO-GO dans le SOP.
+- [ ] ⬜ **Phase 0 — spike de faisabilité** (`tools/lidar-spike/`, hors app) : extraction des points toit + segmentation des pans + comparaison sur maisons de surface connue. **Attend de briac : 3-4 maisons de référence (adresse + surface réelle).**
+- [ ] ⬜ Phase 1 durcissement · Phase 2 intégration (Edge Function + migration `db/0008`) · Phase 3 pans dessinés sur l'ortho (option).
+- [ ] ⬜ **Quick wins estimation actuelle** (« étage 1 », ½ j, à valider) : débords de toit, toits plats, formes en L — améliore le fallback partout où le LiDAR ne peut rien.
+
 ## Prochains chantiers (à choisir avec briac)
 - [ ] ⬜ **Écran de connexion** — dernier écran encore à l'ancien style ; l'habiller avec la DA (Geist/Lucide). Petit, rapide.
 - [ ] ⬜ **Équipe (invitations)** — le manager partage un code ; les commerciaux s'inscrivent avec ce code et rejoignent SON agence (aujourd'hui chaque inscription = nouvelle agence isolée). Débloque le test réel à plusieurs. *Dépend un peu de l'ami (Q13-16).*

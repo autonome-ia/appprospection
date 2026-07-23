@@ -1,0 +1,117 @@
+# SOP — Surface de toiture mesurée au LiDAR HD (juillet 2026)
+
+> **Objectif** : remplacer l'estimation de surface de toit (`emprise / cos(pente)`, ±15-20 %)
+> par une **mesure quasi réelle (±3-5 %)** issue du nuage de points LiDAR HD de l'IGN,
+> automatique, gratuite, invisible pour l'utilisateur (même pattern que la fiche enrichie).
+> Décision briac (23/07/2026) : chantier validé, sans urgence, à faire proprement.
+> Bonus visé pour la phase SaaS : « surface mesurée au laser » = différenciateur produit
+> (ce service se vend à l'unité aux USA : EagleView, RoofSnap).
+
+## Vérifications déjà faites (23/07/2026 — ne pas refaire)
+
+| Fondation | Statut | Détail |
+|---|---|---|
+| Couverture zone de test (Lesneven 29) | ✅ | Dalle `LHD_FXX_0160_6855`, **acquisition 12/2024** (fraîche), 17,3 M pts/km² (~17 pts/m²), classification auto `IGN_AUTO_V5` |
+| Découverte de la dalle par coordonnées | ✅ | WFS `IGNF_NUAGES-DE-POINTS-LIDAR-HD:dalle` sur `data.geopf.fr/wfs/ows`, BBOX en **CRS:84 (lon,lat)** → renvoie l'URL de téléchargement + métadonnées |
+| Format streamable | ✅ | **COPC** (`.copc.laz`, octree indexé) ; serveur accepte **Range 206** (testé : `bytes 0-4095/109312727`) → on lit ~quelques centaines de Ko par maison, pas 109 Mo |
+| Licence / coût | ✅ | Licence Ouverte Etalab, usage commercial OK, sans clé, 0 € — comme ortho/BAN. Attribution IGN |
+| Dérivés raster (plan B) | ✅ | Dalles MNS/MNT/MNH LiDAR HD dispo en WFS/téléchargement (`IGNF_MNS-LIDAR-HD:dalle`…) + couches de visualisation WMTS |
+| Briques app réutilisables | ✅ | Polygone bâtiment déjà récupéré (WFS BD TOPO, `data/enrich.ts`), proj4/Lambert-93 déjà embarqué, pattern cache-en-BDD + backfill paresseux déjà rodé (migrations 0006/0007) |
+
+## Architecture cible (rappel de la décision)
+
+**Aucune nouvelle carte, aucun nouvel écran.** Un module de calcul en arrière-plan :
+tap maison → polygone bâtiment (déjà là) → lecture ciblée du COPC → reconstruction des pans
+→ `surface = Σ aire_projetée(pan) / cos(pente(pan))` → **écrit une fois en BDD** (cache
+définitif, comme l'enrichissement actuel) → la fiche affiche `137 m² toit · mesuré LiDAR`
+au lieu de `~120 m²`. Fallback permanent : l'estimation actuelle (jamais de fiche vide).
+
+## Phases et jalons (chaque phase a un critère d'arrêt — pas de tunnel)
+
+### Phase 0 — Spike de faisabilité (1-2 jours) 🔬
+Hors app, script Node jetable dans `tools/lidar-spike/` (jamais shippé, jamais dans le bundle).
+1. WFS dalle → stream des nœuds COPC intersectant la bbox du bâtiment (lib npm `copc`).
+2. Filtre : classe 6 (bâtiment), emprise du polygone **bufferisée de ~1 m** (pour capter les
+   débords de toit, que l'estimation actuelle ignore par construction).
+3. Segmentation des pans : RANSAC itératif (plans successifs, inliers à ±15 cm, jusqu'à
+   épuisement) — suffisant au spike, raffinable en phase 1.
+4. Aire projetée par pan : grille d'occupation 0,5 m (robuste aux trous/cheminées),
+   aire réelle = aire projetée / cos(pente du plan).
+5. Sortie : surface totale + liste des pans (pente, aire, orientation) + comparaison à
+   l'estimation actuelle sur la maison test de Lesneven.
+
+**Gate G0 (GO/NO-GO)** : sur 3-4 maisons de surface réellement connue (fournies par le chef
+des ventes), écart ≤ **±8 %** sur au moins 3. GO → phase 1. NO-GO → repli palier A (pente
+moyenne via MNS raster, gain plus modeste) ou statu quo, et on documente pourquoi.
+
+### Phase 1 — Durcissement de l'algo (2-4 jours)
+- Cas limites : végétation surplombante (classe 5 mêlée aux points toit), cheminées/lucarnes
+  (outliers), toits plats et terrasses, maisons mitoyennes (séparer par polygone), formes en
+  L/T multi-faîtages, annexes accolées, vérandas (classe 6 vitrée = points épars).
+- Budget perfs : **< 5 s par maison, < 10 Mo transférés** (sinon on précalcule côté serveur).
+- Jeu de test élargi : 10-15 maisons variées (ardoise/tuile/plat, simple/complexe), validées
+  visuellement sur l'ortho + par le chef des ventes quand la surface est connue.
+- **Gate G1** : ±5-8 % sur le jeu élargi, zéro crash, budget perfs tenu.
+
+### Phase 2 — Intégration app (3-5 jours)
+- **Décision d'archi à instruire en début de phase** : calcul dans le navigateur (wasm
+  laz-perf, ~1-2 Mo de chunk chargé à la demande — comme `enrich.ts`) **ou** Supabase Edge
+  Function (Deno, mutualisé, le mobile ne fait qu'un fetch). Critères : poids bundle, CPU
+  mobile réel, simplicité de maintenance. Par défaut : **Edge Function** (« mesuré une fois,
+  servi à tous », rien à télécharger côté téléphone).
+- Migration **`db/0008_toit_lidar.sql`** : `toit_surface_lidar_m2 numeric`, `toit_pans jsonb`
+  (pente/aire/azimut par pan), `toit_lidar_date date` (millésime acquisition),
+  `toit_lidar_status text` (`ok` / `no_data` / `error` — pour ne pas re-tenter en boucle).
+- Flux : calcul à la pose du point + backfill paresseux à l'ouverture des fiches anciennes
+  (pattern 0006). Jamais bloquant : la fiche affiche l'estimation actuelle tant que la mesure
+  n'est pas arrivée, puis se met à jour.
+- UI : le badge `~120 m² toit` devient `137 m² toit` avec mention « mesuré LiDAR (IGN, 2024) »
+  dans le title/tooltip ; nuance `~` conservée si fallback estimation. Attribution IGN déjà
+  en place sur la fiche.
+- **Gate G2** : `npm run build` OK, test terrain sur les maisons déjà posées (backfill), pas
+  de régression de fluidité de la fiche.
+
+### Phase 3 — Bonus visuel (option, 1-2 jours, à valider avec le chef des ventes)
+Dessiner les pans sur l'ortho dans la fiche maison (GeoJSON overlay, comme la surbrillance
+bâtiment) avec m² par pan : argument de vente en porte-à-porte. Ne bloque rien.
+
+### Quick wins « étage 1 » (indépendants, ~½ journée, à caler quand briac valide)
+Corrections de l'estimation **fallback** (elle reste utile partout où le LiDAR échoue) :
+débords de toit via périmètre (+5-15 % systématiques), détection toits plats, largeur des
+formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit à son meilleur.
+
+## Risques et parades
+
+| Risque | Impact | Parade |
+|---|---|---|
+| Segmentation des pans trop fragile (toits complexes) | Précision < objectif | Gates G0/G1 avec maisons réelles ; repli MNS (palier A) ; au pire statu quo — rien n'est cassé |
+| Millésime : maison construite après le survol | Pas de points | `toit_lidar_status = no_data` → fallback estimation, nuance `~` affichée |
+| Classification IGN imparfaite (arbres en classe 6…) | Surfaces gonflées | Filtres géométriques (hauteur vs MNT, cohérence des plans) en phase 1 |
+| Poids/CPU côté mobile si choix « navigateur » | UX dégradée | Critère explicite de la décision d'archi phase 2 ; défaut = serveur |
+| Débit du service de téléchargement IGN | Lenteur ponctuelle | Cache définitif en BDD (1 calcul/maison à vie) ; statut `error` re-tentable |
+| Définition de « la » surface (avec/sans débords) | Faux écarts en validation | Le LiDAR mesure le toit réel débords compris — le préciser au chef des ventes pour comparer des choses comparables |
+
+## Conventions du chantier (rappels CLAUDE.md + spécifiques)
+
+- Budget : **0 € de bout en bout** (données Licence Ouverte, calcul dans l'existant).
+- `npm run build` doit passer avant tout commit ; migrations SQL numérotées dans `db/`
+  (à exécuter dans Supabase — le signaler à briac à chaque fois).
+- Rien de lourd dans le bundle principal : tout module LiDAR = chunk séparé chargé à la
+  demande (pattern `enrich.ts`) ou côté serveur.
+- Le spike vit dans `tools/lidar-spike/` et n'entre jamais dans `web/`.
+- Fin de chaque phase : mise à jour de ce SOP (jalons cochés, décisions prises) +
+  `docs/roadmap.md`.
+- DA : badges/tooltips dans le système existant (Geist, Lucide, tokens) — pas d'emoji.
+
+## Actions en attente côté briac
+
+1. **Fournir 3-4 maisons de référence** dont la surface de toiture est réellement connue
+   (chantiers faits par l'ami chef des ventes ?) : adresse + surface. C'est le juge de paix
+   du Gate G0 — sans elles on ne peut pas valider la précision.
+2. Valider les quick wins « étage 1 » (½ journée, améliore le fallback).
+3. (Phase 3) Avis du chef des ventes sur l'intérêt du dessin des pans en rendez-vous.
+
+## Journal de bord
+
+- **23/07/2026** — SOP créé. Fondations vérifiées (dalle Lesneven 12/2024, COPC + Range OK,
+  WFS de découverte OK, licence OK). Phase 0 : prête à démarrer.
