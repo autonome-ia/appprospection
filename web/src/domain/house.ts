@@ -55,8 +55,11 @@ export interface HouseEnrichment {
  * mesurés se re-mesurent paresseusement à l'ouverture de leur fiche.
  * v2 : ajout des contours de pans (dessin sur l'ortho, phase 3).
  * v3 : contours lissés plus fort (1 m) — formes franches, sans crénelures.
+ * v4 : enveloppe morphologique avant traçage (ardoises sombres = points épars,
+ *      les contours ne couvraient qu'un îlot), traçage robuste aux pincements,
+ *      garde de cohérence (pas de dessin si le polygone couvre < 60 % du pan).
  */
-export const LIDAR_VERSION = 3
+export const LIDAR_VERSION = 4
 
 /** Un pan de toiture mesuré (stocké en jsonb sur le point). */
 export interface LidarPan {

@@ -227,47 +227,102 @@ function mergePans(pts: Pt[], pans: RawPan[]): void {
 // Cellules du pan -> frontière de l'union des carrés (traçage d'arêtes
 // orientées, intérieur à gauche) -> plus grande boucle -> lissage.
 
-function traceOutline(cells: Set<string>): [number, number][] | null {
-  // Arêtes orientées dont le côté opposé est vide, chaînées bout à bout.
-  const edges = new Map<string, [number, number]>() // départ "x:y" -> arrivée
+// Fermeture morphologique large (dilatation puis érosion, rayon en cellules) :
+// soude les cellules éparses d'un pan en une nappe pleine. Les toits d'ardoise
+// sombre renvoient mal le laser → cellules trouées → sans cela, le contour ne
+// traçait que le plus gros îlot (lanières mensongères, captures briac).
+function closeCells(cells: Set<string>, radius: number): Set<string> {
+  let dil = new Set(cells)
+  for (let r = 0; r < radius; r++) {
+    const next = new Set(dil)
+    for (const k of dil) {
+      const [x, y] = k.split(':').map(Number)
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) next.add(`${x + dx}:${y + dy}`)
+      }
+    }
+    dil = next
+  }
+  for (let r = 0; r < radius; r++) {
+    const next = new Set<string>()
+    for (const k of dil) {
+      const [x, y] = k.split(':').map(Number)
+      let full = true
+      for (let dx = -1; dx <= 1 && full; dx++) {
+        for (let dy = -1; dy <= 1 && full; dy++) {
+          if (!dil.has(`${x + dx}:${y + dy}`)) full = false
+        }
+      }
+      if (full) next.add(k)
+    }
+    dil = next
+  }
+  return dil
+}
+
+function traceOutline(cells: Set<string>): { ring: [number, number][]; area: number } | null {
+  // Arêtes orientées (intérieur à gauche) dont le côté opposé est vide. Un
+  // sommet peut porter PLUSIEURS départs (pincement en diagonale) : on chaîne
+  // en choisissant le virage le plus à gauche par rapport à l'arête entrante.
+  const edges = new Map<string, { to: [number, number]; used: boolean }[]>()
   const has = (x: number, y: number) => cells.has(`${x}:${y}`)
+  const addEdge = (fx: number, fy: number, tx: number, ty: number) => {
+    const k = `${fx}:${fy}`
+    const list = edges.get(k) ?? []
+    list.push({ to: [tx, ty], used: false })
+    edges.set(k, list)
+  }
   for (const k of cells) {
     const [x, y] = k.split(':').map(Number)
-    if (!has(x, y - 1)) edges.set(`${x}:${y}`, [x + 1, y]) // bas
-    if (!has(x + 1, y)) edges.set(`${x + 1}:${y}`, [x + 1, y + 1]) // droite
-    if (!has(x, y + 1)) edges.set(`${x + 1}:${y + 1}`, [x, y + 1]) // haut
-    if (!has(x - 1, y)) edges.set(`${x}:${y + 1}`, [x, y]) // gauche
+    if (!has(x, y - 1)) addEdge(x, y, x + 1, y) // bas
+    if (!has(x + 1, y)) addEdge(x + 1, y, x + 1, y + 1) // droite
+    if (!has(x, y + 1)) addEdge(x + 1, y + 1, x, y + 1) // haut
+    if (!has(x - 1, y)) addEdge(x, y + 1, x, y) // gauche
   }
-  // Boucles fermées ; on garde la plus grande (les miettes et trous = bruit).
   let best: [number, number][] | null = null
   let bestArea = 0
-  const visited = new Set<string>()
-  for (const start of edges.keys()) {
-    if (visited.has(start)) continue
-    const ring: [number, number][] = []
-    let key = start
-    while (!visited.has(key)) {
-      visited.add(key)
-      const [x, y] = key.split(':').map(Number)
-      ring.push([x, y])
-      const next = edges.get(key)
-      if (!next) break
-      key = `${next[0]}:${next[1]}`
-    }
-    if (ring.length < 4) continue
-    let area = 0
-    for (let i = 0; i < ring.length; i++) {
-      const [x1, y1] = ring[i]
-      const [x2, y2] = ring[(i + 1) % ring.length]
-      area += x1 * y2 - x2 * y1
-    }
-    area = Math.abs(area) / 2
-    if (area > bestArea) {
-      bestArea = area
-      best = ring
+  for (const [startKey, startList] of edges) {
+    for (const startEdge of startList) {
+      if (startEdge.used) continue
+      const ring: [number, number][] = []
+      let [cx, cy] = startKey.split(':').map(Number)
+      let edge = startEdge
+      let guard = 0
+      while (!edge.used && guard++ < 100000) {
+        edge.used = true
+        ring.push([cx, cy])
+        const [nx, ny] = edge.to
+        const dirX = nx - cx
+        const dirY = ny - cy
+        const candidates = edges.get(`${nx}:${ny}`)?.filter((e) => !e.used) ?? []
+        if (!candidates.length) break
+        // virage le plus à gauche : cross décroissant, puis dot décroissant
+        candidates.sort((a, b) => {
+          const cross = (e: { to: [number, number] }) =>
+            dirX * (e.to[1] - ny) - dirY * (e.to[0] - nx)
+          const dot = (e: { to: [number, number] }) =>
+            dirX * (e.to[0] - nx) + dirY * (e.to[1] - ny)
+          return cross(b) - cross(a) || dot(b) - dot(a)
+        })
+        cx = nx
+        cy = ny
+        edge = candidates[0]
+      }
+      if (ring.length < 4) continue
+      let area = 0
+      for (let i = 0; i < ring.length; i++) {
+        const [x1, y1] = ring[i]
+        const [x2, y2] = ring[(i + 1) % ring.length]
+        area += x1 * y2 - x2 * y1
+      }
+      area = area / 2 // signée : les trous (horaires) sont négatifs
+      if (area > bestArea) {
+        bestArea = area
+        best = ring
+      }
     }
   }
-  return best
+  return best ? { ring: best, area: bestArea } : null
 }
 
 // Douglas-Peucker sur une polyligne OUVERTE.
@@ -324,8 +379,14 @@ function simplify(ring: [number, number][], eps: number): [number, number][] {
 function panShape(
   cells: Set<string>,
 ): { contour: [number, number][]; centre: [number, number] } | null {
-  const raw = traceOutline(cells)
-  if (!raw || raw.length < 4) return null
+  // Enveloppe pleine (rayon 2 ≈ pontage des trous jusqu'à ~1 m) puis contour.
+  const traced = traceOutline(closeCells(cells, 2))
+  if (!traced || traced.ring.length < 4) return null
+  // Garde de cohérence : si le polygone tracé couvre nettement moins que la
+  // surface du pan (cellules trop éparses malgré la fermeture), un dessin
+  // serait mensonger (pastille 86 m² sur une lanière) : on ne dessine pas.
+  if (traced.area * CELL * CELL < 0.6 * cells.size * CELL * CELL) return null
+  const raw = traced.ring
   // grille -> mètres L93, boucle fermée, puis lissage (les marches de 0,5 m
   // dévient d'au plus ~0,35 m de la diagonale qu'elles approximent).
   const meters = raw.map(([x, y]) => [x * CELL, y * CELL] as [number, number])

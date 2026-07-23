@@ -1,121 +1,139 @@
-// Sanity check du traçage de contour (copie de web/src/data/lidar.ts —
-// fonctions pures) : un L de cellules doit donner un anneau à 6 coins.
+// Sanity check du traçage de contour — copie des fonctions PURES de
+// web/src/data/lidar.ts (les garder synchronisées à la main).
+// Cas couverts : L simple, escalier diagonal, pincement en diagonale,
+// nappe trouée (ardoise sombre) avant/après fermeture morphologique.
 const CELL = 0.5
+
+function closeCells(cells, radius) {
+  let dil = new Set(cells)
+  for (let r = 0; r < radius; r++) {
+    const next = new Set(dil)
+    for (const k of dil) {
+      const [x, y] = k.split(':').map(Number)
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) next.add(`${x + dx}:${y + dy}`)
+      }
+    }
+    dil = next
+  }
+  for (let r = 0; r < radius; r++) {
+    const next = new Set()
+    for (const k of dil) {
+      const [x, y] = k.split(':').map(Number)
+      let full = true
+      for (let dx = -1; dx <= 1 && full; dx++) {
+        for (let dy = -1; dy <= 1 && full; dy++) {
+          if (!dil.has(`${x + dx}:${y + dy}`)) full = false
+        }
+      }
+      if (full) next.add(k)
+    }
+    dil = next
+  }
+  return dil
+}
 
 function traceOutline(cells) {
   const edges = new Map()
   const has = (x, y) => cells.has(`${x}:${y}`)
+  const addEdge = (fx, fy, tx, ty) => {
+    const k = `${fx}:${fy}`
+    const list = edges.get(k) ?? []
+    list.push({ to: [tx, ty], used: false })
+    edges.set(k, list)
+  }
   for (const k of cells) {
     const [x, y] = k.split(':').map(Number)
-    if (!has(x, y - 1)) edges.set(`${x}:${y}`, [x + 1, y])
-    if (!has(x + 1, y)) edges.set(`${x + 1}:${y}`, [x + 1, y + 1])
-    if (!has(x, y + 1)) edges.set(`${x + 1}:${y + 1}`, [x, y + 1])
-    if (!has(x - 1, y)) edges.set(`${x}:${y + 1}`, [x, y])
+    if (!has(x, y - 1)) addEdge(x, y, x + 1, y)
+    if (!has(x + 1, y)) addEdge(x + 1, y, x + 1, y + 1)
+    if (!has(x, y + 1)) addEdge(x + 1, y + 1, x, y + 1)
+    if (!has(x - 1, y)) addEdge(x, y + 1, x, y)
   }
   let best = null
   let bestArea = 0
-  const visited = new Set()
-  for (const start of edges.keys()) {
-    if (visited.has(start)) continue
-    const ring = []
-    let key = start
-    while (!visited.has(key)) {
-      visited.add(key)
-      const [x, y] = key.split(':').map(Number)
-      ring.push([x, y])
-      const next = edges.get(key)
-      if (!next) break
-      key = `${next[0]}:${next[1]}`
-    }
-    if (ring.length < 4) continue
-    let area = 0
-    for (let i = 0; i < ring.length; i++) {
-      const [x1, y1] = ring[i]
-      const [x2, y2] = ring[(i + 1) % ring.length]
-      area += x1 * y2 - x2 * y1
-    }
-    area = Math.abs(area) / 2
-    if (area > bestArea) {
-      bestArea = area
-      best = ring
-    }
-  }
-  return { ring: best, area: bestArea }
-}
-
-// Douglas-Peucker sur une polyligne OUVERTE.
-function dpOpen(line, eps) {
-  if (line.length <= 2) return line
-  const keep = new Array(line.length).fill(false)
-  keep[0] = true
-  keep[line.length - 1] = true
-  const stack = [[0, line.length - 1]]
-  while (stack.length) {
-    const [a, b] = stack.pop()
-    if (b - a < 2) continue
-    const [ax, ay] = line[a]
-    const [bx, by] = line[b]
-    const len = Math.hypot(bx - ax, by - ay) || 1
-    let worst = -1
-    let worstD = eps
-    for (let i = a + 1; i < b; i++) {
-      const d = Math.abs((bx - ax) * (ay - line[i][1]) - (ax - line[i][0]) * (by - ay)) / len
-      if (d > worstD) {
-        worstD = d
-        worst = i
+  for (const [startKey, startList] of edges) {
+    for (const startEdge of startList) {
+      if (startEdge.used) continue
+      const ring = []
+      let [cx, cy] = startKey.split(':').map(Number)
+      let edge = startEdge
+      let guard = 0
+      while (!edge.used && guard++ < 100000) {
+        edge.used = true
+        ring.push([cx, cy])
+        const [nx, ny] = edge.to
+        const dirX = nx - cx
+        const dirY = ny - cy
+        const candidates = (edges.get(`${nx}:${ny}`) ?? []).filter((e) => !e.used)
+        if (!candidates.length) break
+        candidates.sort((a, b) => {
+          const cross = (e) => dirX * (e.to[1] - ny) - dirY * (e.to[0] - nx)
+          const dot = (e) => dirX * (e.to[0] - nx) + dirY * (e.to[1] - ny)
+          return cross(b) - cross(a) || dot(b) - dot(a)
+        })
+        cx = nx
+        cy = ny
+        edge = candidates[0]
+      }
+      if (ring.length < 4) continue
+      let area = 0
+      for (let i = 0; i < ring.length; i++) {
+        const [x1, y1] = ring[i]
+        const [x2, y2] = ring[(i + 1) % ring.length]
+        area += x1 * y2 - x2 * y1
+      }
+      area = area / 2
+      if (area > bestArea) {
+        bestArea = area
+        best = ring
       }
     }
-    if (worst >= 0) {
-      keep[worst] = true
-      stack.push([a, worst], [worst, b])
-    }
   }
-  return line.filter((_, i) => keep[i])
+  return best ? { ring: best, area: bestArea } : null
 }
 
-// Simplification d'un ANNEAU fermé : DP direct s'effondre (corde dégénérée
-// premier = dernier point) — on coupe l'anneau au point le plus éloigné du
-// départ et on simplifie les deux moitiés ouvertes.
-function simplify(ring, eps) {
-  if (ring.length <= 5) return ring
-  const open = ring.slice(0, -1)
-  let far = 1
-  let farD = -1
-  for (let i = 1; i < open.length; i++) {
-    const d = Math.hypot(open[i][0] - open[0][0], open[i][1] - open[0][1])
-    if (d > farD) {
-      farD = d
-      far = i
-    }
-  }
-  const a = dpOpen(open.slice(0, far + 1), eps)
-  const b = dpOpen(open.slice(far).concat([open[0]]), eps)
-  return a.concat(b.slice(1))
+let failures = 0
+function check(label, cond, detail) {
+  console.log(`${cond ? 'OK ' : 'ÉCHEC'} ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!cond) failures++
 }
 
-// L : rectangle 10×6 auquel on retire un coin 4×3 (en cellules)
-const cells = new Set()
-for (let x = 0; x < 10; x++) {
-  for (let y = 0; y < 6; y++) {
-    if (x >= 6 && y >= 3) continue
-    cells.add(`${x}:${y}`)
-  }
+// 1. L : rectangle 10×6 moins un coin 4×3
+{
+  const cells = new Set()
+  for (let x = 0; x < 10; x++)
+    for (let y = 0; y < 6; y++) if (!(x >= 6 && y >= 3)) cells.add(`${x}:${y}`)
+  const t = traceOutline(cells)
+  check('L : aire exacte', Math.abs(t.area - 48) < 1e-9, `${t.area} vs 48`)
 }
-const { ring, area } = traceOutline(cells)
-console.log(`aire tracée : ${area * CELL * CELL} m² (attendu ${(60 - 12) * 0.25})`)
-const meters = ring.map(([x, y]) => [x * CELL, y * CELL])
-meters.push(meters[0])
-const smooth = simplify(meters, 0.55)
-console.log(`sommets bruts : ${ring.length} -> lissés : ${smooth.length} (attendu ~7 : 6 coins + fermeture)`)
-console.log(JSON.stringify(smooth))
 
-// Escalier diagonal : cellules en marches -> doit devenir ~une diagonale
-const diag = new Set()
-for (let i = 0; i < 12; i++) {
-  for (let dx = 0; dx <= i; dx++) diag.add(`${dx}:${i}`)
+// 2. Pincement en diagonale : deux carrés 3×3 qui se touchent par un coin.
+//    L'ancien traçage (une arête par sommet) perdait une boucle ; le nouveau
+//    doit rendre la plus grande boucle = un carré (9 cellules).
+{
+  const cells = new Set()
+  for (let x = 0; x < 3; x++) for (let y = 0; y < 3; y++) cells.add(`${x}:${y}`)
+  for (let x = 3; x < 6; x++) for (let y = 3; y < 6; y++) cells.add(`${x}:${y}`)
+  const t = traceOutline(cells)
+  check('pincement : boucle ≥ un carré, sans boucle folle', t.area >= 9 && t.area <= 18, `aire ${t.area}`)
 }
-const t2 = traceOutline(diag)
-const m2 = t2.ring.map(([x, y]) => [x * CELL, y * CELL])
-m2.push(m2[0])
-const s2 = simplify(m2, 0.55)
-console.log(`triangle escalier : ${t2.ring.length} sommets -> ${s2.length} lissés (attendu ~4-6)`)
+
+// 3. Nappe trouée type ardoise sombre : rectangle 12×8 dont 30 % des cellules
+//    manquent (déterministe). SANS fermeture le contour sous-couvre ; AVEC
+//    fermeture (rayon 2) il doit retrouver ≈ l'enveloppe pleine.
+{
+  const cells = new Set()
+  let seed = 7
+  const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0), seed / 4294967296)
+  for (let x = 0; x < 12; x++)
+    for (let y = 0; y < 8; y++) if (rand() > 0.3) cells.add(`${x}:${y}`)
+  const brute = traceOutline(cells)
+  const fermee = traceOutline(closeCells(cells, 2))
+  check(
+    'nappe trouée : la fermeture restaure l’enveloppe',
+    fermee.area >= 0.85 * 96 && fermee.area <= 96,
+    `brute ${brute.area.toFixed(0)} -> fermée ${fermee.area.toFixed(0)} (plein = 96)`,
+  )
+}
+
+process.exit(failures ? 1 : 0)
