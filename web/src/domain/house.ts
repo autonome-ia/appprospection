@@ -81,8 +81,13 @@ export interface HouseEnrichment {
  * v11 : soudure au QUARTILE BAS des écarts de plans (la médiane classait les
  *      faîtages > ~42° en marche : zigzag de grille × pente raide — Rosa
  *      Floch affichait 110 au lieu de 219).
+ * v12 : soudure évaluée sur TOUTE la frontière de la paire (un rognon de
+ *      3 coins figeait le verdict d'un faîtage de 11 m) + règle métier :
+ *      les pans PLATS ne rejoignent jamais le corps et ne font pas pont
+ *      (dalle de garage « continue » avec le toit incliné = annexe quand
+ *      même). Rosa Floch : badge 243 m² (facture 223, annexes exclues).
  */
-export const LIDAR_VERSION = 11
+export const LIDAR_VERSION = 12
 
 /** Un pan de toiture mesuré (stocké en jsonb sur le point). */
 export interface LidarPan {

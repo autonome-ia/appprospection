@@ -66,7 +66,12 @@ export interface ReconResult {
  * « La maison » : composante connexe du plus grand pan incliné à travers les
  * frontières SOUDÉES (un décroché de niveau — extension, annexe, garage —
  * n'est pas soudé et coupe donc la composante). Les échardes absorbées
- * rejoignent leur absorbeur. Rend les index des pans du corps principal.
+ * rejoignent leur absorbeur.
+ *
+ * Règle MÉTIER : les pans PLATS ne rejoignent jamais le corps et ne servent
+ * pas de pont, même géométriquement continus (un toit incliné qui descend au
+ * niveau d'une dalle de garage s'y « soude » sans marche — Rosa Floch — mais
+ * pour le couvreur c'est une annexe). Exception : toit entièrement plat.
  */
 export function mainBodyPans(
   m2: number[],
@@ -74,6 +79,8 @@ export function mainBodyPans(
   welds: [number, number][],
   absorbed: [number, number][],
 ): Set<number> {
+  const anyPitched = isFlat.some((f, i) => !f && m2[i] > 0)
+  const blocked = (i: number) => anyPitched && isFlat[i]
   const adj = new Map<number, number[]>()
   const link = (a: number, b: number) => {
     adj.set(a, [...(adj.get(a) ?? []), b])
@@ -83,11 +90,7 @@ export function mainBodyPans(
   for (const [a, b] of absorbed) link(a, b)
   let seed = -1
   for (let i = 0; i < m2.length; i++) {
-    if (!isFlat[i] && (seed < 0 || m2[i] > m2[seed])) seed = i
-  }
-  if (seed < 0) {
-    // Toit entièrement plat : le plus grand pan fait office de maison.
-    for (let i = 0; i < m2.length; i++) if (seed < 0 || m2[i] > m2[seed]) seed = i
+    if (!blocked(i) && (seed < 0 || m2[i] > m2[seed])) seed = i
   }
   if (seed < 0) return new Set()
   const body = new Set<number>([seed])
@@ -95,7 +98,7 @@ export function mainBodyPans(
   while (stack.length) {
     const cur = stack.pop()!
     for (const n of adj.get(cur) ?? []) {
-      if (!body.has(n)) {
+      if (!body.has(n) && !blocked(n)) {
         body.add(n)
         stack.push(n)
       }
@@ -457,6 +460,8 @@ export function reconstructRoof(
   pans: ReconPanInput[],
   wallRing: Ring,
   overhang: number,
+  /** Sonde de diagnostic (tests/outillage) : trace soudures et chaînes. */
+  debug?: (msg: string) => void,
 ): ReconResult | null {
   if (!pans.length) return null
   const outline = offsetRing(wallRing, overhang) ?? wallRing
@@ -528,25 +533,44 @@ export function reconstructRoof(
 
   const corners = cornerLabels(labels)
 
-  // Soudure / marche par paire de pans : décidée sur la frontière réelle.
-  // ⚠ Les coins de grille de la frontière zigzaguent jusqu'à ~0,5 m du vrai
-  // faîtage : sur un toit pentu (46°), 35 cm d'écart latéral = 0,7 m d'écart
-  // vertical entre les plans — la MÉDIANE classait les faîtages raides en
-  // marche (Rosa Floch : badge à 110 au lieu de 219). On teste donc le
-  // QUARTILE BAS : au vrai faîtage une partie des coins tombe quasi dessus
-  // (écart ≈ 0) ; à une vraie marche l'écart reste grand PARTOUT.
+  // Soudure / marche par paire de pans : décidée sur TOUTE la frontière de
+  // la paire (tous les coins portant les deux étiquettes — pas la première
+  // chaîne rencontrée : un rognon de 3 coins près d'une jonction figeait un
+  // verdict « marche » pour un faîtage de 11 m, Rosa Floch). Et au QUARTILE
+  // BAS des écarts : les coins de grille zigzaguent à ±0,5 m du vrai faîtage
+  // (sur un 46°, 35 cm d'écart latéral = 0,7 m d'écart vertical) — au vrai
+  // faîtage une partie des coins tombe quasi dessus (écart ≈ 0), à une vraie
+  // marche l'écart reste grand partout.
+  const pairGaps = new Map<string, number[]>()
+  for (const [k, s] of corners) {
+    const ls = [...s].filter((l) => l !== OUTSIDE)
+    if (ls.length < 2) continue
+    const [gx, gy] = k.split(':').map(Number)
+    const x = gx * CELL
+    const y = gy * CELL
+    for (let a = 0; a < ls.length; a++) {
+      for (let b = a + 1; b < ls.length; b++) {
+        const i = Math.min(ls[a], ls[b])
+        const j = Math.max(ls[a], ls[b])
+        const key = `${i}:${j}`
+        const list = pairGaps.get(key) ?? []
+        list.push(Math.abs(planeZ(pans[i].plane, x, y) - planeZ(pans[j].plane, x, y)))
+        pairGaps.set(key, list)
+      }
+    }
+  }
   const weldCache = new Map<string, boolean>()
-  const isWelded = (i: number, j: number, at: [number, number][]): boolean => {
+  const isWelded = (i: number, j: number): boolean => {
     const key = i < j ? `${i}:${j}` : `${j}:${i}`
     const hit = weldCache.get(key)
     if (hit !== undefined) return hit
-    const gaps = at.map(([gx, gy]) => {
-      const x = gx * CELL
-      const y = gy * CELL
-      return Math.abs(planeZ(pans[i].plane, x, y) - planeZ(pans[j].plane, x, y))
-    })
-    gaps.sort((a, b) => a - b)
-    const welded = gaps[Math.floor(gaps.length * 0.25)] <= STEP_TOL_M
+    const gaps = [...(pairGaps.get(key) ?? [])].sort((a, b) => a - b)
+    const welded = gaps.length > 0 && gaps[Math.floor(gaps.length * 0.25)] <= STEP_TOL_M
+    if (gaps.length) {
+      debug?.(
+        `weld ${key} : n=${gaps.length} p0=${gaps[0].toFixed(2)} p25=${gaps[Math.floor(gaps.length * 0.25)].toFixed(2)} p50=${gaps[Math.floor(gaps.length / 2)].toFixed(2)} -> ${welded}`,
+      )
+    }
     weldCache.set(key, welded)
     return welded
   }
@@ -672,6 +696,9 @@ export function reconstructRoof(
           midLabels.length === 1 && !corners.get(`${mid[0]}:${mid[1]}`)?.has(OUTSIDE)
             ? midLabels[0]
             : OUTSIDE
+        debug?.(
+          `pan ${i} chaîne ${rawChain.length} coins -> partner ${partner} (mid ${[...(corners.get(`${mid[0]}:${mid[1]}`) ?? [])].join('/')})`,
+        )
         chains.push({ raw: rawChain, partner })
       }
     }
@@ -709,7 +736,7 @@ export function reconstructRoof(
         const isLoop = first[0] === last[0] && first[1] === last[1]
         // Boucle fermée (île) : déjà simplifiée, pas de redressement en corde.
         const s = isLoop ? ch.raw : straighten(ch.raw)
-        const isW = isWelded(i, ch.partner, ch.raw)
+        const isW = isWelded(i, ch.partner)
         if (isW) {
           weldPairs.add(i < ch.partner ? `${i}:${ch.partner}` : `${ch.partner}:${i}`)
         }

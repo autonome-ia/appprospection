@@ -22,5 +22,8 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  // Les tests appartiennent à vitest (qui a les types Node pour les fixtures) :
+  // ils ne font pas partie du build de l'app.
+  "exclude": ["src/**/*.test.ts"]
 }
