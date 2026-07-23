@@ -269,12 +269,17 @@ for (const { url } of dalles) {
 console.log(`Points dans la bbox par classe : ${JSON.stringify(classCounts)}`)
 console.log(`Points TOIT retenus (classe 6, polygone +${BUFFER_M} m) : ${pts.length} (${(pts.length / emprise).toFixed(1)} pts/m²)`)
 if (pts.length < 100) {
-  console.log('⚠️ Trop peu de points — abandon.')
-  process.exit(1)
+  // Pas un échec technique : maison sous les arbres, construite après le
+  // survol, ou annexe. L'app basculera sur l'estimation actuelle.
+  console.log('VERDICT: no_data (points bâtiment insuffisants — végétation dense ou survol antérieur)')
+  process.exit(0)
 }
 
-const { pans, leftover, total, totalPrincipal, density } = measureRoof(pts, ring)
-console.log(`Densité locale : ${density.toFixed(1)} pts/m²`)
+const { pans, leftover, total, totalPrincipal, density, coverage, verdict: verdictMesure } = measureRoof(pts, ring)
+// Les polygones BD TOPO fusionnent parfois un bloc collectif entier : la
+// mesure reste juste (c'est le toit du bloc) mais ce n'est plus « la maison ».
+const verdict = emprise > 350 ? 'grand_batiment' : verdictMesure
+console.log(`Densité locale : ${density.toFixed(1)} pts/m² | couverture de l'emprise : ${(coverage * 100).toFixed(0)} %`)
 console.log('\nPans détectés :')
 for (const m of pans) {
   console.log(
@@ -283,6 +288,7 @@ for (const m of pans) {
   )
 }
 console.log(`  (points non affectés à un pan : ${leftover})`)
+console.log(`VERDICT: ${verdict}${verdict === 'faible_confiance' ? ` (couverture ${(coverage * 100).toFixed(0)} % < 55 % — végétation ? l'app basculera sur l'estimation)` : ''}`)
 console.log(`\n=== SURFACE TOITURE MESURÉE : ${total.toFixed(0)} m² ===`)
 console.log(`    dont toit principal       : ${totalPrincipal.toFixed(0)} m²`)
 console.log(`    vs estimation actuelle    : ~${Math.round(estimation / 5) * 5} m²`)

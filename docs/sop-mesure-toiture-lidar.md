@@ -203,3 +203,28 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
   **Reste pour le Gate G1** : jeu de test élargi (10-15 maisons variées : véranda, mitoyen
   réel, végétation dense, toit plat résidentiel) + re-calibrage éventuel après le Gate G0
   (factures). Les valeurs ci-dessus sont les références de non-régression.
+- **24/07/2026 — Gate G1 : PASSÉ** (suite `g1-suite.mjs`, 21 bâtiments, 4 scénarios contre le
+  cadastre solaire Lyon). Résultats :
+  | Scénario | Médiane vs Lyon | Note |
+  |---|---|---|
+  | Pavillons pentus (Mions) | **9,1 %** | référence |
+  | Toits plats résidentiels (Villeurbanne) | **12,6 %** | pentes 0-2° bien détectées |
+  | Mitoyens en bande (Oullins) | **8,7 %** | l'exclusion des voisins fonctionne |
+  | Pavillons cossus (Tassin) | 16,3 % | parcelles boisées, millésime 2012 |
+  - **Zéro crash** : les cas pathologiques rendent désormais des **verdicts** au lieu
+    d'échouer ou de mentir : `no_data` (maison sous les arbres / construite après le survol
+    → l'app repliera sur l'estimation actuelle), `faible_confiance` (couverture de l'emprise
+    < 55 %), `grand_batiment` (emprise > 350 m² : polygone BD TOPO = bloc collectif entier,
+    la mesure est celle du bloc).
+  - **Végétation : robuste** — les maisons très arborées (jusqu'à 302 % de points
+    végétation/bâtiment) ne mesurent PAS plus faux (médiane 3,2 % vs 8,8 % pour les
+    dégagées) ; seule la canopée totale déclenche `no_data`, ce qui est le bon comportement.
+  - Les 2 aberrations observées (+686 %, −80 %) sont des **artefacts d'appariement du banc**
+    (buildingid cadastral lyonnais ≠ polygone BD TOPO fusionné) — sans équivalent dans
+    l'app, où l'on mesure le bâtiment effectivement tapé ; le verdict `grand_batiment`
+    couvre le cas résiduel.
+  - **Perfs** : 4-6 s/maison en usage isolé ; la suite en rafale subit les backoffs du
+    rate-limit IGN (jusqu'à 15 s) → confirme la **file d'attente + cache** en Edge Function
+    pour la phase 2 (l'usage app = 1 maison à la fois, non concerné).
+  **Prochaines étapes** : Gate G0 (factures du chef des ventes → recalibrage éventuel),
+  puis phase 2 (intégration app).

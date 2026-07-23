@@ -232,6 +232,14 @@ export function panMetrics(pts, pan, ring, density) {
  * `secondaire` (annexes, appentis). `totalPrincipal` = surface du toit
  * principal seul, la donnée la plus utile au couvreur.
  */
+function ringArea(ring) {
+  let a = 0
+  for (let i = 0; i < ring.length - 1; i++) {
+    a += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1]
+  }
+  return Math.abs(a) / 2
+}
+
 export function measureRoof(pts, ring) {
   const { pans, leftover, density } = segmentPans(pts)
   const kept = []
@@ -264,5 +272,12 @@ export function measureRoof(pts, ring) {
     else m.type = 'secondaire'
     if (m.type === 'principal') totalPrincipal += m.realDedup
   }
-  return { pans: kept, leftover, total, totalPrincipal, density }
+  // Couverture : part de l'emprise murale réellement vue par les pans.
+  // Sous les arbres denses, la classification ne laisse presque pas de
+  // points « bâtiment » → mesurer serait mentir (35 m² sur une maison de
+  // 178 m² vue à Oullins). En deçà de 55 %, la mesure est non fiable.
+  const coverage = ring ? (used.size * CELL * CELL) / ringArea(ring) : null
+  const verdict =
+    coverage != null && coverage < 0.55 ? 'faible_confiance' : 'ok'
+  return { pans: kept, leftover, total, totalPrincipal, density, coverage, verdict }
 }

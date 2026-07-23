@@ -72,7 +72,7 @@
 - [x] **Validation interne (sans vérité terrain)** : banc synthétique (`bench.mjs`, vérité mathématique, même code de mesure) → **erreur max 5,7 %** ; test toits plats réels (surface = emprise connue) → bug de double comptage multi-pans trouvé et corrigé (dédup des cellules).
 - [ ] ⬜ **Gate G0 (précision externe)** : comparer sur 3-4 maisons de surface réellement connue — surfaces facturées du chef des ventes, ou auto-test briac (plans / facture / mesure pignon à l'inclinomètre).
 - [x] **Phase 1 — durcissement (cœur)** : RANSAC déterministe, seuils adaptatifs à la densité, fusion des pans sur-segmentés, fermeture morphologique (banc à ±1,9 %), exclusion des mitoyens, ventilation par pan (principal/plat/secondaire → `totalPrincipal` pour le couvreur), gestion du rate-limit IGN (429 → concurrence 4 + backoff). Médiane vs cadastre Lyon : 15 % (l'estimation actuelle fait 34 % au même étalon).
-- [ ] ⬜ **Gate G1** : jeu de test élargi (véranda, mitoyen réel, végétation dense) + éventuel recalibrage post-G0.
+- [x] **Gate G1 : PASSÉ** (`g1-suite.mjs`, 21 bâtiments, 4 scénarios) : pavillons 9,1 % / toits plats 12,6 % / mitoyens 8,7 % / boisés 16,3 % de médiane vs cadastre Lyon ; zéro crash — les cas pathologiques rendent des **verdicts** (`no_data`, `faible_confiance`, `grand_batiment`) au lieu de mentir ; végétation robuste (arbres jusqu'à 302 % de points sans dégrader la mesure).
 - [ ] ⬜ Phase 2 intégration (Edge Function + file d'attente/cache anti-429 + migration `db/0008`) · Phase 3 pans dessinés sur l'ortho (option).
 - [ ] ⬜ **Quick wins estimation actuelle** (« étage 1 », ½ j, à valider) : débords de toit, toits plats, formes en L — améliore le fallback partout où le LiDAR ne peut rien.
 
