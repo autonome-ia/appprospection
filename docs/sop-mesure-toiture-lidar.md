@@ -293,7 +293,7 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
      sinon `no_data`.
   3. **Cache partagé à l'équipe** : la RLS (update = auteur/manager) faisait échouer EN
      SILENCE la persistance du backfill sur les points des collègues → mesure refaite
-     (2-3 Mo) à chaque session. **Migration `db/0009_cache_lidar_rpc.sql` (À EXÉCUTER)** :
+     (2-3 Mo) à chaque session. **Migration `db/0009_cache_lidar_rpc.sql` (exécutée)** :
      RPC `cache_point_lidar` (security definer) qui n'écrit que les colonnes
      `toit_lidar_*` pour un point de son organisation, garde anti-régression de version ;
      repli automatique sur l'update direct tant qu'elle n'est pas exécutée.
