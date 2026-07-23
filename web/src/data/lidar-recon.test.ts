@@ -91,6 +91,16 @@ function recon(pts: Pt[], ring: Ring) {
 const kept = (r: (ReconPan | null)[] | null): ReconPan[] =>
   (r ?? []).filter((p): p is ReconPan => p !== null)
 
+function pointInRingLocal(px: number, py: number, ring: Ring): boolean {
+  let inside = false
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i]
+    const [xj, yj] = ring[j]
+    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside
+  }
+  return inside
+}
+
 /** Arêtes d'un contour, clé indifférente au sens (jointure entre pans). */
 function edgeKeys(pan: ReconPan): string[] {
   const keys: string[] = []
@@ -233,6 +243,77 @@ describe('reconstructRoof v3', () => {
       (zs) => zs.length >= 2 && Math.max(...zs) - Math.min(...zs) >= 1.5,
     )
     expect(stepped.length).toBeGreaterThan(0)
+  })
+
+  it('L avec noue : aucun sommet hors silhouette, couverture complète', () => {
+    // Toit en L « parfait » : z = hauteur ∝ distance au bord de l'emprise
+    // (croupes + noue diagonale au coin rentrant).
+    const rand = makeRand(11)
+    const gauss = makeGauss(rand)
+    const p = (35 * Math.PI) / 180
+    const ring: Ring = [
+      [0, 0],
+      [14, 0],
+      [14, 6],
+      [8, 6],
+      [8, 12],
+      [0, 12],
+      [0, 0],
+    ]
+    const pts: Pt[] = []
+    let tries = 0
+    while (pts.length < Math.round(120 * DENSITY) && tries++ < 100000) {
+      const x = rand() * 14
+      const y = rand() * 12
+      if (!pointInRingLocal(x, y, ring)) continue
+      pts.push([x, y, 10 + Math.tan(p) * distToRing(x, y, ring) + gauss() * NOISE])
+    }
+    const m = measureRoof(pts, ring)
+    const r = reconstructRoof(
+      m.pans.map((x) => ({ plane: x.plane, counts: x.counts })),
+      ring,
+      OVERHANG,
+    )
+    const pans = kept(r)
+    expect(pans.length).toBeGreaterThanOrEqual(2)
+    const outline = offsetRing(ring, OVERHANG)!
+    // Garde v4 : aucune écharde qui déborde de la silhouette.
+    for (const pan of pans) {
+      for (const [x, y] of pan.contour) {
+        if (!pointInRingLocal(x, y, outline)) {
+          expect(distToRing(x, y, outline)).toBeLessThanOrEqual(0.25)
+        }
+      }
+    }
+    const total = pans.reduce((s, x) => s + ringArea(x.contour), 0)
+    const target = ringArea(outline)
+    expect(Math.abs(total - target) / target).toBeLessThanOrEqual(0.08)
+  })
+
+  it('écharde : une région filiforme est absorbée par son voisin (aire préservée)', () => {
+    // Partition artificielle : A et B côte à côte, C = colonne d'1 cellule
+    // de large coincée entre les deux (lamelle de sur-segmentation).
+    const ring = rect(0, 0, 15, 10)
+    const mk = (cx0: number, cx1: number): Map<string, number> => {
+      const m = new Map<string, number>()
+      for (let cx = cx0; cx <= cx1; cx++) {
+        for (let cy = 0; cy <= 19; cy++) m.set(`${cx}:${cy}`, 5)
+      }
+      return m
+    }
+    const pans = [
+      { plane: [0, 0, 10] as [number, number, number], counts: mk(0, 14) },
+      { plane: [0, 0, 10] as [number, number, number], counts: mk(16, 29) },
+      { plane: [0, 0, 12] as [number, number, number], counts: mk(15, 15) },
+    ]
+    const r = reconstructRoof(pans, ring, OVERHANG)
+    expect(r).not.toBeNull()
+    expect(r![2]).toBeNull() // l'écharde n'est pas dessinée…
+    const drawn = kept(r)
+    const total = drawn.reduce((s, x) => s + ringArea(x.contour), 0)
+    const target = ringArea(offsetRing(ring, OVERHANG)!)
+    // …mais son aire est reprise par les voisins : rien ne manque.
+    expect(Math.abs(total - target) / target).toBeLessThanOrEqual(0.05)
   })
 
   it('déterminisme : mêmes entrées → même reconstruction', () => {

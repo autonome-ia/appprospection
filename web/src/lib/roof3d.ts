@@ -217,12 +217,19 @@ export function mountRoofScene(container: HTMLElement, roof: RoofData): RoofScen
     disposables.push(geo, mat, edgeGeo, edgeMat)
 
     // Pastille « XX m² » ancrée au centroïde du pan (projetée chaque frame).
-    const el = document.createElement('div')
-    el.className = 'pan-chip tnum roof3d-chip'
-    el.textContent = `${drawable[locals.indexOf(lp)].m2} m²`
-    el.style.borderColor = `#${lp.color.getHexString()}`
-    container.appendChild(el)
-    chips.push({ el, at: centroid.clone().add(new Vector3(0, 0.4, 0)) })
+    // Seuls les pans significatifs en portent une : sur les toits à 6-7 pans,
+    // les petites pastilles se chevauchaient au centre (la légende sous le
+    // canvas, elle, liste tout).
+    const pan = drawable[locals.indexOf(lp)]
+    const rank = [...drawable].sort((a, b) => b.m2 - a.m2).indexOf(pan)
+    if (pan.m2 >= 20 || rank < 2) {
+      const el = document.createElement('div')
+      el.className = 'pan-chip tnum roof3d-chip'
+      el.textContent = `${pan.m2} m²`
+      el.style.borderColor = `#${lp.color.getHexString()}`
+      container.appendChild(el)
+      chips.push({ el, at: centroid.clone().add(new Vector3(0, 0.4, 0)) })
+    }
   }
 
   // Bandeau de rive (bords extérieurs) + faces de marche (bords partagés à
@@ -298,7 +305,28 @@ export function mountRoofScene(container: HTMLElement, roof: RoofData): RoofScen
           return lp.plane[0] * ix + lp.plane[1] * iy + lp.plane[2]
         }
       }
-      return wallM
+      // Aucun pan au-dessus (encoche d'emprise, bord de partition) : le plan
+      // du pan le plus PROCHE — un repli constant creusait des fentes
+      // verticales dans les murs (capture Botrel).
+      let best = wallM
+      let bestD = Infinity
+      for (const lp of locals) {
+        const n = lp.pts2d.length
+        for (let v = 0; v < n; v++) {
+          const a = lp.pts2d[v]
+          const b = lp.pts2d[(v + 1) % n]
+          const dx = b.x - a.x
+          const dy = b.y - a.y
+          const len2 = dx * dx + dy * dy
+          const u = len2 > 1e-12 ? Math.max(0, Math.min(1, ((ix - a.x) * dx + (iy - a.y) * dy) / len2)) : 0
+          const d = Math.hypot(ix - (a.x + u * dx), iy - (a.y + u * dy))
+          if (d < bestD) {
+            bestD = d
+            best = lp.plane[0] * ix + lp.plane[1] * iy + lp.plane[2]
+          }
+        }
+      }
+      return best
     }
     const wallPos: number[] = []
     for (let s = 0; s < ring.length - 1; s++) {

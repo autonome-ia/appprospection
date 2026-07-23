@@ -179,11 +179,17 @@ function featureRing(f: WfsFeature): Ring | null {
 // de mesurer (et afficher comme « sûre ») la toiture d'une autre maison.
 const MAX_SNAP_M = 10
 
+interface BuildingInfo {
+  ring: Ring
+  neighbors: Ring[]
+  /** Hauteur BD TOPO (faîtage − sol) : la plus fiable pour la maquette. */
+  hauteur: number | null
+  /** Repli : gouttière − sol (bruité sur terrain en pente). */
+  gouttiereSol: number | null
+}
+
 /** Bâtiment tapé + polygones des voisins accolés (mitoyens, à exclure). */
-async function fetchBuildingAndNeighbors(
-  lng: number,
-  lat: number,
-): Promise<{ ring: Ring; neighbors: Ring[]; murM: number | null } | null> {
+async function fetchBuildingAndNeighbors(lng: number, lat: number): Promise<BuildingInfo | null> {
   // ⚠ ordre lat lng (axe nord d'abord) — même convention que data/enrich.ts.
   const j =
     ((await wfsBatiment(`INTERSECTS(geometrie,POINT(${lat} ${lng}))`)) as {
@@ -219,17 +225,17 @@ async function fetchBuildingAndNeighbors(
     const r = featureRing(f)
     if (r) neighbors.push(r)
   }
-  // Hauteur de gouttière au-dessus du sol (murs de la maquette 3D).
   const props = main.properties ?? {}
   const altToit =
     typeof props.altitude_minimale_toit === 'number' ? props.altitude_minimale_toit : null
   const altSol =
     typeof props.altitude_minimale_sol === 'number' ? props.altitude_minimale_sol : null
-  const murM =
-    altToit != null && altSol != null && altToit > altSol
-      ? Math.round(Math.min(8, Math.max(1.8, altToit - altSol)) * 10) / 10
-      : null
-  return { ring, neighbors, murM }
+  return {
+    ring,
+    neighbors,
+    hauteur: typeof props.hauteur === 'number' && props.hauteur > 0 ? props.hauteur : null,
+    gouttiereSol: altToit != null && altSol != null && altToit > altSol ? altToit - altSol : null,
+  }
 }
 
 async function fetchDalles(bb: Bbox): Promise<{ url: string; acquisition: string | null }[]> {
@@ -460,12 +466,21 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
         : {}),
     }
   })
+  // Hauteur de gouttière pour les murs de la maquette : hauteur BD TOPO
+  // (faîtage − sol, la plus fiable) MOINS le comble MESURÉ au LiDAR. Repli :
+  // gouttière − sol (bruité sur terrain en pente — les « maisons donjons »).
+  // Bornée à une plage réaliste de pavillon.
+  const comble = Math.max(0, ...pans.flatMap((p) => p.alts ?? []))
+  const murRaw =
+    building.hauteur != null && comble > 0 ? building.hauteur - comble : building.gouttiereSol
+  const murM =
+    murRaw != null ? Math.round(Math.min(6, Math.max(1.8, murRaw)) * 10) / 10 : null
   return {
     toit_lidar_statut: statut,
     toit_lidar_m2: Math.round(m.total),
     toit_lidar_principal_m2: Math.round(m.totalPrincipal),
     toit_lidar_pans: {
-      mur_m: building.murM,
+      mur_m: murM,
       // Emprise murale : silhouette des murs de la maquette (le toit déborde).
       emprise: building.ring.map(([x, y]) => roundLL(fromL93(x, y))),
       pans,

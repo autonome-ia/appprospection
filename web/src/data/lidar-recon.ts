@@ -22,12 +22,24 @@
 // Limite assumée : un pan « île » entièrement contenu dans un autre (lucarne)
 // garde un contour DP simple et peut chevaucher son hôte.
 // -----------------------------------------------------------------------------
-import { CELL, dpOpen, pointInRing, ringArea, simplify, type Plane, type Ring } from './lidar-core'
+import {
+  CELL,
+  distToRing,
+  dpOpen,
+  pointInRing,
+  ringArea,
+  simplify,
+  type Plane,
+  type Ring,
+} from './lidar-core'
 
 const OUTSIDE = -1
 const STEP_TOL_M = 0.4 // au-delà : décroché de niveau, pas un faîtage
 const STRAIGHT_TOL_CELLS = 1.6 // ~0,8 m : une frontière quasi droite DEVIENT droite
 const MITER_LIMIT = 3 // clamp des pointes d'onglet (angles très aigus)
+const TINY_CELLS = 24 // < 6 m² : région absorbée par son voisin
+const THIN_CORE_RATIO = 0.2 // « écharde » : presque aucune cellule intérieure
+const SNAP_CORNER_M = 0.9 // jonction aimantée sur un sommet du polygone
 
 export interface ReconPanInput {
   plane: Plane
@@ -400,10 +412,68 @@ export function reconstructRoof(
   const walk = makeWalk(outline)
   const labels = labelGrid(pans, outline)
   if (!labels.size) return null
-  const corners = cornerLabels(labels)
 
   const regions: Set<string>[] = pans.map(() => new Set<string>())
   for (const [k, l] of labels) regions[l]?.add(k)
+
+  // Absorption des ÉCHARDES : une région minuscule, ou si étroite qu'une
+  // érosion d'une cellule la fait disparaître (lamelles du RANSAC
+  // sur-segmenté), est fusionnée dans le voisin au plus long contact — son
+  // aire est alors dessinée par le voisin, ses m² restent dans la légende.
+  const absorbed = new Set<number>()
+  let changed = true
+  while (changed) {
+    changed = false
+    for (let i = 0; i < pans.length; i++) {
+      if (absorbed.has(i) || !regions[i].size) continue
+      const cells = regions[i]
+      let core = 0
+      for (const k of cells) {
+        const [cx, cy] = k.split(':').map(Number)
+        let full = true
+        for (let dx = -1; dx <= 1 && full; dx++) {
+          for (let dy = -1; dy <= 1 && full; dy++) {
+            if (!cells.has(`${cx + dx}:${cy + dy}`)) full = false
+          }
+        }
+        if (full) core++
+      }
+      if (cells.size >= TINY_CELLS && core >= THIN_CORE_RATIO * cells.size) continue
+      const contact = new Map<number, number>()
+      for (const k of cells) {
+        const [cx, cy] = k.split(':').map(Number)
+        for (const [nx, ny] of [
+          [cx + 1, cy],
+          [cx - 1, cy],
+          [cx, cy + 1],
+          [cx, cy - 1],
+        ]) {
+          const l = labels.get(`${nx}:${ny}`)
+          if (l !== undefined && l !== i && !absorbed.has(l)) {
+            contact.set(l, (contact.get(l) ?? 0) + 1)
+          }
+        }
+      }
+      let best = -1
+      let bestN = 0
+      for (const [l, n] of contact) {
+        if (n > bestN || (n === bestN && l < best)) {
+          bestN = n
+          best = l
+        }
+      }
+      if (best < 0) continue // région isolée : conservée telle quelle
+      for (const k of cells) {
+        labels.set(k, best)
+        regions[best].add(k)
+      }
+      regions[i] = new Set()
+      absorbed.add(i)
+      changed = true
+    }
+  }
+
+  const corners = cornerLabels(labels)
 
   // Soudure / marche par paire de pans : décidée sur la frontière réelle.
   const weldCache = new Map<string, boolean>()
@@ -440,8 +510,21 @@ export function reconstructRoof(
       for (const [x, y] of line) {
         worst = Math.max(worst, Math.abs((bx - ax) * (ay - y) - (ax - x) * (by - ay)) / len)
       }
-      // Une frontière quasi droite EST une droite (faîtage/arêtier/noue).
-      s = worst <= STRAIGHT_TOL_CELLS ? [line[0], line[line.length - 1]] : dpOpen(line, 0.9)
+      // Une frontière quasi droite EST une droite (faîtage/arêtier/noue) —
+      // SAUF si la corde sort de la silhouette (emprise en L : un segment
+      // peut couper à travers le coin rentrant) : on garde alors le tracé.
+      let straightOk = worst <= STRAIGHT_TOL_CELLS
+      if (straightOk) {
+        for (const t of [0.25, 0.5, 0.75]) {
+          const mx = (ax + (bx - ax) * t) * CELL
+          const my = (ay + (by - ay) * t) * CELL
+          if (!pointInRing(mx, my, outline) && distToRing(mx, my, outline) > 0.2) {
+            straightOk = false
+            break
+          }
+        }
+      }
+      s = straightOk ? [line[0], line[line.length - 1]] : dpOpen(line, 0.9)
       chainCache.set(key, s)
     }
     return canonical ? s : [...s].reverse()
@@ -457,9 +540,26 @@ export function reconstructRoof(
     const key = `${v[0]}:${v[1]}`
     const hit = snapCache.get(key)
     if (hit) return hit
-    const pt = corners.get(key)?.has(OUTSIDE)
-      ? projectToWalk(walk, v[0] * CELL, v[1] * CELL).pt
-      : ([v[0] * CELL, v[1] * CELL] as [number, number])
+    let pt: [number, number]
+    if (corners.get(key)?.has(OUTSIDE)) {
+      const px = v[0] * CELL
+      const py = v[1] * CELL
+      // Un SOMMET du polygone à portée aimante la jonction (fin de noue sur
+      // le coin rentrant d'un L, fin de faîtage sur un angle de rive) —
+      // sinon, projection sur l'arête la plus proche.
+      let bestV: [number, number] | null = null
+      let bestD = SNAP_CORNER_M
+      for (const q of outline.slice(0, -1)) {
+        const d = Math.hypot(q[0] - px, q[1] - py)
+        if (d < bestD) {
+          bestD = d
+          bestV = q
+        }
+      }
+      pt = bestV ?? projectToWalk(walk, px, py).pt
+    } else {
+      pt = [v[0] * CELL, v[1] * CELL]
+    }
     snapCache.set(key, pt)
     return pt
   }

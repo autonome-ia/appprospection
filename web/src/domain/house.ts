@@ -69,8 +69,12 @@ export interface HouseEnrichment {
  * v8 : silhouette rectiligne ancrée sur le polygone BD TOPO (recon v3) +
  *      `emprise` stockée dans le jsonb — murs droits de la maquette, débord
  *      de toit réel, marches entre niveaux (annexe basse).
+ * v9 : passe de finition (captures v3) — échardes absorbées par leur voisin,
+ *      jonctions aimantées aux coins du polygone (noues des L), garde de
+ *      silhouette sur les frontières redressées, murs = hauteur BD TOPO
+ *      moins comble mesuré (fini les « maisons donjons »).
  */
-export const LIDAR_VERSION = 8
+export const LIDAR_VERSION = 9
 
 /** Un pan de toiture mesuré (stocké en jsonb sur le point). */
 export interface LidarPan {
