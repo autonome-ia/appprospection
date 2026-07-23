@@ -272,3 +272,47 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
   - **Gate G0 terrain** : le chef des ventes tape ses chantiers passés (backfill immédiat à
     l'ouverture de la fiche) et compare aux factures. Écart systématique → recalibrage +
     bump de version.
+- **24/07/2026 (après-midi) — Passes cosmétiques des pans (retours captures briac)** :
+  - `LIDAR_VERSION` 2→3 : lissage des contours musclé à 1 m — formes franches, sans
+    crénelures ni pointes.
+  - `LIDAR_VERSION` 3→4 : les toits d'ardoise sombre renvoient mal le laser (cellules
+    éparses) → **enveloppe morphologique** (dilatation/érosion rayon 2) avant traçage,
+    traçage robuste aux pincements en diagonale, **garde d'honnêteté** : pas de dessin si
+    le polygone tracé couvre < 60 % de la surface du pan (pastille sur une lanière =
+    mensonge). Conséquence assumée : certains toits sombres n'affichent pas de pans
+    (le m² total reste mesuré et affiché).
+- **24/07/2026 (nuit) — Audit complet de la fonctionnalité (calcul + visuel + câblage),
+  puis durcissement.** Constats et correctifs livrés dans la foulée :
+  1. **Tests sur le code shippé** : le banc synthétique et les tests de contours validaient
+     une COPIE manuelle (`tools/lidar-spike`) qui pouvait dériver. Le cœur pur est extrait
+     dans `web/src/data/lidar-core.ts`, testé par **vitest** (`npm run test` dans `web/`) :
+     banc seedé croupe/bâtière/plat ≤ 5 %, déterminisme, pentes, azimuts, contours.
+  2. **Bâtiment le plus proche** : quand le point ne touche aucun polygone, on prenait
+     `feats[0]` du DWITHIN 25 m (ordre WFS arbitraire) → risque de mesurer la maison d'en
+     face avec un badge « sûr ». Désormais : plus proche via distance au polygone, ≤ 10 m,
+     sinon `no_data`.
+  3. **Cache partagé à l'équipe** : la RLS (update = auteur/manager) faisait échouer EN
+     SILENCE la persistance du backfill sur les points des collègues → mesure refaite
+     (2-3 Mo) à chaque session. **Migration `db/0009_cache_lidar_rpc.sql` (À EXÉCUTER)** :
+     RPC `cache_point_lidar` (security definer) qui n'écrit que les colonnes
+     `toit_lidar_*` pour un point de son organisation, garde anti-régression de version ;
+     repli automatique sur l'update direct tant qu'elle n'est pas exécutée.
+  4. **La re-mesure fraîche prime** sur le cache périmé dans la fiche (précédence
+     inversée : un vieux `no_data` v1 masquait un `ok` v4 recalculé).
+  5. **Timeouts réseau** : 20 s par requête (WFS + ranges COPC), 60 s pour la mesure
+     entière → verdict `error` re-tentable (avant : badge « mesure… » infini et retry
+     impossible de la session).
+  6. **`grand_batiment` sans téléchargement** : verdict rendu dès l'emprise connue
+     (> 350 m²), économise 2-3 Mo sur les collectifs.
+  7. **Poids réseau app** : `toit_lidar_pans` (contours jsonb) sorti du SELECT global des
+     points (carte/accueil/agenda) → fetch ciblé à l'ouverture de la fiche, cache
+     rafraîchi par le realtime ; `fetchPoints` paginé (Supabase tronque à 1 000 lignes).
+  8. **`azimut_deg` corrigé en azimut boussole** (0 = nord, 90 = est) — les v1-v4
+     stockaient un angle mathématique depuis l'est (plein sud = 270). Jamais affiché,
+     mais faux en base pour un usage futur. **`LIDAR_VERSION` 4→5** : re-mesure
+     paresseuse de tout le stock à l'ouverture des fiches.
+  Restent volontairement hors périmètre : Web Worker (le calcul bloque le main thread
+  ~0,5-2 s pendant la mesure — à faire si du jank est constaté sur le terrain) ;
+  annulation de pose qui n'interrompt pas la mesure en vol (amortie par le cache par
+  coordonnées) ; centroïde d'étiquette = moyenne des sommets (peut déborder d'un pan
+  en L, cosmétique).
