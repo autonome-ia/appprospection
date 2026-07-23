@@ -86,8 +86,14 @@ export interface HouseEnrichment {
  *      les pans PLATS ne rejoignent jamais le corps et ne font pas pont
  *      (dalle de garage « continue » avec le toit incliné = annexe quand
  *      même). Rosa Floch : badge 243 m² (facture 223, annexes exclues).
+ * v13 : passe issue de la campagne d'audit (21 fixtures réelles) — altitudes
+ *      BORNÉES au z observé des points du pan (fin des « voiles », F3/F4) ;
+ *      soudures calculées pour toutes les paires riveraines même en repli
+ *      (F5) ; garde « part inclinée significative » du corps principal ;
+ *      redressement split-and-merge des frontières (F1) ; corde testée tous
+ *      les 50 cm + ré-assemblage simple si auto-intersection (F2).
  */
-export const LIDAR_VERSION = 12
+export const LIDAR_VERSION = 13
 
 /** Un pan de toiture mesuré (stocké en jsonb sur le point). */
 export interface LidarPan {

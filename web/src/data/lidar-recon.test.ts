@@ -1,7 +1,7 @@
-// Tests de la reconstruction v3 (pans jointifs ET rectilignes, ancrés sur le
-// polygone d'emprise) : silhouette = polygone décalé du débord (netteté),
-// faîtages droits partagés, altitudes égales aux soudures, MARCHE détectée
-// entre niveaux (annexe basse), déterminisme.
+﻿// Tests de la reconstruction v3 (pans jointifs ET rectilignes, ancrÃ©s sur le
+// polygone d'emprise) : silhouette = polygone dÃ©calÃ© du dÃ©bord (nettetÃ©),
+// faÃ®tages droits partagÃ©s, altitudes Ã©gales aux soudures, MARCHE dÃ©tectÃ©e
+// entre niveaux (annexe basse), dÃ©terminisme.
 import { describe, expect, it } from 'vitest'
 import { distToRing, measureRoof, ringArea, type Pt, type Ring } from './lidar-core'
 import {
@@ -71,7 +71,7 @@ function hip(L: number, W: number, d: number, pitchDeg: number, seed: number) {
   return { pts, ring, p }
 }
 
-/** Maison à deux niveaux : bâtière sur [0,W1], annexe PLATE plus basse derrière. */
+/** Maison Ã  deux niveaux : bÃ¢tiÃ¨re sur [0,W1], annexe PLATE plus basse derriÃ¨re. */
 function twoLevels(L: number, W1: number, W2: number, pitchDeg: number, seed: number) {
   const rand = makeRand(seed)
   const gauss = makeGauss(rand)
@@ -90,7 +90,7 @@ function twoLevels(L: number, W1: number, W2: number, pitchDeg: number, seed: nu
 
 function recon(pts: Pt[], ring: Ring) {
   const m = measureRoof(pts, ring)
-  const inputs = m.pans.map((p) => ({ plane: p.plane, counts: p.counts }))
+  const inputs = m.pans.map((p) => ({ plane: p.plane, counts: p.counts, zMin: p.zMin, zMax: p.zMax }))
   return reconstructRoof(inputs, ring, OVERHANG)
 }
 
@@ -107,7 +107,7 @@ function pointInRingLocal(px: number, py: number, ring: Ring): boolean {
   return inside
 }
 
-/** Arêtes d'un contour, clé indifférente au sens (jointure entre pans). */
+/** ArÃªtes d'un contour, clÃ© indiffÃ©rente au sens (jointure entre pans). */
 function edgeKeys(pan: ReconPan): string[] {
   const keys: string[] = []
   const r = pan.contour
@@ -120,15 +120,15 @@ function edgeKeys(pan: ReconPan): string[] {
 }
 
 describe('offsetRing', () => {
-  it('rectangle : +d de chaque côté, 4 coins nets', () => {
+  it('rectangle : +d de chaque cÃ´tÃ©, 4 coins nets', () => {
     const off = offsetRing(rect(0, 0, 10, 6), 0.5)
     expect(off).not.toBeNull()
     expect(off!.length).toBe(5)
     expect(ringArea(off!)).toBeCloseTo(11 * 7, 5)
   })
 
-  it('L : aire = aire + périmètre×d + coins (le coin rentrant se compense)', () => {
-    // L : rectangle 10×6 moins un coin 4×3.
+  it('L : aire = aire + pÃ©rimÃ¨treÃ—d + coins (le coin rentrant se compense)', () => {
+    // L : rectangle 10Ã—6 moins un coin 4Ã—3.
     const ring: Ring = [
       [0, 0],
       [10, 0],
@@ -140,8 +140,8 @@ describe('offsetRing', () => {
     ]
     const off = offsetRing(ring, 0.5)
     expect(off).not.toBeNull()
-    // 5 coins sortants (+d²·… net) : l'aire attendue = A + P·d + (4−1)·d²
-    // (4 coins sortants ajoutent d² au quart… on vérifie surtout la cohérence).
+    // 5 coins sortants (+dÂ²Â·â€¦ net) : l'aire attendue = A + PÂ·d + (4âˆ’1)Â·dÂ²
+    // (4 coins sortants ajoutent dÂ² au quartâ€¦ on vÃ©rifie surtout la cohÃ©rence).
     const a = ringArea(off!)
     expect(a).toBeGreaterThan(ringArea(ring) + perimeterOf(ring) * 0.5 * 0.9)
     expect(a).toBeLessThan(ringArea(ring) + perimeterOf(ring) * 0.5 + 4 * 0.25 + 0.1)
@@ -157,7 +157,7 @@ function perimeterOf(ring: Ring): number {
 }
 
 describe('reconstructRoof v3', () => {
-  it('bâtière : 2 pans NETS (≤ 8 sommets), couverture = polygone décalé', () => {
+  it('bÃ¢tiÃ¨re : 2 pans NETS (â‰¤ 8 sommets), couverture = polygone dÃ©calÃ©', () => {
     const { pts, ring } = gable(11, 7, 0.4, 40, 3)
     const pans = kept(recon(pts, ring))
     expect(pans.length).toBe(2)
@@ -166,16 +166,16 @@ describe('reconstructRoof v3', () => {
     const total = pans.reduce((s, p) => s + ringArea(p.contour), 0)
     expect(Math.abs(total - target) / target).toBeLessThanOrEqual(0.05)
     for (const p of pans) {
-      // La netteté v3 : un pan de bâtière = ~un rectangle (4-8 sommets, pas 30).
+      // La nettetÃ© v3 : un pan de bÃ¢tiÃ¨re = ~un rectangle (4-8 sommets, pas 30).
       expect(p.contour.length - 1).toBeLessThanOrEqual(8)
     }
   })
 
-  it('bâtière : les gouttières sont SUR le polygone décalé (silhouette exacte)', () => {
+  it('bÃ¢tiÃ¨re : les gouttiÃ¨res sont SUR le polygone dÃ©calÃ© (silhouette exacte)', () => {
     const { pts, ring } = gable(11, 7, 0.4, 40, 3)
     const pans = kept(recon(pts, ring))
     const outline = offsetRing(ring, OVERHANG)!
-    // Sommets bas (gouttières/rives) : à ≤ 5 cm du périmètre décalé.
+    // Sommets bas (gouttiÃ¨res/rives) : Ã  â‰¤ 5 cm du pÃ©rimÃ¨tre dÃ©calÃ©.
     for (const p of pans) {
       const zMin = Math.min(...p.alts)
       for (let v = 0; v < p.contour.length - 1; v++) {
@@ -186,14 +186,14 @@ describe('reconstructRoof v3', () => {
     }
   })
 
-  it('bâtière : faîtage DROIT (1 segment) et partagé, altitudes égales', () => {
+  it('bÃ¢tiÃ¨re : faÃ®tage DROIT (1 segment) et partagÃ©, altitudes Ã©gales', () => {
     const { pts, ring, p: pitch } = gable(11, 7, 0.4, 40, 3)
     const pans = kept(recon(pts, ring))
     const counts = new Map<string, number>()
     for (const p of pans) for (const k of edgeKeys(p)) counts.set(k, (counts.get(k) ?? 0) + 1)
     const sharedEdges = [...counts.entries()].filter(([, n]) => n === 2)
-    expect(sharedEdges.length).toBe(1) // le faîtage, en un seul segment
-    // Altitudes identiques des deux côtés de chaque sommet partagé.
+    expect(sharedEdges.length).toBe(1) // le faÃ®tage, en un seul segment
+    // Altitudes identiques des deux cÃ´tÃ©s de chaque sommet partagÃ©.
     const zByVertex = new Map<string, number[]>()
     for (const pan of pans) {
       for (let i = 0; i < pan.contour.length - 1; i++) {
@@ -206,7 +206,7 @@ describe('reconstructRoof v3', () => {
     for (const zs of zByVertex.values()) {
       if (zs.length >= 2) expect(Math.max(...zs) - Math.min(...zs)).toBeLessThanOrEqual(0.15)
     }
-    // Hauteur de comble cohérente (mesurée mur à mur : tan(pente) × W/2).
+    // Hauteur de comble cohÃ©rente (mesurÃ©e mur Ã  mur : tan(pente) Ã— W/2).
     const all = pans.flatMap((x) => x.alts)
     const comble = Math.max(...all) - Math.min(...all)
     const expected = Math.tan(pitch) * ((7 + 0.8) / 2 + OVERHANG)
@@ -224,18 +224,18 @@ describe('reconstructRoof v3', () => {
     for (const p of pans) expect(p.contour.length - 1).toBeLessThanOrEqual(10)
     const counts = new Map<string, number>()
     for (const p of pans) for (const k of edgeKeys(p)) counts.set(k, (counts.get(k) ?? 0) + 1)
-    // Faîtage + 4 arêtiers : 5 frontières partagées (chacune en 1 segment).
+    // FaÃ®tage + 4 arÃªtiers : 5 frontiÃ¨res partagÃ©es (chacune en 1 segment).
     const shared = [...counts.values()].filter((n) => n === 2).length
     expect(shared).toBeGreaterThanOrEqual(4)
     expect(shared).toBeLessThanOrEqual(7)
   })
 
-  it('deux niveaux : la frontière bâtière/annexe est une MARCHE (alts distinctes)', () => {
+  it('deux niveaux : la frontiÃ¨re bÃ¢tiÃ¨re/annexe est une MARCHE (alts distinctes)', () => {
     const { pts, ring } = twoLevels(10, 6, 4, 40, 5)
     const pans = kept(recon(pts, ring))
     expect(pans.length).toBeGreaterThanOrEqual(3) // 2 pans + annexe plate
-    // Sur au moins un sommet partagé en XY, l'écart d'altitude reste ≥ 1,5 m
-    // (10 vs 7,5) : les plans ne sont PAS soudés à la marche.
+    // Sur au moins un sommet partagÃ© en XY, l'Ã©cart d'altitude reste â‰¥ 1,5 m
+    // (10 vs 7,5) : les plans ne sont PAS soudÃ©s Ã  la marche.
     const zByVertex = new Map<string, number[]>()
     for (const pan of pans) {
       for (let i = 0; i < pan.contour.length - 1; i++) {
@@ -251,8 +251,8 @@ describe('reconstructRoof v3', () => {
     expect(stepped.length).toBeGreaterThan(0)
   })
 
-  it('L avec noue : aucun sommet hors silhouette, couverture complète', () => {
-    // Toit en L « parfait » : z = hauteur ∝ distance au bord de l'emprise
+  it('L avec noue : aucun sommet hors silhouette, couverture complÃ¨te', () => {
+    // Toit en L Â« parfait Â» : z = hauteur âˆ distance au bord de l'emprise
     // (croupes + noue diagonale au coin rentrant).
     const rand = makeRand(11)
     const gauss = makeGauss(rand)
@@ -283,7 +283,7 @@ describe('reconstructRoof v3', () => {
     const pans = kept(r)
     expect(pans.length).toBeGreaterThanOrEqual(2)
     const outline = offsetRing(ring, OVERHANG)!
-    // Garde v4 : aucune écharde qui déborde de la silhouette.
+    // Garde v4 : aucune Ã©charde qui dÃ©borde de la silhouette.
     for (const pan of pans) {
       for (const [x, y] of pan.contour) {
         if (!pointInRingLocal(x, y, outline)) {
@@ -296,9 +296,9 @@ describe('reconstructRoof v3', () => {
     expect(Math.abs(total - target) / target).toBeLessThanOrEqual(0.08)
   })
 
-  it('écharde : une région filiforme est absorbée par son voisin (aire préservée)', () => {
-    // Partition artificielle : A et B côte à côte, C = colonne d'1 cellule
-    // de large coincée entre les deux (lamelle de sur-segmentation).
+  it('Ã©charde : une rÃ©gion filiforme est absorbÃ©e par son voisin (aire prÃ©servÃ©e)', () => {
+    // Partition artificielle : A et B cÃ´te Ã  cÃ´te, C = colonne d'1 cellule
+    // de large coincÃ©e entre les deux (lamelle de sur-segmentation).
     const ring = rect(0, 0, 15, 10)
     const mk = (cx0: number, cx1: number): Map<string, number> => {
       const m = new Map<string, number>()
@@ -314,27 +314,27 @@ describe('reconstructRoof v3', () => {
     ]
     const r = reconstructRoof(pans, ring, OVERHANG)
     expect(r).not.toBeNull()
-    expect(r!.pans[2]).toBeNull() // l'écharde n'est pas dessinée…
-    // …son absorption est tracée (elle rejoint le corps de son absorbeur)…
+    expect(r!.pans[2]).toBeNull() // l'Ã©charde n'est pas dessinÃ©eâ€¦
+    // â€¦son absorption est tracÃ©e (elle rejoint le corps de son absorbeur)â€¦
     expect(r!.absorbed.length).toBe(1)
     expect(r!.absorbed[0][0]).toBe(2)
     const drawn = kept(r)
     const total = drawn.reduce((s, x) => s + ringArea(x.contour), 0)
     const target = ringArea(offsetRing(ring, OVERHANG)!)
-    // …et son aire est reprise par les voisins : rien ne manque.
+    // â€¦et son aire est reprise par les voisins : rien ne manque.
     expect(Math.abs(total - target) / target).toBeLessThanOrEqual(0.05)
   })
 
-  it('bâtière : les 2 pans sont SOUDÉS (welds) — même toit physique', () => {
+  it('bÃ¢tiÃ¨re : les 2 pans sont SOUDÃ‰S (welds) â€” mÃªme toit physique', () => {
     const { pts, ring } = gable(11, 7, 0.4, 40, 3)
     const r = recon(pts, ring)
     expect(r!.welds).toContainEqual([0, 1])
   })
 
-  it('bâtière RAIDE (48°, toits bretons) : le faîtage reste soudé', () => {
-    // Régression Rosa Floch : la médiane des écarts de plans sur les coins de
-    // grille (zigzag ±0,5 m du faîtage) classait les toits pentus en marche —
-    // badge à 110 m² au lieu de 219 (le corps ne contenait plus qu'un pan).
+  it('bÃ¢tiÃ¨re RAIDE (48Â°, toits bretons) : le faÃ®tage reste soudÃ©', () => {
+    // RÃ©gression Rosa Floch : la mÃ©diane des Ã©carts de plans sur les coins de
+    // grille (zigzag Â±0,5 m du faÃ®tage) classait les toits pentus en marche â€”
+    // badge Ã  110 mÂ² au lieu de 219 (le corps ne contenait plus qu'un pan).
     const { pts, ring } = gable(11, 7, 0.4, 48, 7)
     const r = recon(pts, ring)
     expect(r!.welds).toContainEqual([0, 1])
@@ -349,7 +349,7 @@ describe('reconstructRoof v3', () => {
     expect(bodyM2 / m.total).toBeGreaterThanOrEqual(0.95)
   })
 
-  it('deux niveaux : la marche n’est PAS une soudure, la « maison » exclut l’annexe', () => {
+  it('deux niveaux : la marche nâ€™est PAS une soudure, la Â« maison Â» exclut lâ€™annexe', () => {
     const { pts, ring } = twoLevels(10, 6, 4, 40, 5)
     const m = measureRoof(pts, ring)
     const r = reconstructRoof(
@@ -360,11 +360,11 @@ describe('reconstructRoof v3', () => {
     expect(r).not.toBeNull()
     const flatIdx = m.pans.findIndex((p) => p.type === 'plat')
     expect(flatIdx).toBeGreaterThanOrEqual(0)
-    // L'annexe plate (7,5 m vs murs 10 m) n'est soudée à aucun pan de la bâtière.
+    // L'annexe plate (7,5 m vs murs 10 m) n'est soudÃ©e Ã  aucun pan de la bÃ¢tiÃ¨re.
     for (const [a, b] of r!.welds) {
       expect(a === flatIdx || b === flatIdx).toBe(false)
     }
-    // « La maison » = les pans de la bâtière, sans l'annexe.
+    // Â« La maison Â» = les pans de la bÃ¢tiÃ¨re, sans l'annexe.
     const body = mainBodyPans(
       m.pans.map((p) => p.realDedup),
       m.pans.map((p) => p.type === 'plat'),
@@ -377,7 +377,7 @@ describe('reconstructRoof v3', () => {
     expect(bodyM2).toBeGreaterThanOrEqual(0.85 * gableM2)
   })
 
-  it('déterminisme : mêmes entrées → même reconstruction', () => {
+  it('dÃ©terminisme : mÃªmes entrÃ©es â†’ mÃªme reconstruction', () => {
     const { pts, ring } = hip(12, 8, 0.4, 35, 1)
     const a = recon(pts, ring)
     const b = recon(pts, ring)

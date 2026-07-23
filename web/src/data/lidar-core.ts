@@ -343,6 +343,10 @@ export interface PanMetrics {
   /** Nombre de points LiDAR du pan par cellule (AVANT déduplication) —
       graines de l'étiquetage de la reconstruction (lidar-recon). */
   counts: Map<string, number>
+  /** Plage d'altitude OBSERVÉE des points du pan — borne les altitudes
+      dessinées (un plan extrapolé hors de son support = « voile »). */
+  zMin: number
+  zMax: number
 }
 
 export interface RoofMeasure {
@@ -364,9 +368,13 @@ export function measureRoof(pts: Pt[], ring: Ring): RoofMeasure {
     const [a, b] = pan.plane
     const slope = Math.atan(Math.hypot(a, b))
     const counts = new Map<string, number>()
+    let zMin = Infinity
+    let zMax = -Infinity
     for (const i of pan.inliers) {
       const k = `${Math.floor(pts[i][0] / CELL)}:${Math.floor(pts[i][1] / CELL)}`
       counts.set(k, (counts.get(k) ?? 0) + 1)
+      if (pts[i][2] < zMin) zMin = pts[i][2]
+      if (pts[i][2] > zMax) zMax = pts[i][2]
     }
     const cells = new Set<string>()
     for (const [k, n] of counts) {
@@ -421,6 +429,8 @@ export function measureRoof(pts: Pt[], ring: Ring): RoofMeasure {
       freshCells,
       plane: pan.plane,
       counts,
+      zMin,
+      zMax,
     })
   }
   // Typage des pans : plat / principal (plus grand pan incliné ± 8°) / secondaire.

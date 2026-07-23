@@ -45,6 +45,9 @@ export interface ReconPanInput {
   plane: Plane
   /** Points LiDAR du pan par cellule (clé "cx:cy" à CELL m). */
   counts: Map<string, number>
+  /** Plage d'altitude observée des points du pan (clamp anti-« voile »). */
+  zMin?: number
+  zMax?: number
 }
 
 export interface ReconPan {
@@ -79,8 +82,13 @@ export function mainBodyPans(
   welds: [number, number][],
   absorbed: [number, number][],
 ): Set<number> {
-  const anyPitched = isFlat.some((f, i) => !f && m2[i] > 0)
-  const blocked = (i: number) => anyPitched && isFlat[i]
+  // La règle « les plats ne rejoignent pas le corps » ne vaut que si la part
+  // inclinée est SIGNIFICATIVE : sur un toit quasi plat, elle réduisait « la
+  // maison » à un pan de bruit de 2 m² (audit, relecq-9 : body_share 0,007).
+  const total = m2.reduce((s, x) => s + x, 0)
+  const pitchedM2 = m2.reduce((s, x, i) => (isFlat[i] ? s : s + x), 0)
+  const pitchedSignificant = pitchedM2 >= Math.max(15, 0.2 * total)
+  const blocked = (i: number) => pitchedSignificant && isFlat[i]
   const adj = new Map<number, number[]>()
   const link = (a: number, b: number) => {
     adj.set(a, [...(adj.get(a) ?? []), b])
@@ -575,6 +583,50 @@ export function reconstructRoof(
     return welded
   }
 
+  // La corde d'un segment redressé ne doit pas sortir de la silhouette
+  // (emprise en L : couper le coin rentrant) — testée tous les ~0,5 m (les
+  // 3 points d'échantillonnage d'avant laissaient passer des cordes fautives,
+  // audit F2).
+  const chordOk = (a: [number, number], b: [number, number]): boolean => {
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1])
+    const steps = Math.max(2, Math.ceil(len))
+    for (let k = 1; k < steps; k++) {
+      const t = k / steps
+      const mx = (a[0] + (b[0] - a[0]) * t) * CELL
+      const my = (a[1] + (b[1] - a[1]) * t) * CELL
+      if (!pointInRing(mx, my, outline) && distToRing(mx, my, outline) > 0.2) return false
+    }
+    return true
+  }
+
+  // Redressement SPLIT-AND-MERGE : une frontière quasi droite devient une
+  // droite ; sinon on coupe au point de déviation max et on re-tente sur les
+  // deux moitiés (un arêtier + une noue = 2 droites, pas 15 marches de
+  // grille — audit F1, la famille la plus fréquente).
+  const fitChain = (line: [number, number][], depth: number): [number, number][] => {
+    if (line.length <= 2) return line
+    const [ax, ay] = line[0]
+    const [bx, by] = line[line.length - 1]
+    const len = Math.hypot(bx - ax, by - ay) || 1
+    let worst = 0
+    let worstIdx = 1
+    for (let k = 1; k < line.length - 1; k++) {
+      const [x, y] = line[k]
+      const d = Math.abs((bx - ax) * (ay - y) - (ax - x) * (by - ay)) / len
+      if (d > worst) {
+        worst = d
+        worstIdx = k
+      }
+    }
+    if (worst <= STRAIGHT_TOL_CELLS && chordOk(line[0], line[line.length - 1])) {
+      return [line[0], line[line.length - 1]]
+    }
+    if (depth >= 3) return dpOpen(line, 0.9)
+    const left = fitChain(line.slice(0, worstIdx + 1), depth + 1)
+    const right = fitChain(line.slice(worstIdx), depth + 1)
+    return left.concat(right.slice(1))
+  }
+
   // Cache canonique des frontières intérieures : les deux pans riverains
   // récupèrent EXACTEMENT les mêmes sommets.
   const chainCache = new Map<string, [number, number][]>()
@@ -586,28 +638,7 @@ export function reconstructRoof(
     let s = chainCache.get(key)
     if (!s) {
       const line = canonical ? raw : [...raw].reverse()
-      const [ax, ay] = line[0]
-      const [bx, by] = line[line.length - 1]
-      const len = Math.hypot(bx - ax, by - ay) || 1
-      let worst = 0
-      for (const [x, y] of line) {
-        worst = Math.max(worst, Math.abs((bx - ax) * (ay - y) - (ax - x) * (by - ay)) / len)
-      }
-      // Une frontière quasi droite EST une droite (faîtage/arêtier/noue) —
-      // SAUF si la corde sort de la silhouette (emprise en L : un segment
-      // peut couper à travers le coin rentrant) : on garde alors le tracé.
-      let straightOk = worst <= STRAIGHT_TOL_CELLS
-      if (straightOk) {
-        for (const t of [0.25, 0.5, 0.75]) {
-          const mx = (ax + (bx - ax) * t) * CELL
-          const my = (ay + (by - ay) * t) * CELL
-          if (!pointInRing(mx, my, outline) && distToRing(mx, my, outline) > 0.2) {
-            straightOk = false
-            break
-          }
-        }
-      }
-      s = straightOk ? [line[0], line[line.length - 1]] : dpOpen(line, 0.9)
+      s = fitChain(line, 0)
       chainCache.set(key, s)
     }
     return canonical ? s : [...s].reverse()
@@ -647,20 +678,48 @@ export function reconstructRoof(
     return pt
   }
 
-  const out: (ReconPan | null)[] = []
-  // Frontières soudées observées pendant l'assemblage (paires dédupliquées).
+  // Soudures de TOUTES les paires riveraines (≥ 4 coins de frontière commune),
+  // indépendamment de l'assemblage : un pan dont le contour échoue (repli)
+  // perdait ses soudures et coupait le corps principal en deux (audit, F5).
   const weldPairs = new Set<string>()
-  for (let i = 0; i < pans.length; i++) {
+  for (const key of pairGaps.keys()) {
+    if ((pairGaps.get(key)?.length ?? 0) < 4) continue
+    const [i, j] = key.split(':').map(Number)
+    if (isWelded(i, j)) weldPairs.add(key)
+  }
+
+  // Contour auto-intersecté ? (paires de segments non adjacents qui se
+  // croisent — pan « replié sur lui-même », audit F2.)
+  const selfIntersects = (ring: [number, number][]): boolean => {
+    const n = ring.length - 1
+    for (let a = 0; a < n; a++) {
+      for (let b = a + 2; b < n; b++) {
+        if (a === 0 && b === n - 1) continue // segments adjacents par fermeture
+        const [p1, p2] = [ring[a], ring[a + 1]]
+        const [q1, q2] = [ring[b], ring[b + 1]]
+        const d = (x1: number[], x2: number[], x3: number[]) =>
+          (x2[0] - x1[0]) * (x3[1] - x1[1]) - (x2[1] - x1[1]) * (x3[0] - x1[0])
+        const d1 = d(q1, q2, p1)
+        const d2 = d(q1, q2, p2)
+        const d3 = d(p1, p2, q1)
+        const d4 = d(p1, p2, q2)
+        if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+          return true
+        }
+      }
+    }
+    return false
+  }
+
+  // Assemble le pan i. `fancy` = redressement + aimantation aux coins ;
+  // en mode simple (réparation) : tracé DP fidèle + projection seule — les
+  // caches restant partagés, les pans restent jointifs entre eux.
+  const simpleChainCache = new Map<string, [number, number][]>()
+  const assembleOne = (i: number, fancy: boolean): ReconPan | null => {
     const cells = regions[i]
-    if (!cells.size) {
-      out.push(null)
-      continue
-    }
+    if (!cells.size) return null
     const raw = traceRegion(cells)
-    if (!raw || raw.length < 4) {
-      out.push(null)
-      continue
-    }
+    if (!raw || raw.length < 4) return null
     const junctionIdx = raw.map((v, idx) => (isJunction(v) ? idx : -1)).filter((x) => x >= 0)
 
     // Découpage en chaînes homogènes entre jonctions (partner constant).
@@ -717,10 +776,30 @@ export function reconstructRoof(
       contour.push([x, y])
       weldedAt.push(new Set(welded))
     }
+    // Mode simple : projection sur le polygone, sans aimant de coin (l'aimant
+    // à 0,9 m peut faire croiser l'arc voisin).
+    const snapAt = (v: [number, number]): [number, number] => {
+      if (fancy) return snap(v)
+      if (!corners.get(`${v[0]}:${v[1]}`)?.has(OUTSIDE)) return [v[0] * CELL, v[1] * CELL]
+      return projectToWalk(walk, v[0] * CELL, v[1] * CELL).pt
+    }
+    const simplifyChain = (rawChain: [number, number][]): [number, number][] => {
+      if (fancy) return straighten(rawChain)
+      const key0 = `${rawChain[0][0]}:${rawChain[0][1]}`
+      const key1 = `${rawChain[rawChain.length - 1][0]}:${rawChain[rawChain.length - 1][1]}`
+      const canonical = key0 <= key1
+      const key = `${canonical ? key0 : key1}|${canonical ? key1 : key0}|${rawChain.length}`
+      let s = simpleChainCache.get(key)
+      if (!s) {
+        s = dpOpen(canonical ? rawChain : [...rawChain].reverse(), 0.9)
+        simpleChainCache.set(key, s)
+      }
+      return canonical ? s : [...s].reverse()
+    }
     for (const ch of chains) {
       if (ch.partner === OUTSIDE) {
-        const from = snap(ch.raw[0])
-        const to = snap(ch.raw[ch.raw.length - 1])
+        const from = snapAt(ch.raw[0])
+        const to = snapAt(ch.raw[ch.raw.length - 1])
         const mid = ch.raw[Math.floor(ch.raw.length / 2)]
         const witness: [number, number] = [mid[0] * CELL, mid[1] * CELL]
         const isLoop = Math.hypot(to[0] - from[0], to[1] - from[1]) < 1e-6
@@ -735,29 +814,27 @@ export function reconstructRoof(
         const last = ch.raw[ch.raw.length - 1]
         const isLoop = first[0] === last[0] && first[1] === last[1]
         // Boucle fermée (île) : déjà simplifiée, pas de redressement en corde.
-        const s = isLoop ? ch.raw : straighten(ch.raw)
-        const isW = isWelded(i, ch.partner)
-        if (isW) {
-          weldPairs.add(i < ch.partner ? `${i}:${ch.partner}` : `${ch.partner}:${i}`)
-        }
-        const welded = isW ? new Set([ch.partner]) : new Set<number>()
+        const s = isLoop ? ch.raw : simplifyChain(ch.raw)
+        const welded = isWelded(i, ch.partner) ? new Set([ch.partner]) : new Set<number>()
         for (let v = 0; v < s.length - 1; v++) {
           // Extrémités de chaîne : accrochées au polygone si elles touchent
           // l'extérieur (les sommets intermédiaires restent en grille).
           const pt =
-            v === 0 ? snap(s[v]) : ([s[v][0] * CELL, s[v][1] * CELL] as [number, number])
+            v === 0 ? snapAt(s[v]) : ([s[v][0] * CELL, s[v][1] * CELL] as [number, number])
           pushVertex(pt[0], pt[1], welded)
         }
       }
     }
-    if (contour.length < 3) {
-      out.push(null)
-      continue
-    }
+    if (contour.length < 3) return null
     contour.push([contour[0][0], contour[0][1]])
     weldedAt.push(weldedAt[0])
 
-    // Altitudes : plan du pan, moyenné avec les plans SOUDÉS en ce sommet.
+    // Altitudes : plan du pan, moyenné avec les plans SOUDÉS en ce sommet —
+    // puis BORNÉ à la plage d'altitude observée des points du pan (±0,5 m) :
+    // un plan raide évalué hors de son support réel produisait des « voiles »
+    // de plusieurs mètres (campagne d'audit, familles F3/F4).
+    const zLo = pans[i].zMin != null ? pans[i].zMin! - 0.5 : -Infinity
+    const zHi = pans[i].zMax != null ? pans[i].zMax! + 0.5 : Infinity
     const alts = contour.map(([x, y], v) => {
       let z = planeZ(pans[i].plane, x, y)
       let n = 1
@@ -765,18 +842,30 @@ export function reconstructRoof(
         z += planeZ(pans[w].plane, x, y)
         n++
       }
-      return z / n
+      return Math.min(zHi, Math.max(zLo, z / n))
     })
 
     // Garde de cohérence : le polygone doit couvrir ~ la surface de sa région.
     const polyArea = ringArea(contour)
     const cellArea = cells.size * CELL * CELL
-    if (polyArea < 0.5 * cellArea || polyArea > 2.2 * cellArea) {
-      out.push(null)
-      continue
-    }
-    out.push({ contour, alts })
+    if (polyArea < 0.5 * cellArea || polyArea > 2.2 * cellArea) return null
+    return { contour, alts }
   }
+
+  // Assemblage soigné, réparation PAR PAN : un contour qui se croise est
+  // repris en mode simple (tracé fidèle, projection seule) ; s'il se croise
+  // encore, on GARDE la version soignée — un léger croisement local se
+  // triangule presque toujours, un trou dans le toit jamais. (La première
+  // version re-assemblait tout le toit en simple : un seul pan fautif
+  // dégradait les autres et pouvait en perdre — régression Rosa Floch.)
+  const out = pans.map((_, i) => {
+    const fancy = assembleOne(i, true)
+    if (!fancy || !selfIntersects(fancy.contour)) return fancy
+    debug?.(`pan ${i} auto-intersecté : reprise en mode simple`)
+    const simple = assembleOne(i, false)
+    if (simple && !selfIntersects(simple.contour)) return simple
+    return fancy
+  })
   return {
     pans: out,
     welds: [...weldPairs].sort().map((k) => k.split(':').map(Number) as [number, number]),

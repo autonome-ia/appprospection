@@ -100,6 +100,7 @@ const roundLL = ([lng, lat]: [number, number]): [number, number] => [
 function panShape(
   cells: Set<string>,
   plane: Plane,
+  zRange: [number, number],
 ): { contour: [number, number][]; centre: [number, number]; alts: number[] } | null {
   // Enveloppe pleine (rayon 2 ≈ pontage des trous jusqu'à ~1 m) puis contour.
   const traced = traceOutline(closeCells(cells, 2))
@@ -130,7 +131,12 @@ function panShape(
   return {
     contour: smooth.map(([x, y]) => roundLL(fromL93(x, y))),
     centre: roundLL(fromL93(cx, cy)),
-    alts: smooth.map(([x, y]) => a * x + b * y + c),
+    // Altitude BORNÉE à la plage observée des points du pan : l'enveloppe
+    // lissée déborde du support réel, et un plan raide extrapolé y dressait
+    // des « voiles » de plusieurs mètres (audit, famille F3).
+    alts: smooth.map(([x, y]) =>
+      Math.min(zRange[1], Math.max(zRange[0], a * x + b * y + c)),
+    ),
   }
 }
 
@@ -424,7 +430,7 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
   // débord) ; repli pan par pan sur l'ancienne vectorisation (enveloppe
   // morphologique) si une région est dégénérée.
   const recon = reconstructRoof(
-    m.pans.map((p) => ({ plane: p.plane, counts: p.counts })),
+    m.pans.map((p) => ({ plane: p.plane, counts: p.counts, zMin: p.zMin, zMax: p.zMax })),
     building.ring,
     OVERHANG_M,
   )
@@ -444,7 +450,7 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
         alts: r.alts,
       }
     }
-    return panShape(p.freshCells, p.plane)
+    return panShape(p.freshCells, p.plane, [p.zMin - 0.5, p.zMax + 0.5])
   })
   // Altitudes relatives à la gouttière la plus basse du toit (0 = point le
   // plus bas dessiné) : petits nombres dans le jsonb, et la maquette pose ses
