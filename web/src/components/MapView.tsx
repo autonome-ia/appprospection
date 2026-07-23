@@ -163,7 +163,16 @@ export function MapView({
 
     const geolocate = new maplibregl.GeolocateControl({
       positionOptions: { enableHighAccuracy: true },
-      trackUserLocation: true,
+      // Localisation À LA DEMANDE (one-shot), PAS de mode suivi : en suivi
+      // (trackUserLocation), MapLibre re-centre la carte sur l'utilisateur à
+      // chaque fix GPS et un déplacement PROGRAMMATIQUE (recherche d'adresse,
+      // « Voir sur la carte ») ne désactive pas le suivi — seul un drag au
+      // doigt le fait. Résultat : on volait vers l'adresse cherchée puis le
+      // fix suivant ramenait à la position courante (bug briac).
+      trackUserLocation: false,
+      // Zoom « rue » quand on se localise (le défaut 15 est trop loin pour
+      // viser une maison).
+      fitBoundsOptions: { maxZoom: 17 },
       // Pas de cercle de précision : le grand halo bleu pâle mange la carte
       // (le point suffit sur le terrain).
       showAccuracyCircle: false,
@@ -397,12 +406,30 @@ export function MapView({
 
       setMapLoaded(true)
 
-      // Zoom automatique sur la position de l'utilisateur à l'ouverture.
-      try {
-        geolocate.trigger()
-      } catch {
-        /* géolocalisation indisponible : on reste sur la vue France */
-      }
+      // Zoom automatique sur la position de l'utilisateur à l'ouverture —
+      // via l'API directement (pas geolocate.trigger()) : si le fix GPS
+      // arrive APRÈS que l'utilisateur a déjà navigué (recherche d'adresse,
+      // « Voir sur la carte »), on ne lui vole pas la caméra.
+      navigator.geolocation?.getCurrentPosition(
+        (pos) => {
+          const c = map.getCenter()
+          const untouched =
+            Math.abs(c.lng - FRANCE_CENTER[0]) < 1e-6 &&
+            Math.abs(c.lat - FRANCE_CENTER[1]) < 1e-6 &&
+            Math.abs(map.getZoom() - FRANCE_ZOOM) < 0.01
+          if (untouched) {
+            map.easeTo({
+              center: [pos.coords.longitude, pos.coords.latitude],
+              zoom: 16,
+              duration: 1200,
+            })
+          }
+        },
+        () => {
+          /* refus ou indisponible : on reste sur la vue France */
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 },
+      )
     })
 
     // Curseur "main" au survol des marqueurs (les donuts sont des éléments
