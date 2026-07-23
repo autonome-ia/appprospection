@@ -217,7 +217,8 @@ export function panMetrics(pts, pan, ring, density) {
   const slopeDeg = (slope * 180) / Math.PI
   return {
     slopeDeg,
-    azimutDeg: ((Math.atan2(-b, -a) * 180) / Math.PI + 360) % 360,
+    // Azimut boussole (0 = nord, 90 = est) — aligné sur l'app (lidar-core.ts).
+    azimutDeg: ((Math.atan2(-a, -b) * 180) / Math.PI + 360) % 360,
     projected,
     real: projected / Math.cos(slope),
     n: pan.inliers.length,

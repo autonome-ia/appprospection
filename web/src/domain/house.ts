@@ -58,8 +58,10 @@ export interface HouseEnrichment {
  * v4 : enveloppe morphologique avant traçage (ardoises sombres = points épars,
  *      les contours ne couvraient qu'un îlot), traçage robuste aux pincements,
  *      garde de cohérence (pas de dessin si le polygone couvre < 60 % du pan).
+ * v5 : azimut_deg passe en azimut BOUSSOLE (0 = nord, 90 = est) — les versions
+ *      précédentes stockaient un angle mathématique depuis l'est (audit).
  */
-export const LIDAR_VERSION = 4
+export const LIDAR_VERSION = 5
 
 /** Un pan de toiture mesuré (stocké en jsonb sur le point). */
 export interface LidarPan {

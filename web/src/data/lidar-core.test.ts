@@ -182,6 +182,22 @@ describe('measureRoof (banc synthétique)', () => {
     }
   })
 
+  it('azimut boussole : bâtière faîtage est-ouest → pans exposés sud (180°) et nord (0°)', () => {
+    // makeGableRoof : faîtage parallèle à l'axe X (est-ouest) au milieu de la
+    // largeur — le pan côté y faible descend vers le sud, l'autre vers le nord.
+    const c = makeGableRoof(11, 7, 0.4, 40, 3)
+    const m = measureRoof(c.pts, c.ring)
+    const azimuts = m.pans
+      .filter((p) => p.type !== 'plat')
+      .map((p) => p.azimutDeg)
+      .sort((a, b) => a - b)
+    expect(azimuts.length).toBe(2)
+    // écart angulaire au nord (0° modulo 360) et au sud (180°)
+    const distNord = Math.min(azimuts[0], 360 - azimuts[0])
+    expect(distNord).toBeLessThanOrEqual(5)
+    expect(Math.abs(azimuts[1] - 180)).toBeLessThanOrEqual(5)
+  })
+
   it('toit plat : un pan unique typé plat, couverture pleine', () => {
     const c = makeFlatRoof(20, 15, 4)
     const m = measureRoof(c.pts, c.ring)

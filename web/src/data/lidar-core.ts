@@ -406,7 +406,11 @@ export function measureRoof(pts: Pt[], ring: Ring): RoofMeasure {
     }
     metrics.push({
       slopeDeg: (slope * 180) / Math.PI,
-      azimutDeg: ((Math.atan2(-b, -a) * 180) / Math.PI + 360) % 360,
+      // Azimut BOUSSOLE de l'exposition du pan (0 = nord, 90 = est, 180 = sud).
+      // La plus grande pente descend selon (-a, -b) en (x = est, y = nord) :
+      // azimut = atan2(est, nord). (Une convention mathématique « angle depuis
+      // l'est » a été stockée jusqu'à la v4 de l'algo.)
+      azimutDeg: ((Math.atan2(-a, -b) * 180) / Math.PI + 360) % 360,
       realDedup: (freshCells.size * CELL * CELL) / Math.cos(slope),
       freshCells,
     })
