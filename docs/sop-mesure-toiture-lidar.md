@@ -251,6 +251,24 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
     télécharge qu'une fois. Et **plus de « flash » estimation → mesure** : pendant le
     calcul, badge « mesure du toit… » pulsé à la place de l'estimation ; l'estimation ne
     s'affiche que si le verdict n'est pas `ok`.
+- **24/07/2026 — Gate G0 : VALIDÉ** par le chef des ventes en conditions réelles sur ses
+  chantiers (GO transmis par briac). La feature est officiellement calibrée ; tout
+  recalibrage futur passe par un bump de `LIDAR_VERSION` (re-mesure paresseuse).
+- **24/07/2026 — Phase 3 : pans dessinés sur l'ortho (livrée).**
+  - Vectorisation au moment de la mesure : cellules dédupliquées de chaque pan → traçage de
+    frontière (arêtes orientées chaînées, plus grande boucle) → **Douglas-Peucker adapté aux
+    anneaux fermés** (le DP naïf s'effondre quand premier = dernier point : corde dégénérée →
+    tout supprimé — bug attrapé par le test `tools/lidar-spike/test-outline.mjs`, correctif :
+    coupe au point le plus éloigné + simplification des deux moitiés). Contours en lng/lat
+    (~10-40 sommets) + centroïde d'étiquette stockés dans `toit_lidar_pans` (jsonb existant).
+  - Rendu : source GeoJSON + couches fill/line (couleur par pan, palette DA 6 teintes) sous
+    les marqueurs, pastilles « XX m² » en marqueurs DOM (Geist Mono, bord teinté, tap qui
+    traverse). Affiché quand la fiche d'une maison mesurée est ouverte (avant prospection ou
+    point), retiré à la fermeture ; la surbrillance bleue s'efface sous les pans.
+  - `LIDAR_VERSION` 1→2 : les mesures v1 (sans contours) se régénèrent paresseusement.
+  - Limite connue (acceptée v1) : cellules en contact diagonal → l'arête partagée peut
+    scinder la boucle (rare, la fermeture morphologique le réduit) ; les miettes disjointes
+    d'un pan ne sont pas dessinées (comptées dans le m² mais hors polygone principal).
   - **Gate G0 terrain** : le chef des ventes tape ses chantiers passés (backfill immédiat à
     l'ouverture de la fiche) et compare aux factures. Écart systématique → recalibrage +
     bump de version.

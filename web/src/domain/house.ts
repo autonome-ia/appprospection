@@ -53,8 +53,21 @@ export interface HouseEnrichment {
  * Déclarée ici (module léger) pour décider d'un re-calcul SANS charger le
  * chunk lidar : un recalibrage incrémente la version, les points déjà
  * mesurés se re-mesurent paresseusement à l'ouverture de leur fiche.
+ * v2 : ajout des contours de pans (dessin sur l'ortho, phase 3).
  */
-export const LIDAR_VERSION = 1
+export const LIDAR_VERSION = 2
+
+/** Un pan de toiture mesuré (stocké en jsonb sur le point). */
+export interface LidarPan {
+  type: 'principal' | 'secondaire' | 'plat'
+  pente_deg: number
+  azimut_deg: number
+  m2: number
+  /** Contour du pan (lng/lat), lissé — pour le dessin sur l'ortho. */
+  contour?: [number, number][]
+  /** Point d'ancrage de l'étiquette (lng/lat). */
+  centre?: [number, number]
+}
 
 /** La mesure LiDAR du point est-elle absente, périmée ou à re-tenter ? */
 export function lidarNeedsMeasure(p: {

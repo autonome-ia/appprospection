@@ -80,6 +80,7 @@ export function usePoints(profile: Profile | null) {
         toit_lidar_statut: null,
         toit_lidar_millesime: null,
         toit_lidar_version: null,
+        toit_lidar_pans: null,
       }
       setPoints((prev) => [...prev, temp])
 

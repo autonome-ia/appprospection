@@ -19,6 +19,7 @@ import { HousePreviewSheet } from './HousePreviewSheet'
 import { reverseGeocode } from '../data/points'
 import type { HouseInfo } from '../data/enrich'
 import type { LidarResult } from '../data/lidar'
+import type { LidarPan } from '../domain/house'
 import { AddressSearch } from './AddressSearch'
 import { AppointmentForm } from './AppointmentForm'
 import { Layers, Box, Plus, SlidersHorizontal } from 'lucide-react'
@@ -37,6 +38,14 @@ const SELECTED_BUILDING_LAYER = 'selected-building-3d'
 const HOUSE_SRC = 'house-preview'
 const HOUSE_FILL_LAYER = 'house-preview-fill'
 const HOUSE_LINE_LAYER = 'house-preview-line'
+// Pans de toiture mesurés (LiDAR) : dessinés sur l'ortho quand la fiche d'une
+// maison mesurée est ouverte — l'argument « voilà vos 4 pans » à la porte.
+const PANS_SRC = 'lidar-pans'
+const PANS_FILL_LAYER = 'lidar-pans-fill'
+const PANS_LINE_LAYER = 'lidar-pans-line'
+// Palette des pans (harmonisée DA : teintes franches mais posées, lisibles en
+// aplat translucide sur l'ortho comme sur le plan).
+const PAN_COLORS = ['#2f6bff', '#e8913a', '#1fa294', '#8b6fe8', '#d96a9b', '#5aa845']
 const NO_ID = '__none__'
 // Couleur de la DA (même valeur que --accent dans index.css : MapLibre ne
 // lit pas les variables CSS).
@@ -337,6 +346,22 @@ export function MapView({
         paint: { 'line-color': ACCENT, 'line-width': 2.5 },
       })
 
+      // Pans de toiture mesurés (au-dessus de la surbrillance maison, sous les
+      // marqueurs ajoutés ensuite). Couleur portée par chaque feature.
+      map.addSource(PANS_SRC, { type: 'geojson', data: EMPTY_FC })
+      map.addLayer({
+        id: PANS_FILL_LAYER,
+        type: 'fill',
+        source: PANS_SRC,
+        paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.34 },
+      })
+      map.addLayer({
+        id: PANS_LINE_LAYER,
+        type: 'line',
+        source: PANS_SRC,
+        paint: { 'line-color': ['get', 'color'], 'line-width': 2 },
+      })
+
       // Source des points, avec regroupement (clustering). Seuils bas : dès
       // l'échelle quartier (z14+), on voit TOUS les points d'un coup d'œil —
       // les bulles ne subsistent qu'aux échelles ville.
@@ -584,6 +609,56 @@ export function MapView({
       src.setData(EMPTY_FC)
     }
   }, [housePreview, houseInfo, mapLoaded])
+
+  // Pans de toiture mesurés : dessinés quand la fiche d'une maison mesurée
+  // est ouverte (fiche avant prospection OU fiche d'un point), avec une
+  // pastille « XX m² » par pan (marqueurs DOM : police et tokens de la DA).
+  const panLabelsRef = useRef<maplibregl.Marker[]>([])
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapLoaded) return
+    const src = map.getSource(PANS_SRC) as maplibregl.GeoJSONSource | undefined
+    if (!src) return
+
+    for (const m of panLabelsRef.current) m.remove()
+    panLabelsRef.current = []
+
+    let pans: LidarPan[] | null = null
+    if (housePreview) {
+      if (houseLidar?.toit_lidar_statut === 'ok') pans = houseLidar.toit_lidar_pans
+    } else {
+      const sel = points.find((p) => p.id === selectedId) ?? null
+      if (sel?.toit_lidar_statut === 'ok') pans = sel.toit_lidar_pans
+    }
+    // La surbrillance bleue de la maison ferait double emploi sous les pans.
+    const houseSrc = map.getSource(HOUSE_SRC) as maplibregl.GeoJSONSource | undefined
+    const drawable = (pans ?? []).filter((p) => p.contour && p.contour.length >= 4)
+    if (!drawable.length) {
+      src.setData(EMPTY_FC)
+      return
+    }
+    src.setData({
+      type: 'FeatureCollection',
+      features: drawable.map((p, i) => ({
+        type: 'Feature',
+        properties: { color: PAN_COLORS[i % PAN_COLORS.length] },
+        geometry: { type: 'Polygon', coordinates: [p.contour!] },
+      })),
+    })
+    if (housePreview) houseSrc?.setData(EMPTY_FC)
+    for (const [i, p] of drawable.entries()) {
+      if (!p.centre) continue
+      const el = document.createElement('div')
+      el.className = 'pan-chip tnum'
+      el.textContent = `${p.m2} m²`
+      el.style.borderColor = PAN_COLORS[i % PAN_COLORS.length]
+      panLabelsRef.current.push(
+        new maplibregl.Marker({ element: el }).setLngLat(p.centre).addTo(map),
+      )
+    }
+    // houseInfo dans les deps : si la surbrillance bleue arrive APRÈS la
+    // mesure, ce nettoyage doit rejouer.
+  }, [housePreview, houseInfo, houseLidar, selectedId, points, mapLoaded])
 
   // Met à jour la source GeoJSON quand la liste de points ou le filtre change
   // OU quand la carte devient prête (évite le 1er rendu manqué si les points

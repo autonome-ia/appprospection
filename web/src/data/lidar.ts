@@ -53,12 +53,8 @@ const MIN_COVERAGE = 0.55 // part de l'emprise vue par les pans
 
 export type LidarStatut = 'ok' | 'faible_confiance' | 'grand_batiment' | 'no_data' | 'error'
 
-export interface LidarPan {
-  type: 'principal' | 'secondaire' | 'plat'
-  pente_deg: number
-  azimut_deg: number
-  m2: number
-}
+export type { LidarPan } from '../domain/house'
+import type { LidarPan } from '../domain/house'
 
 export interface LidarResult {
   toit_lidar_statut: LidarStatut
@@ -227,6 +223,133 @@ function mergePans(pts: Pt[], pans: RawPan[]): void {
   }
 }
 
+// --- Contour d'un pan (dessin sur l'ortho) --------------------------------------
+// Cellules du pan -> frontière de l'union des carrés (traçage d'arêtes
+// orientées, intérieur à gauche) -> plus grande boucle -> lissage.
+
+function traceOutline(cells: Set<string>): [number, number][] | null {
+  // Arêtes orientées dont le côté opposé est vide, chaînées bout à bout.
+  const edges = new Map<string, [number, number]>() // départ "x:y" -> arrivée
+  const has = (x: number, y: number) => cells.has(`${x}:${y}`)
+  for (const k of cells) {
+    const [x, y] = k.split(':').map(Number)
+    if (!has(x, y - 1)) edges.set(`${x}:${y}`, [x + 1, y]) // bas
+    if (!has(x + 1, y)) edges.set(`${x + 1}:${y}`, [x + 1, y + 1]) // droite
+    if (!has(x, y + 1)) edges.set(`${x + 1}:${y + 1}`, [x, y + 1]) // haut
+    if (!has(x - 1, y)) edges.set(`${x}:${y + 1}`, [x, y]) // gauche
+  }
+  // Boucles fermées ; on garde la plus grande (les miettes et trous = bruit).
+  let best: [number, number][] | null = null
+  let bestArea = 0
+  const visited = new Set<string>()
+  for (const start of edges.keys()) {
+    if (visited.has(start)) continue
+    const ring: [number, number][] = []
+    let key = start
+    while (!visited.has(key)) {
+      visited.add(key)
+      const [x, y] = key.split(':').map(Number)
+      ring.push([x, y])
+      const next = edges.get(key)
+      if (!next) break
+      key = `${next[0]}:${next[1]}`
+    }
+    if (ring.length < 4) continue
+    let area = 0
+    for (let i = 0; i < ring.length; i++) {
+      const [x1, y1] = ring[i]
+      const [x2, y2] = ring[(i + 1) % ring.length]
+      area += x1 * y2 - x2 * y1
+    }
+    area = Math.abs(area) / 2
+    if (area > bestArea) {
+      bestArea = area
+      best = ring
+    }
+  }
+  return best
+}
+
+// Douglas-Peucker sur une polyligne OUVERTE.
+function dpOpen(line: [number, number][], eps: number): [number, number][] {
+  if (line.length <= 2) return line
+  const keep = new Array<boolean>(line.length).fill(false)
+  keep[0] = true
+  keep[line.length - 1] = true
+  const stack: [number, number][] = [[0, line.length - 1]]
+  while (stack.length) {
+    const [a, b] = stack.pop()!
+    if (b - a < 2) continue
+    const [ax, ay] = line[a]
+    const [bx, by] = line[b]
+    const len = Math.hypot(bx - ax, by - ay) || 1
+    let worst = -1
+    let worstD = eps
+    for (let i = a + 1; i < b; i++) {
+      const d = Math.abs((bx - ax) * (ay - line[i][1]) - (ax - line[i][0]) * (by - ay)) / len
+      if (d > worstD) {
+        worstD = d
+        worst = i
+      }
+    }
+    if (worst >= 0) {
+      keep[worst] = true
+      stack.push([a, worst], [worst, b])
+    }
+  }
+  return line.filter((_, i) => keep[i])
+}
+
+// Simplification d'un ANNEAU fermé : DP direct s'effondre (corde dégénérée
+// premier = dernier point) — on coupe l'anneau au point le plus éloigné du
+// départ et on simplifie les deux moitiés ouvertes.
+function simplify(ring: [number, number][], eps: number): [number, number][] {
+  if (ring.length <= 5) return ring
+  const open = ring.slice(0, -1)
+  let far = 1
+  let farD = -1
+  for (let i = 1; i < open.length; i++) {
+    const d = Math.hypot(open[i][0] - open[0][0], open[i][1] - open[0][1])
+    if (d > farD) {
+      farD = d
+      far = i
+    }
+  }
+  const a = dpOpen(open.slice(0, far + 1), eps)
+  const b = dpOpen(open.slice(far).concat([open[0]]), eps)
+  return a.concat(b.slice(1))
+}
+
+/** Contour lissé du pan en lng/lat (fermé), + centroïde pour l'étiquette. */
+function panShape(
+  cells: Set<string>,
+): { contour: [number, number][]; centre: [number, number] } | null {
+  const raw = traceOutline(cells)
+  if (!raw || raw.length < 4) return null
+  // grille -> mètres L93, boucle fermée, puis lissage (les marches de 0,5 m
+  // dévient d'au plus ~0,35 m de la diagonale qu'elles approximent).
+  const meters = raw.map(([x, y]) => [x * CELL, y * CELL] as [number, number])
+  meters.push(meters[0])
+  const smooth = simplify(meters, 0.55)
+  if (smooth.length < 4) return null
+  let cx = 0
+  let cy = 0
+  for (const [x, y] of smooth.slice(0, -1)) {
+    cx += x
+    cy += y
+  }
+  cx /= smooth.length - 1
+  cy /= smooth.length - 1
+  const round = ([lng, lat]: [number, number]): [number, number] => [
+    Math.round(lng * 1e6) / 1e6,
+    Math.round(lat * 1e6) / 1e6,
+  ]
+  return {
+    contour: smooth.map(([x, y]) => round(fromL93(x, y))),
+    centre: round(fromL93(cx, cy)),
+  }
+}
+
 interface Measure {
   pans: LidarPan[]
   total: number
@@ -241,7 +364,12 @@ function measureRoof(pts: Pt[], ring: Ring): Measure {
   // le RANSAC ne laissent que des lignes clairsemées le long des murs.
   const outsideMin = Math.min(6, Math.max(2, Math.round(0.4 * density * CELL * CELL)))
   const used = new Set<string>()
-  const metrics: { slopeDeg: number; azimutDeg: number; realDedup: number }[] = []
+  const metrics: {
+    slopeDeg: number
+    azimutDeg: number
+    realDedup: number
+    freshCells: Set<string>
+  }[] = []
   for (const pan of pans) {
     const [a, b] = pan.plane
     const slope = Math.atan(Math.hypot(a, b))
@@ -283,18 +411,20 @@ function measureRoof(pts: Pt[], ring: Ring): Measure {
     for (const k of added) cells.add(k)
     if (cells.size * CELL * CELL < MIN_PAN_M2) continue
     // Déduplication entre pans : deux plans superposés en XY (multi-niveaux)
-    // ne comptent la même surface au sol qu'une fois.
-    let fresh = 0
+    // ne comptent la même surface au sol qu'une fois. Les cellules propres au
+    // pan servent aussi à dessiner son contour (pans sans chevauchement).
+    const freshCells = new Set<string>()
     for (const c of cells) {
       if (!used.has(c)) {
         used.add(c)
-        fresh++
+        freshCells.add(c)
       }
     }
     metrics.push({
       slopeDeg: (slope * 180) / Math.PI,
       azimutDeg: ((Math.atan2(-b, -a) * 180) / Math.PI + 360) % 360,
-      realDedup: (fresh * CELL * CELL) / Math.cos(slope),
+      realDedup: (freshCells.size * CELL * CELL) / Math.cos(slope),
+      freshCells,
     })
   }
   // Typage des pans : plat / principal (plus grand pan incliné ± 8°) / secondaire.
@@ -314,11 +444,13 @@ function measureRoof(pts: Pt[], ring: Ring): Measure {
           : 'secondaire'
     total += m.realDedup
     if (type === 'principal') totalPrincipal += m.realDedup
+    const shape = panShape(m.freshCells)
     out.push({
       type,
       pente_deg: Math.round(m.slopeDeg),
       azimut_deg: Math.round(m.azimutDeg),
       m2: Math.round(m.realDedup),
+      ...(shape ?? {}),
     })
   }
   return {

@@ -3,7 +3,7 @@ import type { MapPoint, Profile } from '../domain/types'
 import type { PointStatus } from '../domain/status'
 
 const COLS =
-  'id, lng, lat, status, notes, client_name, address, revisit_at, annee_construction, mat_toit, mat_toit_confirme, toit_surface_m2, dpe_classe, enriched_at, toit_lidar_m2, toit_lidar_principal_m2, toit_lidar_statut, toit_lidar_millesime, toit_lidar_version'
+  'id, lng, lat, status, notes, client_name, address, revisit_at, annee_construction, mat_toit, mat_toit_confirme, toit_surface_m2, dpe_classe, enriched_at, toit_lidar_m2, toit_lidar_principal_m2, toit_lidar_statut, toit_lidar_millesime, toit_lidar_version, toit_lidar_pans'
 
 /** Détail complet d'un point (panneau au clic). */
 export interface PointDetail extends MapPoint {
@@ -33,6 +33,7 @@ function rowToPoint(r: Record<string, unknown>): MapPoint {
     toit_lidar_statut: (r.toit_lidar_statut as string | null) ?? null,
     toit_lidar_millesime: (r.toit_lidar_millesime as string | null) ?? null,
     toit_lidar_version: (r.toit_lidar_version as number | null) ?? null,
+    toit_lidar_pans: (r.toit_lidar_pans as MapPoint['toit_lidar_pans']) ?? null,
   }
 }
 
