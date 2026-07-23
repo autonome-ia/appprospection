@@ -55,7 +55,8 @@ const fromL93 = (x: number, y: number): [number, number] =>
 // que la fiche puisse décider d'un re-calcul sans charger ce chunk.
 import { LIDAR_VERSION } from '../domain/house'
 
-const BUFFER_M = 0.8 // débords de toit au-delà du mur
+const BUFFER_M = 0.8 // débords de toit au-delà du mur (collecte des points)
+const OVERHANG_M = 0.5 // débord DESSINÉ : silhouette du toit au-delà des murs
 const MIN_POINTS = 100 // en deçà : canopée totale ou maison post-survol
 const MAX_EMPRISE_M2 = 350 // au-delà : bloc collectif fusionné par la BD TOPO
 const MIN_COVERAGE = 0.55 // part de l'emprise vue par les pans
@@ -413,12 +414,13 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
   const m = measureRoof(pts, building.ring)
   const statut: LidarStatut = m.coverage < MIN_COVERAGE ? 'faible_confiance' : 'ok'
 
-  // Reconstruction JOINTIVE (partition de l'emprise, frontières partagées) ;
-  // repli pan par pan sur l'ancienne vectorisation (enveloppe morphologique)
-  // si une région est dégénérée. Rendu en L93 mètres -> lng/lat + centroïde.
+  // Reconstruction JOINTIVE et rectiligne (silhouette = emprise décalée du
+  // débord) ; repli pan par pan sur l'ancienne vectorisation (enveloppe
+  // morphologique) si une région est dégénérée.
   const recon = reconstructRoof(
     m.pans.map((p) => ({ plane: p.plane, counts: p.counts })),
     building.ring,
+    OVERHANG_M,
   )
   const shapes = m.pans.map((p, i) => {
     const r = recon?.[i]
