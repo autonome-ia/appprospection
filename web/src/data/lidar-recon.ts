@@ -265,17 +265,33 @@ function walkForward(w: RingWalk, t0: number, t1: number): [number, number][] {
   return clean
 }
 
-/** Arc du périmètre entre deux points, côté le plus proche d'un point témoin. */
+/**
+ * Arc du périmètre entre deux points. Le BON côté est d'abord celui dont la
+ * longueur correspond à la frontière brute (l'arc du mauvais côté fait le
+ * tour du bâtiment — polygone 3,7× la région — ou coupe au court, audit
+ * danton130/rouget-isle) ; le point témoin ne départage que l'ambigu.
+ */
 function boundaryArc(
   w: RingWalk,
   from: [number, number],
   to: [number, number],
   witness: [number, number],
+  expectedLen: number,
 ): [number, number][] {
   const a = projectToWalk(w, from[0], from[1])
   const b = projectToWalk(w, to[0], to[1])
   const fwd = walkForward(w, a.t, b.t)
   const bwd = walkForward(w, b.t, a.t).reverse()
+  const len = (pts: [number, number][]): number => {
+    let s = 0
+    for (let i = 0; i < pts.length - 1; i++) {
+      s += Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1])
+    }
+    return s
+  }
+  const sf = Math.abs(len(fwd) - expectedLen)
+  const sb = Math.abs(len(bwd) - expectedLen)
+  if (Math.abs(sf - sb) > 0.25 * Math.max(expectedLen, 2)) return sf < sb ? fwd : bwd
   const mid = (pts: [number, number][]): [number, number] => pts[Math.floor(pts.length / 2)]
   const df = Math.hypot(mid(fwd)[0] - witness[0], mid(fwd)[1] - witness[1])
   const db = Math.hypot(mid(bwd)[0] - witness[0], mid(bwd)[1] - witness[1])
@@ -536,6 +552,68 @@ export function reconstructRoof(
       absorbed.add(i)
       absorbedPairs.push([i, best])
       changed = true
+    }
+  }
+
+  // Régions MONO-BLOC : un pan ne dessine qu'un polygone. Les lobes
+  // secondaires d'une région (créés par le remplissage par vagues et les
+  // absorptions) faisaient échouer la garde d'aire de tout le pan → repli
+  // enveloppe → voiles et trous (audit : danton130, rouget-isle). Chaque lobe
+  // non principal est réaffecté au voisin le plus en contact.
+  let lobesMoved = true
+  let lobeRounds = 0
+  while (lobesMoved && lobeRounds++ < 4) {
+    lobesMoved = false
+    for (let i = 0; i < pans.length; i++) {
+      const cells = regions[i]
+      if (cells.size < 2) continue
+      const seen = new Set<string>()
+      const comps: string[][] = []
+      for (const seed of [...cells].sort()) {
+        if (seen.has(seed)) continue
+        const comp: string[] = []
+        const stack = [seed]
+        seen.add(seed)
+        while (stack.length) {
+          const k = stack.pop()!
+          comp.push(k)
+          const [x, y] = k.split(':').map(Number)
+          for (const nk of [`${x + 1}:${y}`, `${x - 1}:${y}`, `${x}:${y + 1}`, `${x}:${y - 1}`]) {
+            if (cells.has(nk) && !seen.has(nk)) {
+              seen.add(nk)
+              stack.push(nk)
+            }
+          }
+        }
+        comps.push(comp)
+      }
+      if (comps.length <= 1) continue
+      comps.sort((a, b) => b.length - a.length || (a[0] < b[0] ? -1 : 1))
+      for (let c = 1; c < comps.length; c++) {
+        const contact = new Map<number, number>()
+        for (const k of comps[c]) {
+          const [x, y] = k.split(':').map(Number)
+          for (const nk of [`${x + 1}:${y}`, `${x - 1}:${y}`, `${x}:${y + 1}`, `${x}:${y - 1}`]) {
+            const l = labels.get(nk)
+            if (l !== undefined && l !== i) contact.set(l, (contact.get(l) ?? 0) + 1)
+          }
+        }
+        let best = -1
+        let bestN = 0
+        for (const [l, n] of contact) {
+          if (n > bestN || (n === bestN && l < best)) {
+            bestN = n
+            best = l
+          }
+        }
+        if (best < 0) continue // lobe isolé : conservé (rare, sans meilleur foyer)
+        for (const k of comps[c]) {
+          labels.set(k, best)
+          regions[best].add(k)
+          cells.delete(k)
+        }
+        lobesMoved = true
+      }
     }
   }
 
@@ -803,7 +881,16 @@ export function reconstructRoof(
         const mid = ch.raw[Math.floor(ch.raw.length / 2)]
         const witness: [number, number] = [mid[0] * CELL, mid[1] * CELL]
         const isLoop = Math.hypot(to[0] - from[0], to[1] - from[1]) < 1e-6
-        const arc = isLoop ? outline : boundaryArc(walk, from, to, witness)
+        // Boucle sans jonction : le contour n'est le polygone ENTIER que si
+        // la région le remplit vraiment — une poche collée au bord sans coin
+        // triple prenait tout le bâtiment (181 m² pour 49, audit rouget).
+        const fillsOutline =
+          isLoop && regions[i].size * CELL * CELL >= 0.8 * ringArea(outline)
+        const arc = isLoop
+          ? fillsOutline
+            ? outline
+            : simplify(ch.raw, 0.9).map(([x, y]) => [x * CELL, y * CELL] as [number, number])
+          : boundaryArc(walk, from, to, witness, (ch.raw.length - 1) * CELL)
         // Dernier point exclu : c'est la jonction de départ de la chaîne
         // suivante (ou le doublon de fermeture du polygone complet).
         for (let v = 0; v < arc.length - 1; v++) {
@@ -848,7 +935,12 @@ export function reconstructRoof(
     // Garde de cohérence : le polygone doit couvrir ~ la surface de sa région.
     const polyArea = ringArea(contour)
     const cellArea = cells.size * CELL * CELL
-    if (polyArea < 0.5 * cellArea || polyArea > 2.2 * cellArea) return null
+    if (polyArea < 0.5 * cellArea || polyArea > 2.2 * cellArea) {
+      debug?.(
+        `pan ${i} : garde d'aire (polygone ${polyArea.toFixed(0)} m² vs région ${cellArea.toFixed(0)} m²)`,
+      )
+      return null
+    }
     return { contour, alts }
   }
 

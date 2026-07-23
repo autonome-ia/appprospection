@@ -97,8 +97,13 @@ export interface HouseEnrichment {
  *      série de captures briac) ne forment plus un « pan » unique en deux
  *      morceaux qui rendait le dessin chaotique. Pontage rayon 2 (les toits
  *      à points épars ne se sur-découpent pas), composante minimale 12 m².
+ * v15 : régions MONO-BLOC (les lobes secondaires d'une région rejoignent le
+ *      voisin le plus en contact — la garde d'aire ne fait plus échouer tout
+ *      le pan), arcs extérieurs choisis par LONGUEUR attendue, et une boucle
+ *      sans jonction ne prend le polygone entier que si elle le remplit.
+ *      Banc : 15/23 → 21/23 maisons réelles propres.
  */
-export const LIDAR_VERSION = 14
+export const LIDAR_VERSION = 15
 
 /** Un pan de toiture mesuré (stocké en jsonb sur le point). */
 export interface LidarPan {
