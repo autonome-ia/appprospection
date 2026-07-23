@@ -59,6 +59,18 @@ const MIN_POINTS = 100 // en deçà : canopée totale ou maison post-survol
 const MAX_EMPRISE_M2 = 350 // au-delà : bloc collectif fusionné par la BD TOPO
 const MIN_COVERAGE = 0.55 // part de l'emprise vue par les pans
 
+// Réseau mobile : sans délai maximal, un fetch qui pend laisse le badge
+// « mesure du toit… » pulser indéfiniment ET coince la promesse dans le cache
+// par coordonnées (plus aucun retry possible de la session). Chaque requête a
+// son timeout, et la mesure entière un garde-fou -> verdict `error`
+// (re-tentable, circuit existant).
+const FETCH_TIMEOUT_MS = 20_000
+const MEASURE_TIMEOUT_MS = 60_000
+
+function fetchT(url: string, init?: RequestInit): Promise<Response> {
+  return fetch(url, { ...init, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+}
+
 export type LidarStatut = 'ok' | 'faible_confiance' | 'grand_batiment' | 'no_data' | 'error'
 
 export type { LidarPan } from '../domain/house'
@@ -129,7 +141,7 @@ async function wfsBatiment(filter: string): Promise<Record<string, unknown> | nu
     outputFormat: 'application/json',
     CQL_FILTER: filter,
   })
-  const r = await fetch(`https://data.geopf.fr/wfs/ows?${params.toString()}`)
+  const r = await fetchT(`https://data.geopf.fr/wfs/ows?${params.toString()}`)
   if (!r.ok) throw new Error(`WFS bâtiment ${r.status}`)
   return (await r.json()) as Record<string, unknown>
 }
@@ -212,7 +224,7 @@ async function fetchDalles(bb: Bbox): Promise<{ url: string; acquisition: string
     BBOX: `${w},${s},${e},${n},CRS:84`,
     outputFormat: 'application/json',
   })
-  const r = await fetch(`https://data.geopf.fr/wfs/ows?${params.toString()}`)
+  const r = await fetchT(`https://data.geopf.fr/wfs/ows?${params.toString()}`)
   if (!r.ok) throw new Error(`WFS dalle LiDAR ${r.status}`)
   const j = (await r.json()) as {
     features?: { properties?: { url?: string; metadata?: string } }[]
@@ -237,7 +249,7 @@ const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms))
 function makeGetter(url: string): (begin: number, end: number) => Promise<Uint8Array> {
   return async (begin, end) => {
     for (let attempt = 0; ; attempt++) {
-      const r = await fetch(url, { headers: { Range: `bytes=${begin}-${end - 1}` } })
+      const r = await fetchT(url, { headers: { Range: `bytes=${begin}-${end - 1}` } })
       if (r.ok || r.status === 206) return new Uint8Array(await r.arrayBuffer())
       if (r.status !== 429 || attempt >= 5) throw new Error(`LiDAR Range ${r.status}`)
       await sleep(500 * 2 ** attempt)
@@ -287,7 +299,14 @@ async function collectRoofPoints(
   }
   const dalles = await fetchDalles(bb)
   if (!dalles.length) return { pts: [], millesime: null }
-  const millesime = dalles[0].acquisition
+  // Maison à cheval sur 2 dalles d'acquisitions différentes : afficher le
+  // survol le plus récent (dates ISO, tri lexicographique suffisant).
+  const millesime =
+    dalles
+      .map((d) => d.acquisition)
+      .filter((a): a is string => a !== null)
+      .sort()
+      .at(-1) ?? null
 
   const pts: Pt[] = []
   for (const { url } of dalles) {
@@ -347,6 +366,18 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
       toit_lidar_millesime: null,
     }
   }
+  const emprise = ringArea(building.ring)
+  if (emprise > MAX_EMPRISE_M2) {
+    // Polygone BD TOPO = bloc collectif entier : la fiche n'affiche rien pour
+    // ce verdict, inutile de télécharger 2-3 Mo pour mesurer tout le bloc.
+    return {
+      toit_lidar_statut: 'grand_batiment',
+      toit_lidar_m2: null,
+      toit_lidar_principal_m2: null,
+      toit_lidar_pans: null,
+      toit_lidar_millesime: null,
+    }
+  }
   const { pts, millesime } = await collectRoofPoints(building.ring, building.neighbors)
   if (pts.length < MIN_POINTS) {
     // Canopée totale, maison construite après le survol, ou zone non couverte :
@@ -359,14 +390,8 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
       toit_lidar_millesime: millesime,
     }
   }
-  const emprise = ringArea(building.ring)
   const m = measureRoof(pts, building.ring)
-  const statut: LidarStatut =
-    emprise > MAX_EMPRISE_M2
-      ? 'grand_batiment'
-      : m.coverage < MIN_COVERAGE
-        ? 'faible_confiance'
-        : 'ok'
+  const statut: LidarStatut = m.coverage < MIN_COVERAGE ? 'faible_confiance' : 'ok'
   const pans: LidarPan[] = m.pans.map((p) => {
     const shape = panShape(p.freshCells)
     return {
@@ -387,8 +412,15 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
 }
 
 async function computeSafe(lng: number, lat: number): Promise<LidarResult> {
+  let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    return await computeLidar(lng, lat)
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`Mesure LiDAR : délai dépassé (${MEASURE_TIMEOUT_MS / 1000} s)`)),
+        MEASURE_TIMEOUT_MS,
+      )
+    })
+    return await Promise.race([computeLidar(lng, lat), deadline])
   } catch (e) {
     console.error('Mesure LiDAR :', e)
     return {
@@ -398,6 +430,8 @@ async function computeSafe(lng: number, lat: number): Promise<LidarResult> {
       toit_lidar_pans: null,
       toit_lidar_millesime: null,
     }
+  } finally {
+    clearTimeout(timer)
   }
 }
 
