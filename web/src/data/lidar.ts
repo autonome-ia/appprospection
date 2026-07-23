@@ -575,30 +575,12 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
   }
 }
 
-// Une seule mesure en vol par maison (la fiche peut se rouvrir pendant le calcul).
-const inFlight = new Map<string, Promise<LidarResult>>()
-
-/**
- * Mesure la toiture du point et met le résultat en cache définitif sur la
- * ligne `points` (best effort, comme l'enrichissement). En cas d'erreur
- * réseau, le statut `error` est enregistré : la prochaine ouverture de la
- * fiche re-tentera.
- */
-export function measurePointRoof(pointId: string, lng: number, lat: number): Promise<LidarResult> {
-  const hit = inFlight.get(pointId)
-  if (hit) return hit
-  const p = run(pointId, lng, lat).finally(() => inFlight.delete(pointId))
-  inFlight.set(pointId, p)
-  return p
-}
-
-async function run(pointId: string, lng: number, lat: number): Promise<LidarResult> {
-  let result: LidarResult
+async function computeSafe(lng: number, lat: number): Promise<LidarResult> {
   try {
-    result = await computeLidar(lng, lat)
+    return await computeLidar(lng, lat)
   } catch (e) {
     console.error('Mesure LiDAR :', e)
-    result = {
+    return {
       toit_lidar_statut: 'error',
       toit_lidar_m2: null,
       toit_lidar_principal_m2: null,
@@ -606,6 +588,38 @@ async function run(pointId: string, lng: number, lat: number): Promise<LidarResu
       toit_lidar_millesime: null,
     }
   }
+}
+
+// Cache mémoire par coordonnées (~1 m), comme la fiche enrichie : consulter
+// une maison PUIS poser le point ne télécharge et ne calcule qu'une fois.
+const coordCache = new Map<string, Promise<LidarResult>>()
+
+/** Mesure de la toiture d'une maison consultée (sans point posé, sans écriture). */
+export function fetchHouseLidar(lng: number, lat: number): Promise<LidarResult> {
+  const key = `${lng.toFixed(5)},${lat.toFixed(5)}`
+  const hit = coordCache.get(key)
+  if (hit) return hit
+  const p = computeSafe(lng, lat)
+  coordCache.set(key, p)
+  // Une erreur réseau doit pouvoir être retentée à la prochaine consultation.
+  void p.then((r) => {
+    if (r.toit_lidar_statut === 'error') coordCache.delete(key)
+  })
+  return p
+}
+
+/**
+ * Mesure la toiture du point et met le résultat en cache définitif sur la
+ * ligne `points` (best effort, comme l'enrichissement). En cas d'erreur
+ * réseau, le statut `error` est enregistré : la prochaine ouverture de la
+ * fiche re-tentera.
+ */
+export async function measurePointRoof(
+  pointId: string,
+  lng: number,
+  lat: number,
+): Promise<LidarResult> {
+  const result = await fetchHouseLidar(lng, lat)
   if (supabase) {
     const { error } = await supabase
       .from('points')

@@ -4,6 +4,7 @@ import { StatusPicker } from './StatusPicker'
 import { HouseBadges } from './HouseBadges'
 import type { PointStatus } from '../domain/status'
 import type { HouseInfo } from '../data/enrich'
+import type { LidarResult } from '../data/lidar'
 
 interface Props {
   open: boolean
@@ -11,6 +12,8 @@ interface Props {
   address: string | null
   /** Infos maison, null pendant le chargement. */
   info: HouseInfo | null
+  /** Mesure LiDAR de la toiture, null pendant le calcul. */
+  lidar: LidarResult | null
   activeStatus: PointStatus
   onStatusChange: (s: PointStatus) => void
   onOpenChange: (open: boolean) => void
@@ -27,11 +30,13 @@ export function HousePreviewSheet({
   open,
   address,
   info,
+  lidar,
   activeStatus,
   onStatusChange,
   onOpenChange,
   onPose,
 }: Props) {
+  const lidarOk = lidar?.toit_lidar_statut === 'ok'
   const hasInfo =
     info !== null &&
     (info.annee_construction !== null ||
@@ -63,11 +68,14 @@ export function HousePreviewSheet({
 
           {info === null ? (
             <p className="house-loading">Recherche des informations…</p>
-          ) : hasInfo ? (
+          ) : hasInfo || lidar !== null ? (
             <HouseBadges
               annee={info.annee_construction}
               matCode={info.mat_toit}
               toitM2={info.toit_surface_m2}
+              lidarM2={lidarOk ? lidar.toit_lidar_m2 : null}
+              lidarMillesime={lidarOk ? lidar.toit_lidar_millesime : null}
+              lidarPending={lidar === null}
               dpe={info.dpe_classe}
             />
           ) : (
@@ -83,7 +91,7 @@ export function HousePreviewSheet({
             </button>
           </div>
 
-          <p className="data-attribution">Données IGN BD TOPO · BDNB (CSTB)</p>
+          <p className="data-attribution">Données IGN (BD TOPO, LiDAR HD) · BDNB (CSTB)</p>
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>

@@ -9,6 +9,9 @@ interface Props {
   /** Surface MESURÉE au LiDAR (statut ok uniquement) : remplace l'estimation. */
   lidarM2?: number | null
   lidarMillesime?: string | null
+  /** Mesure en cours : on n'affiche PAS l'estimation en attendant (pas de
+      « flash » estimation → mesure, retour briac). */
+  lidarPending?: boolean
   dpe: string | null
 }
 
@@ -20,10 +23,19 @@ export function HouseBadges({
   toitM2,
   lidarM2,
   lidarMillesime,
+  lidarPending,
   dpe,
 }: Props) {
   const matToit = matToitLabel(matCode)
-  if (annee === null && !matToit && !matConfirme && toitM2 === null && lidarM2 == null && !dpe)
+  if (
+    annee === null &&
+    !matToit &&
+    !matConfirme &&
+    toitM2 === null &&
+    lidarM2 == null &&
+    !lidarPending &&
+    !dpe
+  )
     return null
 
   return (
@@ -60,6 +72,10 @@ export function HouseBadges({
           })`}
         >
           {lidarM2} m² toit
+        </span>
+      ) : lidarPending ? (
+        <span className="house-badge is-pending" title="Mesure de la toiture au laser en cours">
+          mesure du toit…
         </span>
       ) : toitM2 !== null ? (
         <span className="house-badge tnum" title="Estimation : emprise au sol × pente (altitudes IGN)">

@@ -61,8 +61,10 @@ export function PointDetailSheet({
   // chantier, ou point d'un autre commercial dont le cache RLS a échoué).
   const [liveEnrich, setLiveEnrich] = useState<HouseEnrichment | null>(null)
   // Mesure LiDAR calculée à la volée (backfill des points anciens, ou re-mesure
-  // après montée de version de l'algo).
+  // après montée de version de l'algo). Pendant le calcul, l'estimation n'est
+  // PAS affichée (badge « mesure… » à la place — pas de flash, retour briac).
   const [liveLidar, setLiveLidar] = useState<LidarResult | null>(null)
+  const [lidarPending, setLidarPending] = useState(false)
 
   useEffect(() => {
     if (!point) return
@@ -75,6 +77,7 @@ export function PointDetailSheet({
     setHistory([])
     setLiveEnrich(null)
     setLiveLidar(null)
+    setLidarPending(false)
     // Point en cours d'enregistrement (id temporaire, pose optimiste) : pas
     // encore de détail ni de journal en base.
     if (!isSupabaseConfigured || point.id.startsWith('temp-')) return
@@ -91,13 +94,19 @@ export function PointDetailSheet({
     }
     // Mesure LiDAR : backfill paresseux (points anciens, erreurs à re-tenter,
     // montée de version de l'algo). Chunk séparé, chargé à la demande.
+    // Pour un point qui vient d'être posé, le calcul est déjà en vol
+    // (data/points.ts) : le cache par coordonnées fait qu'on s'y greffe.
     if (lidarNeedsMeasure(point)) {
+      setLidarPending(true)
       void import('../data/lidar')
         .then((m) => m.measurePointRoof(point.id, point.lng, point.lat))
         .then((r) => {
           if (active) setLiveLidar(r)
         })
         .catch((e) => console.error('Mesure LiDAR :', e))
+        .finally(() => {
+          if (active) setLidarPending(false)
+        })
     }
     getPointDetail(point.id)
       .then((d) => {
@@ -260,6 +269,7 @@ export function PointDetailSheet({
             toitM2={toitM2}
             lidarM2={lidarM2}
             lidarMillesime={lidarMillesime}
+            lidarPending={lidarPending && lidarM2 == null}
             dpe={dpe}
           />
 

@@ -245,8 +245,12 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
     paresseusement tous les points).
   - UI : badge `137 m² toit` (style « confirmé », sans ~, title « mesuré au laser… survol
     AAAA ») uniquement si statut `ok` ; tout autre verdict laisse l'estimation actuelle
-    affichée. La fiche AVANT prospection (HousePreviewSheet) garde volontairement
-    l'estimation (pas de téléchargement de 2-3 Mo à chaque consultation sans pose).
+    affichée.
+  - **Retour briac (24/07)** : la mesure s'affiche AUSSI sur la fiche AVANT prospection
+    (tap maison sans point) — cache mémoire par coordonnées : consulter puis poser ne
+    télécharge qu'une fois. Et **plus de « flash » estimation → mesure** : pendant le
+    calcul, badge « mesure du toit… » pulsé à la place de l'estimation ; l'estimation ne
+    s'affiche que si le verdict n'est pas `ok`.
   - **Gate G0 terrain** : le chef des ventes tape ses chantiers passés (backfill immédiat à
     l'ouverture de la fiche) et compare aux factures. Écart systématique → recalibrage +
     bump de version.

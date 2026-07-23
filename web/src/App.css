@@ -1320,6 +1320,17 @@
   color: var(--accent);
   font-weight: 600;
 }
+/* Mesure LiDAR en cours : discret et pulsé — l'estimation n'est pas montrée
+   en attendant (pas de flash estimation → mesure). */
+.house-badge.is-pending {
+  color: var(--ink-3);
+  animation: badge-pulse 1.3s ease-in-out infinite;
+}
+@keyframes badge-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
 .house-badge.dpe {
   color: #ffffff;
   border-color: transparent;

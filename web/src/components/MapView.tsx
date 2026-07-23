@@ -18,6 +18,7 @@ import { PointDetailSheet } from './PointDetailSheet'
 import { HousePreviewSheet } from './HousePreviewSheet'
 import { reverseGeocode } from '../data/points'
 import type { HouseInfo } from '../data/enrich'
+import type { LidarResult } from '../data/lidar'
 import { AddressSearch } from './AddressSearch'
 import { AppointmentForm } from './AppointmentForm'
 import { Layers, Box, Plus, SlidersHorizontal } from 'lucide-react'
@@ -120,6 +121,8 @@ export function MapView({
   const [housePreview, setHousePreview] = useState<{ lng: number; lat: number } | null>(null)
   const [houseInfo, setHouseInfo] = useState<HouseInfo | null>(null)
   const [houseAddress, setHouseAddress] = useState<string | null>(null)
+  // Mesure LiDAR de la maison consultée (cache mémoire côté data/lidar).
+  const [houseLidar, setHouseLidar] = useState<LidarResult | null>(null)
 
   // Le handler de clic lit toujours les dernières valeurs via des refs.
   const selectedIdRef = useRef(selectedId)
@@ -540,17 +543,27 @@ export function MapView({
     if (!housePreview) {
       setHouseInfo(null)
       setHouseAddress(null)
+      setHouseLidar(null)
       return
     }
     let alive = true
     setHouseInfo(null)
     setHouseAddress(null)
+    setHouseLidar(null)
     void import('../data/enrich')
       .then((m) => m.fetchHouseInfo(housePreview.lng, housePreview.lat))
       .then((info) => {
         if (alive) setHouseInfo(info)
       })
       .catch((e) => console.error('Fiche maison :', e))
+    // Mesure LiDAR en parallèle (chunk séparé, cache par coordonnées : poser
+    // le point après consultation réutilise ce calcul).
+    void import('../data/lidar')
+      .then((m) => m.fetchHouseLidar(housePreview.lng, housePreview.lat))
+      .then((r) => {
+        if (alive) setHouseLidar(r)
+      })
+      .catch((e) => console.error('Mesure LiDAR :', e))
     void reverseGeocode(housePreview.lng, housePreview.lat).then((label) => {
       if (alive && label) setHouseAddress(label)
     })
@@ -852,6 +865,7 @@ export function MapView({
           open
           address={houseAddress}
           info={houseInfo}
+          lidar={houseLidar}
           activeStatus={activeStatus}
           onStatusChange={setActiveStatus}
           onOpenChange={(o) => !o && setHousePreview(null)}
