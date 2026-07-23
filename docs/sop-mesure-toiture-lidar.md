@@ -178,3 +178,28 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
      lignes de vol (56 pts/m² à Mions) : les seuils fixes doivent devenir relatifs (phase 1).
   Scripts : `validate-lyon.mjs` (validation de masse contre Lyon), `diag-lyon.mjs`
   (pente implicite des pans lyonnais). Le Gate G0 sur factures reste le juge de paix.
+- **24/07/2026 — Phase 1 (durcissement algo) : cœur livré.** Refonte de `lib.mjs` :
+  1. **RANSAC déterministe** (LCG seedé) : mêmes points → même mesure, toujours.
+  2. **Seuils adaptatifs à la densité locale** (10-56 pts/m² selon le recouvrement des vols) :
+     inliers minimum ≈ 2,5 m² de toit à la densité mesurée ; filtre façade hors emprise
+     proportionnel à la densité.
+  3. **Fusion des pans sur-segmentés** (plans quasi parallèles à < 5° et < 0,35 m d'écart) —
+     fin des pans fantômes dupliqués.
+  4. **Fermeture morphologique** de la grille (cellule vide entourée d'occupées = trou
+     d'échantillonnage) → le biais négatif est corrigé : **banc synthétique à ±1,9 % max,
+     dispersion nulle**.
+  5. **Exclusion des bâtiments voisins** (mitoyens/garages : WFS DWITHIN 25 m, points dans
+     leur polygone rejetés sans tampon).
+  6. **Ventilation par pan** : `plat` (< 7°) / `principal` (plus grand pan incliné ± 8°) /
+     `secondaire` — sortie `totalPrincipal` (la donnée couvreur) en plus du total.
+  7. **Rate-limit IGN découvert et géré** : la parallélisation naïve prend des **HTTP 429**
+     → concurrence plafonnée à 4 + retries backoff + 1,5 s entre maisons dans les scripts
+     de masse. ⚠️ À reporter en phase 2 (Edge Function : file d'attente + cache).
+  Résultats après durcissement : **médiane vs cadastre Lyon 40 % → 15 %** (l'estimation
+  actuelle de l'app fait 34 % au même étalon — on est déjà 2× meilleurs) ; lotissement ZH
+  rentré dans le rang (-3/+9 % sauf une maison à +22 %, extension probable) ; Lesneven :
+  126 m² (croupe 40° + annexe plate), 184 m² (bâtière 47°), 146 m² (croupe 34°, 4 points
+  orphelins) en 3,4-5,5 s et ~2,3 Mo par maison.
+  **Reste pour le Gate G1** : jeu de test élargi (10-15 maisons variées : véranda, mitoyen
+  réel, végétation dense, toit plat résidentiel) + re-calibrage éventuel après le Gate G0
+  (factures). Les valeurs ci-dessus sont les références de non-régression.

@@ -56,6 +56,8 @@ console.log(`${candidates.length} maisons candidates — test sur ${N_HOUSES}\n`
 
 const results = []
 for (const c of candidates.slice(0, N_HOUSES)) {
+  // ménage le rate-limit IGN entre deux maisons
+  await new Promise((res) => setTimeout(res, 1500))
   let out = ''
   try {
     out = execFileSync('node', ['spike.mjs', String(c.lon), String(c.lat)], {

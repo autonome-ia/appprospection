@@ -1,11 +1,26 @@
 // Fonctions de mesure partagées entre spike.mjs (données réelles) et
 // bench.mjs (banc synthétique) — le banc doit tester EXACTEMENT ce code.
+//
+// Phase 1 : RANSAC déterministe (seed), seuils adaptatifs à la densité locale
+// (10-56 pts/m² observés selon le recouvrement des lignes de vol), fusion des
+// pans sur-segmentés, fermeture morphologique (corrige le biais des cellules
+// vides), ventilation par pan (principal / secondaire / plat / annexe).
 
 export const RANSAC_VERT_TOL = 0.15 // tolérance verticale d'appartenance à un plan (m)
-export const MAX_PANS = 10
+export const MAX_PANS = 12
 export const MIN_PAN_M2 = 3 // aire projetée minimale d'un pan retenu
 export const MAX_SLOPE_DEG = 65 // au-delà : mur / artefact, pas un pan de toit
 export const CELL = 0.5 // grille d'occupation (m)
+export const FLAT_SLOPE_DEG = 7 // en deçà : toit plat/terrasse
+
+// --- RNG déterministe (LCG) : mêmes points -> même mesure, toujours. --------
+function makeRng(seed) {
+  let s = seed >>> 0
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0
+    return s / 4294967296
+  }
+}
 
 // --- Géométrie 2D -------------------------------------------------------------
 export function pointInRing(px, py, ring) {
@@ -31,7 +46,7 @@ export function distToRing(px, py, ring) {
   return best
 }
 
-// --- RANSAC de plans z = ax + by + c -------------------------------------------
+// --- Ajustement de plans z = ax + by + c ----------------------------------------
 export function fitPlane3(p1, p2, p3) {
   const [x1, y1, z1] = p1
   const [x2, y2, z2] = p2
@@ -65,17 +80,30 @@ export function refinePlane(pts, idx) {
   return [a, b, mz - a * mx - b * my]
 }
 
+const maxTan = () => Math.tan((MAX_SLOPE_DEG * Math.PI) / 180)
+
+/** Densité locale (pts/m²) estimée par l'occupation de la grille. */
+export function localDensity(pts) {
+  const cells = new Set()
+  for (const [x, y] of pts) cells.add(`${Math.floor(x / CELL)}:${Math.floor(y / CELL)}`)
+  return cells.size ? pts.length / (cells.size * CELL * CELL) : 0
+}
+
 export function segmentPans(pts) {
+  const rng = makeRng(42) // déterministe : mêmes points -> mêmes pans
+  const density = localDensity(pts)
+  // seuil d'inliers ≈ 2,5 m² de toit à la densité locale (plancher 20 pts)
+  const minInliers = Math.max(20, Math.round(2.5 * density))
   let remaining = pts.map((_, i) => i)
   const pans = []
-  while (remaining.length >= 40 && pans.length < MAX_PANS) {
+  while (remaining.length >= minInliers && pans.length < MAX_PANS) {
     let best = null
     for (let iter = 0; iter < 400; iter++) {
-      const s = [0, 0, 0].map(() => remaining[(Math.random() * remaining.length) | 0])
+      const s = [0, 0, 0].map(() => remaining[(rng() * remaining.length) | 0])
       const plane = fitPlane3(pts[s[0]], pts[s[1]], pts[s[2]])
       if (!plane) continue
+      if (Math.hypot(plane[0], plane[1]) > maxTan()) continue
       const [a, b, c] = plane
-      if (Math.hypot(a, b) > Math.tan((MAX_SLOPE_DEG * Math.PI) / 180)) continue
       const inliers = []
       for (const i of remaining) {
         const [x, y, z] = pts[i]
@@ -83,30 +111,71 @@ export function segmentPans(pts) {
       }
       if (!best || inliers.length > best.inliers.length) best = { plane, inliers }
     }
-    if (!best || best.inliers.length < 40) break
+    if (!best || best.inliers.length < minInliers) break
     const refined = refinePlane(pts, best.inliers) ?? best.plane
-    const [a, b, c] = refined
-    if (Math.hypot(a, b) <= Math.tan((MAX_SLOPE_DEG * Math.PI) / 180)) {
+    if (Math.hypot(refined[0], refined[1]) <= maxTan()) {
+      const [a, b, c] = refined
       const inliers = remaining.filter(
         (i) => Math.abs(pts[i][2] - (a * pts[i][0] + b * pts[i][1] + c)) < RANSAC_VERT_TOL,
       )
-      if (inliers.length >= 40) best = { plane: refined, inliers }
+      if (inliers.length >= minInliers) best = { plane: refined, inliers }
     }
     pans.push(best)
     const taken = new Set(best.inliers)
     remaining = remaining.filter((i) => !taken.has(i))
   }
-  return { pans, leftover: remaining.length }
+  mergePans(pts, pans)
+  return { pans, leftover: remaining.length, density }
 }
 
-export function panMetrics(pts, pan, ring) {
+/**
+ * Fusion des pans sur-segmentés : deux « pans » dont les plans sont quasi
+ * parallèles (< 5°) ET quasi confondus (écart vertical < 0,35 m au centroïde)
+ * sont le même pan physique coupé en deux par la tolérance RANSAC.
+ */
+function mergePans(pts, pans) {
+  const normal = ([a, b]) => {
+    const n = Math.hypot(a, b, 1)
+    return [-a / n, -b / n, 1 / n]
+  }
+  const centroid = (pan) => {
+    let sx = 0, sy = 0, sz = 0
+    for (const i of pan.inliers) {
+      sx += pts[i][0]; sy += pts[i][1]; sz += pts[i][2]
+    }
+    const n = pan.inliers.length
+    return [sx / n, sy / n, sz / n]
+  }
+  let merged = true
+  while (merged) {
+    merged = false
+    outer: for (let i = 0; i < pans.length; i++) {
+      for (let j = i + 1; j < pans.length; j++) {
+        const ni = normal(pans[i].plane)
+        const nj = normal(pans[j].plane)
+        const dot = ni[0] * nj[0] + ni[1] * nj[1] + ni[2] * nj[2]
+        if (dot < Math.cos((5 * Math.PI) / 180)) continue
+        const [cx, cy, cz] = centroid(pans[j])
+        const [a, b, c] = pans[i].plane
+        if (Math.abs(cz - (a * cx + b * cy + c)) > 0.35) continue
+        pans[i].inliers = pans[i].inliers.concat(pans[j].inliers)
+        pans[i].plane = refinePlane(pts, pans[i].inliers) ?? pans[i].plane
+        pans.splice(j, 1)
+        merged = true
+        break outer
+      }
+    }
+  }
+}
+
+export function panMetrics(pts, pan, ring, density) {
   const [a, b] = pan.plane
   const slope = Math.atan(Math.hypot(a, b))
-  // Comptage de points par cellule. Les cellules HORS emprise murale (zone
-  // de débord) doivent contenir ≥ 2 points : un vrai débord de toit est
-  // aussi dense que le toit, alors que les points de FAÇADE tranchés par le
-  // RANSAC ne laissent que des lignes clairsemées le long des murs — c'était
-  // la source d'une sur-mesure proportionnelle au périmètre (vu à Mions).
+  // Cellules du pan. Hors emprise murale (zone de débord), on exige une
+  // densité minimale : un vrai débord est aussi dense que le toit, les
+  // tranches de FAÇADE découpées par le RANSAC ne laissent que des lignes
+  // clairsemées (source d'une sur-mesure au périmètre, vue à Mions).
+  const outsideMin = Math.min(6, Math.max(2, Math.round(0.4 * density * CELL * CELL)))
   const counts = new Map()
   for (const i of pan.inliers) {
     const k = `${Math.floor(pts[i][0] / CELL)}:${Math.floor(pts[i][1] / CELL)}`
@@ -114,7 +183,7 @@ export function panMetrics(pts, pan, ring) {
   }
   const cells = new Set()
   for (const [k, n] of counts) {
-    if (n >= 2) {
+    if (n >= outsideMin) {
       cells.add(k)
       continue
     }
@@ -122,9 +191,32 @@ export function panMetrics(pts, pan, ring) {
     const [cx, cy] = k.split(':').map(Number)
     if (pointInRing((cx + 0.5) * CELL, (cy + 0.5) * CELL, ring)) cells.add(k)
   }
+  // Fermeture morphologique : une cellule vide entourée d'occupées est un
+  // trou d'échantillonnage (~5 % des cellules à 12 pts/m²), pas un vrai trou.
+  const added = []
+  for (const k of cells) {
+    const [cx, cy] = k.split(':').map(Number)
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        if (!dx && !dy) continue
+        const nk = `${cx + dx}:${cy + dy}`
+        if (cells.has(nk)) continue
+        let occ = 0
+        for (let ex = -1; ex <= 1; ex++) {
+          for (let ey = -1; ey <= 1; ey++) {
+            if (!ex && !ey) continue
+            if (cells.has(`${cx + dx + ex}:${cy + dy + ey}`)) occ++
+          }
+        }
+        if (occ >= 5) added.push(nk)
+      }
+    }
+  }
+  for (const k of added) cells.add(k)
   const projected = cells.size * CELL * CELL
+  const slopeDeg = (slope * 180) / Math.PI
   return {
-    slopeDeg: (slope * 180) / Math.PI,
+    slopeDeg,
     azimutDeg: ((Math.atan2(-b, -a) * 180) / Math.PI + 360) % 360,
     projected,
     real: projected / Math.cos(slope),
@@ -134,19 +226,19 @@ export function panMetrics(pts, pan, ring) {
 }
 
 /**
- * Mesure complète : pans filtrés + total.
- * Le total DÉDUPLIQUE les cellules de grille entre pans : deux plans
- * superposés en XY (toit multi-niveaux, sur-segmentation) ne comptent
- * la même surface au sol qu'une fois — chaque cellule est attribuée au
- * premier pan (le plus gros) qui la contient.
+ * Mesure complète. Le total DÉDUPLIQUE les cellules entre pans (toits
+ * multi-niveaux). Chaque pan est typé : `plat` (< 7°), `principal` (le plus
+ * grand pan incliné et ceux de pente comparable — le toit à couvrir) ou
+ * `secondaire` (annexes, appentis). `totalPrincipal` = surface du toit
+ * principal seul, la donnée la plus utile au couvreur.
  */
 export function measureRoof(pts, ring) {
-  const { pans, leftover } = segmentPans(pts)
+  const { pans, leftover, density } = segmentPans(pts)
   const kept = []
   let total = 0
   const used = new Set()
   for (const pan of pans) {
-    const m = panMetrics(pts, pan, ring)
+    const m = panMetrics(pts, pan, ring, density)
     if (m.projected < MIN_PAN_M2) continue
     let fresh = 0
     for (const c of m.cells) {
@@ -159,5 +251,18 @@ export function measureRoof(pts, ring) {
     kept.push(m)
     total += m.realDedup
   }
-  return { pans: kept, leftover, total }
+  // Typage : pans plats vs inclinés ; parmi les inclinés, le plus grand et
+  // ceux de pente voisine (±8°) forment le toit principal.
+  const pitched = kept.filter((m) => m.slopeDeg >= FLAT_SLOPE_DEG)
+  const mainSlope = pitched.length
+    ? pitched.reduce((a, b) => (a.realDedup > b.realDedup ? a : b)).slopeDeg
+    : null
+  let totalPrincipal = 0
+  for (const m of kept) {
+    if (m.slopeDeg < FLAT_SLOPE_DEG) m.type = 'plat'
+    else if (mainSlope != null && Math.abs(m.slopeDeg - mainSlope) <= 8) m.type = 'principal'
+    else m.type = 'secondaire'
+    if (m.type === 'principal') totalPrincipal += m.realDedup
+  }
+  return { pans: kept, leftover, total, totalPrincipal, density }
 }

@@ -58,6 +58,30 @@ async function fetchBuilding() {
   return { ring, props: f.properties ?? {} }
 }
 
+// Bâtiments voisins accolés (mitoyens, garages du voisin) : leurs points ne
+// doivent pas entrer dans notre mesure via le tampon de débord.
+async function fetchNeighbors(cleabs) {
+  const params = new URLSearchParams({
+    SERVICE: 'WFS',
+    VERSION: '2.0.0',
+    REQUEST: 'GetFeature',
+    TYPENAMES: 'BDTOPO_V3:batiment',
+    COUNT: '10',
+    outputFormat: 'application/json',
+    CQL_FILTER: `DWITHIN(geometrie,POINT(${lat} ${lon}),25,meters)`,
+  })
+  const r = await fetch(`https://data.geopf.fr/wfs/ows?${params}`)
+  if (!r.ok) return []
+  const feats = (await r.json()).features ?? []
+  return feats
+    .filter((f) => f.properties?.cleabs !== cleabs)
+    .map((f) => {
+      const g = f.geometry
+      const outer = g.type === 'Polygon' ? g.coordinates[0] : g.coordinates[0]?.[0]
+      return outer.map(([x, y]) => toL93(x, y))
+    })
+}
+
 // Estimation actuelle de l'app (emprise / cos(pente)) pour comparaison.
 function currentEstimate(ring, p) {
   let area = 0
@@ -115,15 +139,39 @@ async function fetchDalles(bbL93) {
 }
 
 // --- 3. Lecture COPC streamée -------------------------------------------------
+// Le service IGN limite le débit (429 constaté quand on parallélise sans
+// retenue) : concurrence plafonnée + retries avec backoff exponentiel.
 let bytesFetched = 0
+const sleep = (ms) => new Promise((res) => setTimeout(res, ms))
+
 function makeGetter(url) {
   return async (begin, end) => {
-    const r = await fetch(url, { headers: { Range: `bytes=${begin}-${end - 1}` } })
-    if (!r.ok && r.status !== 206) throw new Error(`Range ${r.status}`)
-    const buf = new Uint8Array(await r.arrayBuffer())
-    bytesFetched += buf.length
-    return buf
+    for (let attempt = 0; ; attempt++) {
+      const r = await fetch(url, { headers: { Range: `bytes=${begin}-${end - 1}` } })
+      if (r.ok || r.status === 206) {
+        const buf = new Uint8Array(await r.arrayBuffer())
+        bytesFetched += buf.length
+        return buf
+      }
+      if (r.status !== 429 || attempt >= 5) throw new Error(`Range ${r.status}`)
+      await sleep(500 * 2 ** attempt)
+    }
   }
+}
+
+/** Exécute des tâches async avec au plus `limit` en parallèle. */
+async function pAll(thunks, limit = 4) {
+  const results = new Array(thunks.length)
+  let next = 0
+  await Promise.all(
+    Array.from({ length: Math.min(limit, thunks.length) }, async () => {
+      while (next < thunks.length) {
+        const i = next++
+        results[i] = await thunks[i]()
+      }
+    }),
+  )
+  return results
 }
 
 function nodeBounds(cube, key) {
@@ -142,6 +190,7 @@ function nodeBounds(cube, key) {
 // --- main -----------------------------------------------------------------------
 const t0 = Date.now()
 const { ring, props } = await fetchBuilding()
+const neighbors = await fetchNeighbors(props.cleabs)
 const { emprise, estimation } = currentEstimate(ring, props)
 console.log(`Bâtiment BD TOPO : emprise ${emprise.toFixed(0)} m², hauteur ${props.hauteur ?? '?'} m, toit ${props.materiaux_de_la_toiture ?? '?'}`)
 console.log(`Estimation ACTUELLE de l'app : ~${Math.round(estimation / 5) * 5} m²`)
@@ -187,8 +236,12 @@ for (const { url } of dalles) {
   await walk(copc.info.rootHierarchyPage)
   console.log(`  nœuds COPC utiles dans ${url.split('/').pop()} : ${allNodes.length}`)
 
-  for (const { node } of allNodes) {
-    const view = await Copc.loadPointDataView(get, copc, node)
+  // Lecture parallèle des nœuds, plafonnée (le service IGN renvoie 429 sinon).
+  const views = await pAll(
+    allNodes.map(({ node }) => () => Copc.loadPointDataView(get, copc, node)),
+    4,
+  )
+  for (const view of views) {
     const gx = view.getter('X')
     const gy = view.getter('Y')
     const gz = view.getter('Z')
@@ -200,9 +253,16 @@ for (const { url } of dalles) {
       const cls = gc(i)
       classCounts[cls] = (classCounts[cls] ?? 0) + 1
       if (cls !== 6) continue
-      if (pointInRing(x, y, ring) || distToRing(x, y, ring) <= BUFFER_M) {
-        pts.push([x, y, gz(i)])
+      if (!pointInRing(x, y, ring) && distToRing(x, y, ring) > BUFFER_M) continue
+      // point du toit du voisin accolé ? (mitoyens : exclu, sans tampon)
+      let neighbor = false
+      for (const nring of neighbors) {
+        if (pointInRing(x, y, nring)) {
+          neighbor = true
+          break
+        }
       }
+      if (!neighbor) pts.push([x, y, gz(i)])
     }
   }
 }
@@ -213,16 +273,18 @@ if (pts.length < 100) {
   process.exit(1)
 }
 
-const { pans, leftover, total } = measureRoof(pts, ring)
+const { pans, leftover, total, totalPrincipal, density } = measureRoof(pts, ring)
+console.log(`Densité locale : ${density.toFixed(1)} pts/m²`)
 console.log('\nPans détectés :')
 for (const m of pans) {
   console.log(
-    `  pente ${m.slopeDeg.toFixed(1).padStart(5)}° | azimut ${m.azimutDeg.toFixed(0).padStart(3)}° | ` +
-      `proj ${m.projected.toFixed(1).padStart(6)} m² | réel ${m.real.toFixed(1).padStart(6)} m² | ${m.n} pts`,
+    `  [${m.type.padEnd(10)}] pente ${m.slopeDeg.toFixed(1).padStart(5)}° | azimut ${m.azimutDeg.toFixed(0).padStart(3)}° | ` +
+      `réel ${m.realDedup.toFixed(1).padStart(6)} m² | ${m.n} pts`,
   )
 }
 console.log(`  (points non affectés à un pan : ${leftover})`)
 console.log(`\n=== SURFACE TOITURE MESURÉE : ${total.toFixed(0)} m² ===`)
+console.log(`    dont toit principal       : ${totalPrincipal.toFixed(0)} m²`)
 console.log(`    vs estimation actuelle    : ~${Math.round(estimation / 5) * 5} m²`)
 console.log(`    vs emprise au sol         : ${emprise.toFixed(0)} m²`)
 console.log(`\n${(bytesFetched / 1024).toFixed(0)} Ko téléchargés · ${((Date.now() - t0) / 1000).toFixed(1)} s`)
