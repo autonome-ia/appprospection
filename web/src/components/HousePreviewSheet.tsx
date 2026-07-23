@@ -2,6 +2,7 @@ import { Drawer } from 'vaul'
 import { X, Home } from 'lucide-react'
 import { StatusPicker } from './StatusPicker'
 import { HouseBadges } from './HouseBadges'
+import { Roof3D } from './Roof3D'
 import type { PointStatus } from '../domain/status'
 import type { HouseInfo } from '../data/enrich'
 import type { LidarResult } from '../data/lidar'
@@ -81,6 +82,8 @@ export function HousePreviewSheet({
           ) : (
             <p className="house-loading">Pas d’informations pour ce bâtiment.</p>
           )}
+
+          {lidarOk && lidar.toit_lidar_pans && <Roof3D pans={lidar.toit_lidar_pans} />}
 
           <p className="eyebrow field-label">Poser un point</p>
           <StatusPicker active={activeStatus} onChange={onStatusChange} />

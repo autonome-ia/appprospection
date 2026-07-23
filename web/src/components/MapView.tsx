@@ -11,6 +11,7 @@ import {
 } from '../config/map'
 import { generateMarkerImages, MARKER_PREFIX, NOTE_SUFFIX } from '../config/markers'
 import { createClusterBadge, type ClusterProps } from '../config/clusters'
+import { PAN_COLORS } from '../domain/colors'
 import { toast } from 'sonner'
 import { STATUSES, STATUS_BY_VALUE, statusColorExpression, type PointStatus } from '../domain/status'
 import { StatusPicker } from './StatusPicker'
@@ -40,9 +41,6 @@ const HOUSE_LINE_LAYER = 'house-preview-line'
 const PANS_SRC = 'lidar-pans'
 const PANS_FILL_LAYER = 'lidar-pans-fill'
 const PANS_LINE_LAYER = 'lidar-pans-line'
-// Palette des pans (harmonisée DA : teintes franches mais posées, lisibles en
-// aplat translucide sur l'ortho comme sur le plan).
-const PAN_COLORS = ['#2f6bff', '#e8913a', '#1fa294', '#8b6fe8', '#d96a9b', '#5aa845']
 const NO_ID = '__none__'
 // Couleur de la DA (même valeur que --accent dans index.css : MapLibre ne
 // lit pas les variables CSS).

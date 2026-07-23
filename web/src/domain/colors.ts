@@ -18,3 +18,8 @@ export function colorForCommercial(id: string, explicit?: string | null): string
   if (explicit) return explicit
   return PALETTE[hash(id) % PALETTE.length]
 }
+
+// Palette des pans de toiture mesurés (harmonisée DA : teintes franches mais
+// posées) — partagée entre le dessin sur l'ortho (MapView) et la maquette 3D
+// de la fiche (Roof3D), pour que « le pan orange » soit le même partout.
+export const PAN_COLORS = ['#2f6bff', '#e8913a', '#1fa294', '#8b6fe8', '#d96a9b', '#5aa845']

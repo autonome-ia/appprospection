@@ -1347,6 +1347,58 @@
   white-space: nowrap;
   pointer-events: none;
 }
+
+/* Maquette 3D du toit mesuré (fiche maison) */
+.roof3d-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.roof3d-btn:active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.roof3d {
+  margin-top: 4px;
+}
+.roof3d-canvas {
+  position: relative;
+  height: 240px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  overflow: hidden;
+  touch-action: none;
+}
+.roof3d-canvas canvas {
+  display: block;
+}
+.roof3d-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.92);
+}
+.roof3d-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.roof3d-legend .pan-chip {
+  box-shadow: none;
+}
 .house-badge.dpe {
   color: #ffffff;
   border-color: transparent;

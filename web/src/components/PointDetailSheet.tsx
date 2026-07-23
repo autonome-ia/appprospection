@@ -2,10 +2,22 @@ import { useEffect, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
 import { X, Trash2, Clock, User, MapPin } from 'lucide-react'
-import { getPointDetail, fetchPointNotes, type PointDetail, type PointNote } from '../data/points'
-import { CONFIRMED_MAT_OPTIONS, lidarNeedsMeasure, type HouseEnrichment } from '../domain/house'
+import {
+  getPointDetail,
+  fetchPointNotes,
+  fetchPointPans,
+  type PointDetail,
+  type PointNote,
+} from '../data/points'
+import {
+  CONFIRMED_MAT_OPTIONS,
+  lidarNeedsMeasure,
+  type HouseEnrichment,
+  type LidarPan,
+} from '../domain/house'
 import type { LidarResult } from '../data/lidar'
 import { HouseBadges } from './HouseBadges'
+import { Roof3D } from './Roof3D'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { STATUSES, STATUS_BY_VALUE, type PointStatus } from '../domain/status'
 import type { MapPoint } from '../domain/types'
@@ -65,6 +77,9 @@ export function PointDetailSheet({
   // PAS affichée (badge « mesure… » à la place — pas de flash, retour briac).
   const [liveLidar, setLiveLidar] = useState<LidarResult | null>(null)
   const [lidarPending, setLidarPending] = useState(false)
+  // Pans du toit (contours + altitudes) : hors du SELECT global des points,
+  // récupérés à la demande pour la maquette 3D (cache côté data/points).
+  const [cachedPans, setCachedPans] = useState<LidarPan[] | null>(null)
 
   useEffect(() => {
     if (!point) return
@@ -78,6 +93,7 @@ export function PointDetailSheet({
     setLiveEnrich(null)
     setLiveLidar(null)
     setLidarPending(false)
+    setCachedPans(null)
     // Point en cours d'enregistrement (id temporaire, pose optimiste) : pas
     // encore de détail ni de journal en base.
     if (!isSupabaseConfigured || point.id.startsWith('temp-')) return
@@ -107,6 +123,15 @@ export function PointDetailSheet({
         .finally(() => {
           if (active) setLidarPending(false)
         })
+    }
+    // Pans pour la maquette 3D (seulement si une mesure fiable est en cache —
+    // le cas re-mesure est couvert par liveLidar, qui prime à l'affichage).
+    if (point.toit_lidar_statut === 'ok') {
+      fetchPointPans(point.id)
+        .then((ps) => {
+          if (active) setCachedPans(ps)
+        })
+        .catch((e) => console.error('Pans du point :', e))
     }
     getPointDetail(point.id)
       .then((d) => {
@@ -215,6 +240,9 @@ export function PointDetailSheet({
   const lidarMillesime = liveLidar
     ? liveLidar.toit_lidar_millesime
     : (point.toit_lidar_millesime ?? null)
+  // Maquette 3D : la re-mesure fraîche prime sur les pans du cache.
+  const lidarPans =
+    lidarStatut === 'ok' ? (liveLidar ? liveLidar.toit_lidar_pans : cachedPans) : null
   const hasHouseInfo = annee !== null || matCode !== null || toitM2 !== null || dpe !== null
 
   return (
@@ -281,6 +309,8 @@ export function PointDetailSheet({
             lidarPending={lidarPending && lidarM2 == null}
             dpe={dpe}
           />
+
+          {lidarPans && <Roof3D pans={lidarPans} />}
 
           {status === 'a_revoir' && (
             <>
