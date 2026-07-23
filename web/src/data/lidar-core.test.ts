@@ -198,6 +198,19 @@ describe('measureRoof (banc synthétique)', () => {
     expect(gap(azimuts[0], azimuts[1])).toBeGreaterThanOrEqual(175) // opposés
   })
 
+  it('plan ajusté : bâtière 40° → gradient ≈ tan(40°) porté par l’axe nord', () => {
+    // Le plan z = ax + by + c de chaque pan sert d'altitude à la maquette 3D :
+    // faîtage est-ouest → a ≈ 0 et |b| ≈ tan(pente).
+    const c = makeGableRoof(11, 7, 0.4, 40, 3)
+    const m = measureRoof(c.pts, c.ring)
+    const tan40 = Math.tan((40 * Math.PI) / 180)
+    for (const p of m.pans.filter((x) => x.type !== 'plat')) {
+      const [a, b] = p.plane
+      expect(Math.abs(a)).toBeLessThanOrEqual(0.05)
+      expect(Math.abs(Math.abs(b) - tan40)).toBeLessThanOrEqual(0.05)
+    }
+  })
+
   it('toit plat : un pan unique typé plat, couverture pleine', () => {
     const c = makeFlatRoof(20, 15, 4)
     const m = measureRoof(c.pts, c.ring)

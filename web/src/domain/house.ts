@@ -60,8 +60,10 @@ export interface HouseEnrichment {
  *      garde de cohérence (pas de dessin si le polygone couvre < 60 % du pan).
  * v5 : azimut_deg passe en azimut BOUSSOLE (0 = nord, 90 = est) — les versions
  *      précédentes stockaient un angle mathématique depuis l'est (audit).
+ * v6 : altitude de chaque sommet de contour (`alts`, relatif à la gouttière la
+ *      plus basse) — alimente la maquette 3D du toit dans la fiche.
  */
-export const LIDAR_VERSION = 5
+export const LIDAR_VERSION = 6
 
 /** Un pan de toiture mesuré (stocké en jsonb sur le point). */
 export interface LidarPan {
@@ -73,6 +75,9 @@ export interface LidarPan {
   contour?: [number, number][]
   /** Point d'ancrage de l'étiquette (lng/lat). */
   centre?: [number, number]
+  /** Altitude (m) de chaque sommet du contour, relative au point le plus bas
+      du toit — pour la maquette 3D (absente sur les mesures < v6). */
+  alts?: number[]
 }
 
 /** La mesure LiDAR du point est-elle absente, périmée ou à re-tenter ? */

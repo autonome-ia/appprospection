@@ -29,6 +29,7 @@ import {
   ringArea,
   simplify,
   traceOutline,
+  type Plane,
   type Pt,
   type Ring,
 } from './lidar-core'
@@ -84,10 +85,15 @@ export interface LidarResult {
   toit_lidar_millesime: string | null
 }
 
-/** Contour lissé du pan en lng/lat (fermé), + centroïde pour l'étiquette. */
+/**
+ * Contour lissé du pan en lng/lat (fermé), + centroïde pour l'étiquette,
+ * + altitude ABSOLUE de chaque sommet sur le plan du pan (normalisée ensuite
+ * en relatif par computeLidar — sert à la maquette 3D de la fiche).
+ */
 function panShape(
   cells: Set<string>,
-): { contour: [number, number][]; centre: [number, number] } | null {
+  plane: Plane,
+): { contour: [number, number][]; centre: [number, number]; alts: number[] } | null {
   // Enveloppe pleine (rayon 2 ≈ pontage des trous jusqu'à ~1 m) puis contour.
   const traced = traceOutline(closeCells(cells, 2))
   if (!traced || traced.ring.length < 4) return null
@@ -117,9 +123,11 @@ function panShape(
     Math.round(lng * 1e6) / 1e6,
     Math.round(lat * 1e6) / 1e6,
   ]
+  const [a, b, c] = plane
   return {
     contour: smooth.map(([x, y]) => round(fromL93(x, y))),
     centre: round(fromL93(cx, cy)),
+    alts: smooth.map(([x, y]) => a * x + b * y + c),
   }
 }
 
@@ -392,14 +400,25 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
   }
   const m = measureRoof(pts, building.ring)
   const statut: LidarStatut = m.coverage < MIN_COVERAGE ? 'faible_confiance' : 'ok'
-  const pans: LidarPan[] = m.pans.map((p) => {
-    const shape = panShape(p.freshCells)
+  const shapes = m.pans.map((p) => panShape(p.freshCells, p.plane))
+  // Altitudes relatives à la gouttière la plus basse du toit (0 = point le
+  // plus bas dessiné) : suffisant pour la maquette 3D, et des petits nombres
+  // dans le jsonb.
+  const zMin = Math.min(...shapes.flatMap((s) => s?.alts ?? []))
+  const pans: LidarPan[] = m.pans.map((p, i) => {
+    const shape = shapes[i]
     return {
       type: p.type,
       pente_deg: Math.round(p.slopeDeg),
       azimut_deg: Math.round(p.azimutDeg),
       m2: Math.round(p.realDedup),
-      ...(shape ?? {}),
+      ...(shape
+        ? {
+            contour: shape.contour,
+            centre: shape.centre,
+            alts: shape.alts.map((z) => Math.round((z - zMin) * 10) / 10),
+          }
+        : {}),
     }
   })
   return {

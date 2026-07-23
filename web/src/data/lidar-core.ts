@@ -48,7 +48,7 @@ export function ringArea(ring: Ring): number {
 }
 
 // --- Plans z = ax + by + c ------------------------------------------------------
-type Plane = [number, number, number]
+export type Plane = [number, number, number]
 
 function fitPlane3(p1: Pt, p2: Pt, p3: Pt): Plane | null {
   const det = (p1[0] - p3[0]) * (p2[1] - p3[1]) - (p2[0] - p3[0]) * (p1[1] - p3[1])
@@ -337,6 +337,9 @@ export interface PanMetrics {
   realDedup: number
   /** Cellules propres au pan (servent au dessin de son contour). */
   freshCells: Set<string>
+  /** Plan ajusté z = ax + by + c (coordonnées L93/altitude absolues) —
+      sert à donner une altitude aux sommets du contour (maquette 3D). */
+  plane: Plane
 }
 
 export interface RoofMeasure {
@@ -413,6 +416,7 @@ export function measureRoof(pts: Pt[], ring: Ring): RoofMeasure {
       azimutDeg: ((Math.atan2(-a, -b) * 180) / Math.PI + 360) % 360,
       realDedup: (freshCells.size * CELL * CELL) / Math.cos(slope),
       freshCells,
+      plane: pan.plane,
     })
   }
   // Typage des pans : plat / principal (plus grand pan incliné ± 8°) / secondaire.
