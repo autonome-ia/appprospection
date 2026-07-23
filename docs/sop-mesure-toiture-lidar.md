@@ -418,6 +418,22 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
     plusieurs polygones BD TOPO (rue en bande, le voisin ne couvre que 54 % de son
     emprise), et facture incluant probablement ~10 % de chutes (143 facturé ≈ 130
     géométrique → écart réel ~−7 %).
+- **25/07/2026 (nuit) — Campagne d'audit multi-agents + passe v13.** Workflow de
+  8 agents : banc d'invariants géométriques (`web/src/data/geo-audit.test.ts`, rejoué à
+  chaque `npm run test`), **21 fixtures réelles** (4 communes, dont les étalons
+  Menez-Kermadec / Rouget-de-l'Isle / Danton / Deschard des captures briac),
+  non-régression **Lyon rejouée sur v12 : aucune dérive** (pavillons 9,1 = réf.,
+  mitoyens 8,7 =, boisés 16,3 =, toits plats AMÉLIORÉS 5,1 vs 12,6) — la mesure n'a
+  pas bougé pendant toutes les refontes du dessin. 5 familles de défauts identifiées,
+  4 corrigées en **v13** : altitudes bornées au z observé du pan (fin des « voiles »),
+  soudures calculées pour toutes les paires (un pan en repli coupait le corps
+  principal), garde « part inclinée significative », redressement split-and-merge des
+  frontières, corde testée tous les 50 cm + réparation par pan des auto-intersections
+  (la réparation globale dégradait tout le toit — régression attrapée par la fixture
+  Rosa Floch). Audit : 10/20 → 15/21 propres, violations résiduelles bénignes
+  (micro-croisements conservés plutôt que des trous, 1 repli max par toit).
+  Reste ouvert : famille « précision Deschard » (−15 % vs facture — il faut plus de
+  factures ventilées du chef des ventes), voile modérée relecq-10 (1,79).
   - **Décision briac (demande du chef des ventes) : le badge affiche « LA MAISON »,
     pas le grand total.** `LIDAR_VERSION` 10 : `toit_lidar_principal_m2` devient le
     **corps principal par CONNECTIVITÉ** — les pans reliés au plus grand pan incliné
