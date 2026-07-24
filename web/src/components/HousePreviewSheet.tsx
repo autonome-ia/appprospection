@@ -3,6 +3,7 @@ import { X, Home } from 'lucide-react'
 import { StatusPicker } from './StatusPicker'
 import { HouseBadges } from './HouseBadges'
 import { Roof3D } from './Roof3D'
+import { RoofDiagram } from './RoofDiagram'
 import type { PointStatus } from '../domain/status'
 import type { HouseInfo } from '../data/enrich'
 import type { LidarResult } from '../data/lidar'
@@ -89,14 +90,17 @@ export function HousePreviewSheet({
           )}
 
           {lidarOk && lidar.toit_lidar_pans && (
-            <Roof3D
-              roof={lidar.toit_lidar_pans}
-              wastePct={suggestedWastePct(
-                info?.mat_toit ?? null,
-                null,
-                lidar.toit_lidar_pans.aretes,
-              )}
-            />
+            <>
+              <Roof3D
+                roof={lidar.toit_lidar_pans}
+                wastePct={suggestedWastePct(
+                  info?.mat_toit ?? null,
+                  null,
+                  lidar.toit_lidar_pans.aretes,
+                )}
+              />
+              <RoofDiagram roof={lidar.toit_lidar_pans} />
+            </>
           )}
 
           <p className="eyebrow field-label">Poser un point</p>

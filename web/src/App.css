@@ -1498,6 +1498,38 @@
 .roof3d-full .roof3d-edges {
   text-align: center;
 }
+/* Plan coté du toit (SVG vu du dessus, style rapport pro) */
+.roof-diagram {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.roof-diagram svg {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+}
+.roof-diagram-cote {
+  font-family: var(--font-mono);
+  fill: var(--ink);
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 0.35;
+}
+.roof-diagram-pan {
+  font-family: var(--font-mono);
+  fill: #1a1a1a;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.7);
+  stroke-width: 0.3;
+}
+.roof-diagram-north {
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  fill: var(--ink-3);
+}
 .house-badge.dpe {
   color: #ffffff;
   border-color: transparent;

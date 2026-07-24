@@ -19,6 +19,7 @@ import {
 import type { LidarResult } from '../data/lidar'
 import { HouseBadges } from './HouseBadges'
 import { Roof3D } from './Roof3D'
+import { RoofDiagram } from './RoofDiagram'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { STATUSES, STATUS_BY_VALUE, type PointStatus } from '../domain/status'
 import type { MapPoint } from '../domain/types'
@@ -325,10 +326,13 @@ export function PointDetailSheet({
           />
 
           {lidarPans && (
-            <Roof3D
-              roof={lidarPans}
-              wastePct={suggestedWastePct(matCode, point.mat_toit_confirme, lidarPans.aretes)}
-            />
+            <>
+              <Roof3D
+                roof={lidarPans}
+                wastePct={suggestedWastePct(matCode, point.mat_toit_confirme, lidarPans.aretes)}
+              />
+              <RoofDiagram roof={lidarPans} />
+            </>
           )}
 
           {status === 'a_revoir' && (
