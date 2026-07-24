@@ -434,6 +434,23 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
   (micro-croisements conservés plutôt que des trous, 1 repli max par toit).
   Reste ouvert : famille « précision Deschard » (−15 % vs facture — il faut plus de
   factures ventilées du chef des ventes), voile modérée relecq-10 (1,79).
+- **26/07/2026 — v14 à v16 : les grandes maisons de lotissement (2e-3e séries de
+  captures briac : 130 Danton, 8 Menez Kermadec, 24bis Rouget…).** Trois passes sondées
+  sur fixtures réelles :
+  - **v14** `splitDisjointPans` (lidar-core) : deux faces COPLANAIRES d'ailes
+    distinctes ne forment plus un « pan » unique en morceaux (pontage rayon 2 —
+    rayon 1 sur-découpait les toits à points épars, régression Rosa attrapée au banc ;
+    composante min 12 m²). Totaux de mesure inchangés.
+  - **v15** : régions MONO-BLOC (lobes secondaires réaffectés au voisin le plus en
+    contact — la garde d'aire ne fait plus échouer tout le pan), arcs extérieurs
+    choisis par LONGUEUR attendue, boucle sans jonction ≠ polygone entier (rouget :
+    contour de 181 m² pour une région de 49). 15/23 → 21/23.
+  - **v16** : chaînes de 2 coins — le riverain se lit sur les CELLULES bordant
+    l'arête (le « milieu » était la jonction : arête projetée sur la silhouette,
+    contours en vrille — Danton 130). **22/23 propres** ; résidu unique : pseudo-voile
+    1,39 sur un pan quasi plat (artefact de métrique, bénin).
+  Chantiers ouverts : niveau 3 « pans cochables » (exclusion manuelle en RDV),
+  précision Deschard (factures ventilées à collecter).
   - **Décision briac (demande du chef des ventes) : le badge affiche « LA MAISON »,
     pas le grand total.** `LIDAR_VERSION` 10 : `toit_lidar_principal_m2` devient le
     **corps principal par CONNECTIVITÉ** — les pans reliés au plus grand pan incliné
