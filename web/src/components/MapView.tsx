@@ -1047,6 +1047,7 @@ export function MapView({
           pointId={rdvPoint.id}
           coords={{ lng: rdvPoint.lng, lat: rdvPoint.lat }}
           pointNote={rdvPoint.note}
+          defaultClientName={rdvPoint.client_name}
           onSaved={() => setRdvPoint(null)}
         />
       )}

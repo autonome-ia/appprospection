@@ -16,6 +16,9 @@ interface Props {
   coords?: { lng: number; lat: number } | null
   /** Note terrain du point lié (affichée en contexte, non éditable ici). */
   pointNote?: string | null
+  /** Nom client du point lié : pré-rempli à la création (audit UX A5 —
+      la synchro existait dans l'autre sens mais le champ arrivait vide). */
+  defaultClientName?: string | null
   onSaved: () => void
 }
 
@@ -38,11 +41,36 @@ for (let h = 7; h <= 21; h++) {
   if (h < 21) TIME_SLOTS.push(`${pad(h)}:30`)
 }
 
-export function AppointmentForm({ open, onOpenChange, profile, existing, pointId, coords, pointNote, onSaved }: Props) {
+/** Presets de date 1 tap (audit UX A15) — évalués à l'affichage. */
+function DATE_PRESETS(): [string, string][] {
+  const at = (n: number) => {
+    const d = new Date()
+    d.setDate(d.getDate() + n)
+    return toDateInput(d)
+  }
+  const nextSaturday = (6 - new Date().getDay() + 7) % 7 || 7
+  return [
+    ['Demain', at(1)],
+    ['Après-demain', at(2)],
+    ['Samedi', at(nextSaturday)],
+  ]
+}
+
+export function AppointmentForm({
+  open,
+  onOpenChange,
+  profile,
+  existing,
+  pointId,
+  coords,
+  pointNote,
+  defaultClientName,
+  onSaved,
+}: Props) {
   const init = existing ? new Date(existing.scheduled_at) : defaultDate()
   const [dateStr, setDateStr] = useState(toDateInput(init))
   const [timeStr, setTimeStr] = useState(toTimeInput(init))
-  const [clientName, setClientName] = useState(existing?.client_name ?? '')
+  const [clientName, setClientName] = useState(existing?.client_name ?? defaultClientName ?? '')
   const [clientPhone, setClientPhone] = useState(existing?.client_phone ?? '')
   const [address, setAddress] = useState(existing?.address ?? '')
   const [notes, setNotes] = useState(existing?.notes ?? '')
@@ -141,6 +169,20 @@ export function AppointmentForm({ open, onOpenChange, profile, existing, pointId
           </div>
 
           <div className="drawer-body" data-vaul-no-drag>
+          {/* Dates 1 tap (audit UX A15) : la roue iOS reste dispo en dessous
+              pour les autres dates — devant le prospect, 3 cas sur 4 sont là. */}
+          <div className="chip-row date-presets">
+            {DATE_PRESETS().map(([label, value]) => (
+              <button
+                key={label}
+                type="button"
+                className={`chip ${dateStr === value ? 'is-active' : ''}`}
+                onClick={() => setDateStr(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <div className="field-grid">
             <div>
               <p className="eyebrow field-label">Date</p>
