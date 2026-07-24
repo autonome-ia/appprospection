@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import { MapPin, LogOut, ChevronRight, BellRing, Activity } from 'lucide-react'
 import { useSession } from '../lib/session'
@@ -52,10 +52,30 @@ export function AccueilScreen({
 
   const [relances, setRelances] = useState<MapPoint[]>([])
   const [activity, setActivity] = useState<ActivityItem[]>([])
-  useEffect(() => {
-    fetchRelances().then(setRelances).catch((e) => console.error('Relances :', e))
-    fetchRecentActivity().then(setActivity).catch((e) => console.error('Activité :', e))
+  // Échec ≠ sections vides (audit UX A33) : un raté réseau faisait
+  // disparaître relances et feed sans un mot.
+  const [loadError, setLoadError] = useState(false)
+  const load = useCallback(() => {
+    Promise.all([fetchRelances(), fetchRecentActivity()])
+      .then(([r, a]) => {
+        setRelances(r)
+        setActivity(a)
+        setLoadError(false)
+      })
+      .catch((e) => {
+        console.error('Accueil :', e)
+        setLoadError(true)
+      })
   }, [])
+  useEffect(() => {
+    load()
+    // iOS restaure la PWA sans recharger : relances et feed restaient figés.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [load])
 
   return (
     <div className="screen accueil-screen">
@@ -78,6 +98,15 @@ export function AccueilScreen({
           <span className="user-role">{role}</span>
         </div>
       </motion.div>
+
+      {loadError && (
+        <div className="load-error">
+          <span>Impossible de charger les données — vérifiez le réseau.</span>
+          <button type="button" className="text-btn" onClick={load}>
+            Réessayer
+          </button>
+        </div>
+      )}
 
       {relances.length > 0 && (
         <motion.section className="home-section" variants={fade} custom={3} initial="hidden" animate="show">
@@ -112,18 +141,36 @@ export function AccueilScreen({
           <p className="eyebrow section-title">
             <Activity size={12} strokeWidth={2} /> Activité récente
           </p>
-          {activity.map((a) => (
-            <div key={a.id} className="home-row is-static">
-              <span className="status-dot" style={{ background: STATUS_BY_VALUE[a.status].color }} />
-              <span className="home-row-main">
-                <span className="home-row-title">
-                  {(a.author_name ?? 'Équipe').split(/\s/)[0]} · {STATUS_BY_VALUE[a.status].label}
+          {/* Cliquable vers la carte (audit UX A29) — même pattern que les
+              relances juste au-dessus ; ligne inerte si le point a disparu. */}
+          {activity.map((a) => {
+            const inner = (
+              <>
+                <span className="status-dot" style={{ background: STATUS_BY_VALUE[a.status].color }} />
+                <span className="home-row-main">
+                  <span className="home-row-title">
+                    {(a.author_name ?? 'Équipe').split(/\s/)[0]} · {STATUS_BY_VALUE[a.status].label}
+                  </span>
+                  <span className="home-row-sub">{a.client_name ?? a.address ?? ''}</span>
                 </span>
-                <span className="home-row-sub">{a.client_name ?? a.address ?? ''}</span>
-              </span>
-              <span className="home-row-when tnum">{timeAgo(a.occurred_at)}</span>
-            </div>
-          ))}
+                <span className="home-row-when tnum">{timeAgo(a.occurred_at)}</span>
+              </>
+            )
+            return a.point && onShowOnMap ? (
+              <button
+                key={a.id}
+                type="button"
+                className="home-row"
+                onClick={() => onShowOnMap({ pointId: a.point!.id, lng: a.point!.lng, lat: a.point!.lat })}
+              >
+                {inner}
+              </button>
+            ) : (
+              <div key={a.id} className="home-row is-static">
+                {inner}
+              </div>
+            )
+          })}
         </motion.section>
       )}
 
