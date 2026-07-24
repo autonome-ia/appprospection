@@ -364,6 +364,107 @@ function nodeBounds(cube: number[], key: string): Bbox {
 const intersects = (a: Bbox, b: Bbox) =>
   a.maxx >= b.minx && a.minx <= b.maxx && a.maxy >= b.miny && a.miny <= b.maxy
 
+// --- Caches par dalle (porte-à-porte : les maisons successives partagent la
+// même dalle de 1 km²) -----------------------------------------------------------
+// Les fichiers COPC IGN sont IMMUABLES (URL versionnée par livraison) : le
+// cache par URL est sûr par construction.
+//  1. Header + hiérarchie (~125 Ko, 4 requêtes) : refaits à chaque maison
+//     avant — désormais une fois par dalle et par session.
+//  2. Points UTILES par nœud (classes 5/6/67 filtrées ≈ 5-15 % des points,
+//     en Float64Array [x,y,z,classe]) : les nœuds peu profonds de l'octree
+//     (racine ~500 Ko, prof. 1-3) couvrent des centaines de mètres et sont
+//     re-téléchargés ET re-décodés (wasm) pour CHAQUE maison — dès la 2e
+//     maison du quartier, seuls les nœuds feuilles nouveaux sont payés.
+type NodeRef = Parameters<typeof Copc.loadPointDataView>[2]
+
+interface DalleIndex {
+  copc: Awaited<ReturnType<typeof Copc.create>>
+  nodes: Map<string, NodeRef>
+  get: (begin: number, end: number) => Promise<Uint8Array>
+}
+
+const dalleCache = new Map<string, Promise<DalleIndex>>()
+
+function getDalleIndex(url: string): Promise<DalleIndex> {
+  const hit = dalleCache.get(url)
+  if (hit) return hit
+  const p = (async (): Promise<DalleIndex> => {
+    const get = makeGetter(url)
+    const copc = await Copc.create(get)
+    const nodes = new Map<string, NodeRef>()
+    // Hiérarchie COMPLÈTE de la dalle (une page ~60 Ko sur les dalles IGN) :
+    // la sélection par bbox reste faite par maison, sur la table en mémoire.
+    const walk = async (page: NonNullable<Parameters<typeof Copc.loadHierarchyPage>[1]>) => {
+      const { nodes: pageNodes, pages } = await Copc.loadHierarchyPage(get, page)
+      for (const [key, node] of Object.entries(pageNodes)) {
+        if (node?.pointCount) nodes.set(key, node)
+      }
+      for (const subpage of Object.values(pages)) {
+        if (subpage) await walk(subpage)
+      }
+    }
+    await walk(copc.info.rootHierarchyPage)
+    return { copc, nodes, get }
+  })()
+  dalleCache.set(url, p)
+  p.catch(() => dalleCache.delete(url)) // échec réseau : re-tentable
+  return p
+}
+
+// Cache LRU des points utiles par nœud (clé url|nœud), plafonné en octets.
+const NODE_CACHE_MAX_BYTES = 30_000_000
+const nodeCache = new Map<string, Float64Array>()
+let nodeCacheBytes = 0
+
+function nodeCacheGet(key: string): Float64Array | undefined {
+  const hit = nodeCache.get(key)
+  if (hit) {
+    // LRU : re-insertion en fin de Map
+    nodeCache.delete(key)
+    nodeCache.set(key, hit)
+  }
+  return hit
+}
+function nodeCachePut(key: string, arr: Float64Array): void {
+  nodeCache.set(key, arr)
+  nodeCacheBytes += arr.byteLength
+  for (const [k, v] of nodeCache) {
+    if (nodeCacheBytes <= NODE_CACHE_MAX_BYTES) break
+    nodeCache.delete(k)
+    nodeCacheBytes -= v.byteLength
+  }
+}
+
+/**
+ * Points UTILES d'un nœud (classes 5/6/67), décodés une seule fois par
+ * session : quadruplets [x, y, z, classe]. Le filtre est indépendant de la
+ * maison — les filtres bbox/emprise/voisins restent appliqués par maison.
+ */
+async function loadNodeUseful(d: DalleIndex, url: string, key: string): Promise<Float64Array> {
+  const ck = `${url}|${key}`
+  const hit = nodeCacheGet(ck)
+  if (hit) return hit
+  const lazPerf = await getLazPerf()
+  // ⚠ toujours passer { lazPerf } : sans lui, copc.js instancierait un
+  // DEUXIÈME wasm laz-perf.
+  const view = await Copc.loadPointDataView(d.get, d.copc, d.nodes.get(key)!, { lazPerf })
+  const gx = view.getter('X')
+  const gy = view.getter('Y')
+  const gz = view.getter('Z')
+  const gc = view.getter('Classification')
+  const tmp: number[] = []
+  for (let i = 0; i < view.pointCount; i++) {
+    // Classification d'abord : 1 lecture DataView rejette ~85-95 % des
+    // points (sol, végétation basse…) avant de payer x/y/z.
+    const c = gc(i)
+    if (c !== 6 && c !== 5 && c !== 67) continue
+    tmp.push(gx(i), gy(i), gz(i), c)
+  }
+  const arr = new Float64Array(tmp)
+  nodeCachePut(ck, arr)
+  return arr
+}
+
 interface RoofPoints {
   /** Classe 6 « bâtiment » (mesure). */
   pts: Pt[]
@@ -422,44 +523,19 @@ async function collectRoofPoints(ring: Ring, neighbors: Ring[]): Promise<RoofPoi
   // dans l'emprise — GRATUIT, l'attribut Classification est déjà décodé.
   const vegCells = new Set<string>()
   for (const { url } of dalles) {
-    const get = makeGetter(url)
-    const copc = await Copc.create(get)
-    const cube = copc.info.cube
-
-    type NodeRef = Parameters<typeof Copc.loadPointDataView>[2]
-    const nodes: NodeRef[] = []
-    const walk = async (page: NonNullable<Parameters<typeof Copc.loadHierarchyPage>[1]>) => {
-      const { nodes: pageNodes, pages } = await Copc.loadHierarchyPage(get, page)
-      for (const [key, node] of Object.entries(pageNodes)) {
-        if (!node?.pointCount) continue
-        if (intersects(nodeBounds(cube, key), bb)) nodes.push(node)
-      }
-      for (const [key, subpage] of Object.entries(pages)) {
-        if (!subpage) continue
-        if (intersects(nodeBounds(cube, key), bb)) await walk(subpage)
-      }
-    }
-    await walk(copc.info.rootHierarchyPage)
-
-    const lazPerf = await getLazPerf()
-    const views = await pAll(
-      nodes.map((node) => () => Copc.loadPointDataView(get, copc, node, { lazPerf })),
+    const d = await getDalleIndex(url)
+    const cube = d.copc.info.cube
+    const wanted = [...d.nodes.keys()].filter((key) => intersects(nodeBounds(cube, key), bb))
+    const arrays = await pAll(
+      wanted.map((key) => () => loadNodeUseful(d, url, key)),
       4,
     )
-    for (const view of views) {
-      const gx = view.getter('X')
-      const gy = view.getter('Y')
-      const gz = view.getter('Z')
-      const gc = view.getter('Classification')
-      for (let i = 0; i < view.pointCount; i++) {
-        // Classification d'abord : 1 lecture DataView rejette ~85-95 % des
-        // points (sol, végétation basse…) avant de payer x/y (chemin chaud,
-        // jusqu'à ~1 M d'itérations par maison).
-        const c = gc(i)
-        if (c !== 6 && c !== 5 && c !== 67) continue
-        const x = gx(i)
-        const y = gy(i)
+    for (const arr of arrays) {
+      for (let i = 0; i < arr.length; i += 4) {
+        const x = arr[i]
+        const y = arr[i + 1]
         if (x < bb.minx || x > bb.maxx || y < bb.miny || y > bb.maxy) continue
+        const c = arr[i + 3]
         if (c === 5) {
           if (pointInRing(x, y, ring)) {
             vegCells.add(`${Math.floor(x / CELL)}:${Math.floor(y / CELL)}`)
@@ -470,13 +546,13 @@ async function collectRoofPoints(ring: Ring, neighbors: Ring[]): Promise<RoofPoi
           // Emprise STRICTE (pas de tampon) : ne pas aspirer le mobilier de
           // jardin voisin dans le secours.
           if (pointInRing(x, y, ring) && !neighbors.some((nr) => pointInRing(x, y, nr))) {
-            pts67.push([x, y, gz(i)])
+            pts67.push([x, y, arr[i + 2]])
           }
           continue
         }
         if (!pointInRing(x, y, ring) && distToRing(x, y, ring) > BUFFER_M) continue
         if (neighbors.some((nring) => pointInRing(x, y, nring))) continue
-        pts.push([x, y, gz(i)])
+        pts.push([x, y, arr[i + 2]])
       }
     }
   }
