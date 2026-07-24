@@ -146,8 +146,36 @@ export interface HouseEnrichment {
  * v17 : drapeau `maison` par pan (appartenance au corps principal) — nourrit
  *      les pans COCHABLES de la maquette 3D (niveau 3 : le commercial exclut
  *      du doigt un garage ou une extension, le total suit).
+ * v18 : verdicts PARLANTS (veille juillet 2026) — diagnostic jsonb
+ *      `toit_lidar_diag` (migration db/0011) : motif du no_data
+ *      (hors_couverture / canopee / posterieur_survol / sans_batiment /
+ *      sans_points), % de végétation haute sur l'emprise (classe 5, gratuite
+ *      dans le flux déjà téléchargé), secours classe 67 « divers bâtis »
+ *      plafonné à faible_confiance, classification de la dalle
+ *      (IGN_AUTO_V5…) + date d'édition (re-mesure ciblée possible quand
+ *      l'IGN réédite). `grand_batiment` croisé avec logements/étages/IDs RNB
+ *      au lieu du seul seuil d'emprise (les grandes longères passaient à
+ *      tort pour des collectifs).
  */
-export const LIDAR_VERSION = 17
+export const LIDAR_VERSION = 18
+
+/** Diagnostic de la mesure (jsonb `toit_lidar_diag`, migration db/0011). */
+export interface LidarDiag {
+  /** Pourquoi pas de mesure : hors_couverture (dalle inexistante), canopee
+      (toit sous les arbres), posterieur_survol (maison plus récente que le
+      LiDAR), sans_batiment (aucun polygone à portée), sans_points. */
+  motif?: 'hors_couverture' | 'canopee' | 'posterieur_survol' | 'sans_batiment' | 'sans_points'
+  /** Part de l'emprise sous végétation haute (classe 5), 0-100 — argument
+      démoussage même quand la mesure réussit. */
+  vegetation_pct?: number
+  /** Mesure complétée par la classe 67 « divers bâtis » (vérandas, annexes
+      mal classées) : verdict plafonné à faible_confiance. */
+  secours_67?: boolean
+  /** Procédé de classification de la dalle (ex. IGN_AUTO_V5). */
+  classif?: string
+  /** Date d'édition de la dalle (réédition IGN = re-mesure possible). */
+  edition?: string
+}
 
 /** Un pan de toiture mesuré (stocké en jsonb sur le point). */
 export interface LidarPan {

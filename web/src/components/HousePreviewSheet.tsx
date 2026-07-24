@@ -80,6 +80,8 @@ export function HousePreviewSheet({
               lidarPending={lidar === null}
               dpe={info.dpe_classe}
               extra={info.maison_extra}
+              lidarStatut={lidar?.toit_lidar_statut}
+              lidarDiag={lidar?.toit_lidar_diag}
             />
           ) : (
             <p className="house-loading">Pas d’informations pour ce bâtiment.</p>

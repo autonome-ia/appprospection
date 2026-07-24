@@ -1,5 +1,5 @@
 import type { PointStatus } from './status'
-import type { HouseExtra, RoofData } from './house'
+import type { HouseExtra, LidarDiag, RoofData } from './house'
 
 /** Profil applicatif (table `profiles`). */
 export interface Profile {
@@ -40,6 +40,8 @@ export interface MapPoint {
   toit_lidar_statut: string | null
   toit_lidar_millesime: string | null
   toit_lidar_version: number | null
+  /** Diagnostic de la mesure (motif d'un no_data, végétation… — db/0011). */
+  toit_lidar_diag: LidarDiag | null
   /** Toit mesuré (murs + pans jointifs) — absent du SELECT global (poids),
       présent sur les lignes du temps réel et via fetchPointPans. */
   toit_lidar_pans: RoofData | null

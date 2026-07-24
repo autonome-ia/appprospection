@@ -319,6 +319,8 @@ export function PointDetailSheet({
             lidarPending={lidarPending && lidarM2 == null}
             dpe={dpe}
             extra={extra}
+            lidarStatut={lidarStatut}
+            lidarDiag={liveLidar ? liveLidar.toit_lidar_diag : point.toit_lidar_diag}
           />
 
           {lidarPans && <Roof3D roof={lidarPans} />}

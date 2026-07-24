@@ -1,4 +1,10 @@
-import { MAT_MURS_LABELS, matToitLabel, SUSPECT_YEARS, type HouseExtra } from '../domain/house'
+import {
+  MAT_MURS_LABELS,
+  matToitLabel,
+  SUSPECT_YEARS,
+  type HouseExtra,
+  type LidarDiag,
+} from '../domain/house'
 
 interface Props {
   annee: number | null
@@ -15,6 +21,45 @@ interface Props {
   dpe: string | null
   /** Attributs BD TOPO complémentaires (étages, murs, état…). */
   extra?: HouseExtra | null
+  /** Statut de la mesure LiDAR (pour expliquer un échec) + diagnostic. */
+  lidarStatut?: string | null
+  lidarDiag?: LidarDiag | null
+}
+
+/** Explication d'une mesure LiDAR absente (verdicts parlants, v18). */
+function lidarExcuse(
+  statut: string | null | undefined,
+  diag: LidarDiag | null | undefined,
+): { label: string; title: string } | null {
+  if (statut === 'grand_batiment') {
+    return {
+      label: 'collectif — pas de mesure',
+      title:
+        'Le polygone IGN couvre un bâtiment collectif (ou une bande de maisons fusionnées) : la mesure laser porterait sur tout le bloc.',
+    }
+  }
+  if (statut !== 'no_data') return null
+  switch (diag?.motif) {
+    case 'hors_couverture':
+      return {
+        label: 'LiDAR : zone pas encore couverte',
+        title:
+          'Le survol laser IGN n’a pas encore couvert cette zone (programme complet fin 2026) — la mesure sera re-tentée automatiquement.',
+      }
+    case 'canopee':
+      return {
+        label: 'toit sous les arbres',
+        title: `Végétation haute sur ~${diag?.vegetation_pct ?? '?'} % de l’emprise : le laser ne voit pas le toit.`,
+      }
+    case 'posterieur_survol':
+      return {
+        label: 'plus récente que le survol laser',
+        title:
+          'La maison est apparue après le passage de l’avion LiDAR : aucun point disponible — l’estimation reste affichée.',
+      }
+    default:
+      return null
+  }
 }
 
 /** Badges compacts de la fiche maison (année, toiture, surface, DPE). */
@@ -28,8 +73,17 @@ export function HouseBadges({
   lidarPending,
   dpe,
   extra,
+  lidarStatut,
+  lidarDiag,
 }: Props) {
   const matToit = matToitLabel(matCode)
+  const excuse = lidarExcuse(lidarStatut, lidarDiag)
+  // Végétation surplombante : argument métier (mousse, gouttières) même
+  // quand la mesure réussit.
+  const vegBadge =
+    lidarM2 != null && (lidarDiag?.vegetation_pct ?? 0) >= 30
+      ? lidarDiag!.vegetation_pct!
+      : null
   // Repli : l'année d'apparition BD TOPO quand la BDNB est muette (fréquent).
   const anneeShown = annee ?? extra?.annee_apparition ?? null
   const anneeFallback = annee === null && anneeShown !== null
@@ -101,6 +155,19 @@ export function HouseBadges({
           ~{toitM2} m² toit
         </span>
       ) : null}
+      {excuse && (
+        <span className="house-badge is-muted" title={excuse.title}>
+          {excuse.label}
+        </span>
+      )}
+      {vegBadge !== null && (
+        <span
+          className="house-badge"
+          title={`Végétation haute sur ~${vegBadge} % de l’emprise (LiDAR) — mousse et gouttières à surveiller`}
+        >
+          végétation surplombante
+        </span>
+      )}
       {murs && (
         <span className="house-badge" title="Matériau des murs (donnée fiscale, BD TOPO)">
           Murs {murs}

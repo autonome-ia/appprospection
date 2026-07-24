@@ -58,8 +58,10 @@ import { LIDAR_VERSION } from '../domain/house'
 const BUFFER_M = 0.8 // débords de toit au-delà du mur (collecte des points)
 const OVERHANG_M = 0.5 // débord DESSINÉ : silhouette du toit au-delà des murs
 const MIN_POINTS = 100 // en deçà : canopée totale ou maison post-survol
-const MAX_EMPRISE_M2 = 350 // au-delà : bloc collectif fusionné par la BD TOPO
+const MAX_EMPRISE_M2 = 350 // au-delà + signaux collectifs : bloc fusionné BD TOPO
+const MAX_EMPRISE_HARD_M2 = 600 // au-delà : budget perfs (2-3 Mo) dépassé de toute façon
 const MIN_COVERAGE = 0.55 // part de l'emprise vue par les pans
+const VEG_CANOPEE_PCT = 40 // au-delà, un no_data s'explique par les arbres
 
 // Réseau mobile : sans délai maximal, un fetch qui pend laisse le badge
 // « mesure du toit… » pulser indéfiniment ET coince la promesse dans le cache
@@ -75,8 +77,8 @@ function fetchT(url: string, init?: RequestInit): Promise<Response> {
 
 export type LidarStatut = 'ok' | 'faible_confiance' | 'grand_batiment' | 'no_data' | 'error'
 
-export type { LidarPan, RoofData } from '../domain/house'
-import type { LidarPan, RoofData } from '../domain/house'
+export type { LidarDiag, LidarPan, RoofData } from '../domain/house'
+import type { LidarDiag, LidarPan, RoofData } from '../domain/house'
 import { mainBodyPans, reconstructRoof } from './lidar-recon'
 
 export interface LidarResult {
@@ -85,6 +87,20 @@ export interface LidarResult {
   toit_lidar_principal_m2: number | null
   toit_lidar_pans: RoofData | null
   toit_lidar_millesime: string | null
+  /** Diagnostic (motif du verdict, végétation, classification de dalle…). */
+  toit_lidar_diag: LidarDiag | null
+}
+
+/** Résultat « échec » homogène (les champs de diag varient selon la cause). */
+function emptyResult(statut: LidarStatut, millesime: string | null, diag: LidarDiag | null): LidarResult {
+  return {
+    toit_lidar_statut: statut,
+    toit_lidar_m2: null,
+    toit_lidar_principal_m2: null,
+    toit_lidar_pans: null,
+    toit_lidar_millesime: millesime,
+    toit_lidar_diag: diag,
+  }
 }
 
 const roundLL = ([lng, lat]: [number, number]): [number, number] => [
@@ -192,20 +208,26 @@ interface BuildingInfo {
   hauteur: number | null
   /** Repli : gouttière − sol (bruité sur terrain en pente). */
   gouttiereSol: number | null
+  /** Signaux « collectif » pour le verdict grand_batiment (v18). */
+  logements: number | null
+  etages: number | null
+  /** Nombre d'IDs RNB portés par le polygone (> 1 = maisons fusionnées). */
+  rnbCount: number
+  /** Année d'apparition du bâtiment — un no_data avec apparition postérieure
+      au survol a une cause certaine. */
+  anneeApparition: number | null
 }
 
 /** Bâtiment tapé + polygones des voisins accolés (mitoyens, à exclure). */
 async function fetchBuildingAndNeighbors(lng: number, lat: number): Promise<BuildingInfo | null> {
   // ⚠ ordre lat lng (axe nord d'abord) — même convention que data/enrich.ts.
-  const j =
-    ((await wfsBatiment(`INTERSECTS(geometrie,POINT(${lat} ${lng}))`)) as {
-      features?: WfsFeature[]
-    }) ?? {}
-  let main = j.features?.[0] ?? null
-  const near = (await wfsBatiment(`DWITHIN(geometrie,POINT(${lat} ${lng}),25,meters)`)) as {
-    features?: WfsFeature[]
-  }
-  const feats = near.features ?? []
+  // Les deux requêtes sont indépendantes : en parallèle (un aller-retour gagné).
+  const [j, near] = (await Promise.all([
+    wfsBatiment(`INTERSECTS(geometrie,POINT(${lat} ${lng}))`),
+    wfsBatiment(`DWITHIN(geometrie,POINT(${lat} ${lng}),25,meters)`),
+  ])) as [{ features?: WfsFeature[] } | null, { features?: WfsFeature[] } | null]
+  let main = j?.features?.[0] ?? null
+  const feats = near?.features ?? []
   if (!main) {
     // L'ordre de DWITHIN est arbitraire (serveur WFS) : on choisit le bâtiment
     // le PLUS PROCHE du point, et seulement s'il est à portée de tap.
@@ -236,15 +258,36 @@ async function fetchBuildingAndNeighbors(lng: number, lat: number): Promise<Buil
     typeof props.altitude_minimale_toit === 'number' ? props.altitude_minimale_toit : null
   const altSol =
     typeof props.altitude_minimale_sol === 'number' ? props.altitude_minimale_sol : null
+  const apparition =
+    typeof props.date_d_apparition === 'string' && props.date_d_apparition
+      ? Number(props.date_d_apparition.slice(0, 4))
+      : NaN
   return {
     ring,
     neighbors,
     hauteur: typeof props.hauteur === 'number' && props.hauteur > 0 ? props.hauteur : null,
     gouttiereSol: altToit != null && altSol != null && altToit > altSol ? altToit - altSol : null,
+    logements:
+      typeof props.nombre_de_logements === 'number' ? props.nombre_de_logements : null,
+    etages: typeof props.nombre_d_etages === 'number' ? props.nombre_d_etages : null,
+    rnbCount:
+      typeof props.identifiants_rnb === 'string' && props.identifiants_rnb
+        ? props.identifiants_rnb.split('/').filter(Boolean).length
+        : 0,
+    anneeApparition: Number.isFinite(apparition) && apparition > 1000 ? apparition : null,
   }
 }
 
-async function fetchDalles(bb: Bbox): Promise<{ url: string; acquisition: string | null }[]> {
+interface DalleInfo {
+  url: string
+  acquisition: string | null
+  /** Procédé de classification (ex. IGN_AUTO_V5) — qualité de la classe 6. */
+  classif: string | null
+  /** Date d'édition de la dalle : l'IGN réédite (meilleure classification). */
+  edition: string | null
+}
+
+async function fetchDalles(bb: Bbox): Promise<DalleInfo[]> {
   const [w, s] = fromL93(bb.minx, bb.miny)
   const [e, n] = fromL93(bb.maxx, bb.maxy)
   const params = new URLSearchParams({
@@ -266,13 +309,17 @@ async function fetchDalles(bb: Bbox): Promise<{ url: string; acquisition: string
     .filter((f) => typeof f.properties?.url === 'string')
     .map((f) => {
       let acquisition: string | null = null
+      let classif: string | null = null
+      let edition: string | null = null
       try {
         const meta = JSON.parse(f.properties?.metadata ?? '{}') as Record<string, unknown>
         if (typeof meta.date_fin_acquisition === 'string') acquisition = meta.date_fin_acquisition
+        if (typeof meta.procede_classement === 'string') classif = meta.procede_classement
+        if (typeof meta.date_edition === 'string') edition = meta.date_edition
       } catch {
         /* métadonnées absentes : non bloquant */
       }
-      return { url: f.properties!.url!, acquisition }
+      return { url: f.properties!.url!, acquisition, classif, edition }
     })
 }
 
@@ -317,11 +364,23 @@ function nodeBounds(cube: number[], key: string): Bbox {
 const intersects = (a: Bbox, b: Bbox) =>
   a.maxx >= b.minx && a.minx <= b.maxx && a.maxy >= b.miny && a.miny <= b.maxy
 
+interface RoofPoints {
+  /** Classe 6 « bâtiment » (mesure). */
+  pts: Pt[]
+  /** Classe 67 « divers bâtis » DANS l'emprise stricte — secours quand la
+      classe 6 est pauvre (vérandas, annexes mal classées). */
+  pts67: Pt[]
+  /** Part de l'emprise sous végétation haute (classe 5), 0-100. */
+  vegetationPct: number
+  millesime: string | null
+  classif: string | null
+  edition: string | null
+  /** Aucune dalle : zone pas encore couverte par le programme LiDAR HD. */
+  horsCouverture: boolean
+}
+
 /** Points « bâtiment » (classe 6) dans le polygone bufferisé, toutes dalles. */
-async function collectRoofPoints(
-  ring: Ring,
-  neighbors: Ring[],
-): Promise<{ pts: Pt[]; millesime: string | null }> {
+async function collectRoofPoints(ring: Ring, neighbors: Ring[]): Promise<RoofPoints> {
   const xs = ring.map((p) => p[0])
   const ys = ring.map((p) => p[1])
   const bb: Bbox = {
@@ -330,8 +389,17 @@ async function collectRoofPoints(
     miny: Math.min(...ys) - BUFFER_M,
     maxy: Math.max(...ys) + BUFFER_M,
   }
+  const empty: RoofPoints = {
+    pts: [],
+    pts67: [],
+    vegetationPct: 0,
+    millesime: null,
+    classif: null,
+    edition: null,
+    horsCouverture: false,
+  }
   const dalles = await fetchDalles(bb)
-  if (!dalles.length) return { pts: [], millesime: null }
+  if (!dalles.length) return { ...empty, horsCouverture: true }
   // Maison à cheval sur 2 dalles d'acquisitions différentes : afficher le
   // survol le plus récent (dates ISO, tri lexicographique suffisant).
   const millesime =
@@ -340,8 +408,19 @@ async function collectRoofPoints(
       .filter((a): a is string => a !== null)
       .sort()
       .at(-1) ?? null
+  const classif = dalles.map((d) => d.classif).find((c) => c !== null) ?? null
+  const edition =
+    dalles
+      .map((d) => d.edition)
+      .filter((e): e is string => e !== null)
+      .sort()
+      .at(-1) ?? null
 
   const pts: Pt[] = []
+  const pts67: Pt[] = []
+  // Végétation haute : cellules de la grille (0,5 m) touchées par la classe 5
+  // dans l'emprise — GRATUIT, l'attribut Classification est déjà décodé.
+  const vegCells = new Set<string>()
   for (const { url } of dalles) {
     const get = makeGetter(url)
     const copc = await Copc.create(get)
@@ -373,17 +452,39 @@ async function collectRoofPoints(
       const gz = view.getter('Z')
       const gc = view.getter('Classification')
       for (let i = 0; i < view.pointCount; i++) {
+        // Classification d'abord : 1 lecture DataView rejette ~85-95 % des
+        // points (sol, végétation basse…) avant de payer x/y (chemin chaud,
+        // jusqu'à ~1 M d'itérations par maison).
+        const c = gc(i)
+        if (c !== 6 && c !== 5 && c !== 67) continue
         const x = gx(i)
         const y = gy(i)
         if (x < bb.minx || x > bb.maxx || y < bb.miny || y > bb.maxy) continue
-        if (gc(i) !== 6) continue
+        if (c === 5) {
+          if (pointInRing(x, y, ring)) {
+            vegCells.add(`${Math.floor(x / CELL)}:${Math.floor(y / CELL)}`)
+          }
+          continue
+        }
+        if (c === 67) {
+          // Emprise STRICTE (pas de tampon) : ne pas aspirer le mobilier de
+          // jardin voisin dans le secours.
+          if (pointInRing(x, y, ring) && !neighbors.some((nr) => pointInRing(x, y, nr))) {
+            pts67.push([x, y, gz(i)])
+          }
+          continue
+        }
         if (!pointInRing(x, y, ring) && distToRing(x, y, ring) > BUFFER_M) continue
         if (neighbors.some((nring) => pointInRing(x, y, nring))) continue
         pts.push([x, y, gz(i)])
       }
     }
   }
-  return { pts, millesime }
+  const vegetationPct = Math.min(
+    100,
+    Math.round(((vegCells.size * CELL * CELL) / ringArea(ring)) * 100),
+  )
+  return { pts, pts67, vegetationPct, millesime, classif, edition, horsCouverture: false }
 }
 
 // --- Orchestration ----------------------------------------------------------------
@@ -391,40 +492,58 @@ async function collectRoofPoints(
 async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
   const building = await fetchBuildingAndNeighbors(lng, lat)
   if (!building) {
-    return {
-      toit_lidar_statut: 'no_data',
-      toit_lidar_m2: null,
-      toit_lidar_principal_m2: null,
-      toit_lidar_pans: null,
-      toit_lidar_millesime: null,
-    }
+    return emptyResult('no_data', null, { motif: 'sans_batiment' })
   }
   const emprise = ringArea(building.ring)
-  if (emprise > MAX_EMPRISE_M2) {
-    // Polygone BD TOPO = bloc collectif entier : la fiche n'affiche rien pour
-    // ce verdict, inutile de télécharger 2-3 Mo pour mesurer tout le bloc.
-    return {
-      toit_lidar_statut: 'grand_batiment',
-      toit_lidar_m2: null,
-      toit_lidar_principal_m2: null,
-      toit_lidar_pans: null,
-      toit_lidar_millesime: null,
-    }
+  // Verdict grand_batiment CROISÉ (v18) : le seuil d'emprise seul condamnait
+  // à tort les grandes longères et maisons cossues (lesneven-1 : 496 m²
+  // mesurés proprement au banc). Un vrai collectif se signale par ses
+  // logements/étages ; un polygone à PLUSIEURS IDs RNB est une bande de
+  // maisons fusionnées (découpage RNB à venir — en attendant, le badge
+  // mesurerait toute la bande : on s'abstient).
+  const collectif =
+    (building.logements ?? 0) >= 4 || (building.etages ?? 0) >= 3 || building.rnbCount > 1
+  if (emprise > MAX_EMPRISE_HARD_M2 || (emprise > MAX_EMPRISE_M2 && collectif)) {
+    // La fiche n'affiche rien pour ce verdict, inutile de télécharger 2-3 Mo.
+    return emptyResult('grand_batiment', null, null)
   }
-  const { pts, millesime } = await collectRoofPoints(building.ring, building.neighbors)
+  const collected = await collectRoofPoints(building.ring, building.neighbors)
+  if (collected.horsCouverture) {
+    // Aucune dalle : zone pas ENCORE couverte (programme complet fin 2026) —
+    // re-tenter plus tard vaut le coup, contrairement à une canopée.
+    return emptyResult('no_data', null, { motif: 'hors_couverture' })
+  }
+  const baseDiag: LidarDiag = {}
+  if (collected.vegetationPct > 0) baseDiag.vegetation_pct = collected.vegetationPct
+  if (collected.classif) baseDiag.classif = collected.classif
+  if (collected.edition) baseDiag.edition = collected.edition
+
+  // Secours classe 67 « divers bâtis » : des toits réels (vérandas, annexes,
+  // bâtis atypiques) que la classification auto ne range pas en 6. Coût
+  // réseau NUL (mêmes nœuds déjà décodés) ; verdict plafonné faible_confiance.
+  let pts = collected.pts
+  let secours67 = false
+  if (pts.length < MIN_POINTS && pts.length + collected.pts67.length >= MIN_POINTS) {
+    pts = pts.concat(collected.pts67)
+    secours67 = true
+    baseDiag.secours_67 = true
+  }
   if (pts.length < MIN_POINTS) {
-    // Canopée totale, maison construite après le survol, ou zone non couverte :
-    // pas de mesure fiable possible, la fiche garde l'estimation actuelle.
-    return {
-      toit_lidar_statut: 'no_data',
-      toit_lidar_m2: null,
-      toit_lidar_principal_m2: null,
-      toit_lidar_pans: null,
-      toit_lidar_millesime: millesime,
-    }
+    const survol = collected.millesime ? Number(collected.millesime.slice(0, 4)) : NaN
+    const motif: LidarDiag['motif'] =
+      collected.vegetationPct >= VEG_CANOPEE_PCT
+        ? 'canopee'
+        : building.anneeApparition != null &&
+            Number.isFinite(survol) &&
+            building.anneeApparition >= survol
+          ? 'posterieur_survol'
+          : 'sans_points'
+    return emptyResult('no_data', collected.millesime, { ...baseDiag, motif })
   }
+  const millesime = collected.millesime
   const m = measureRoof(pts, building.ring)
-  const statut: LidarStatut = m.coverage < MIN_COVERAGE ? 'faible_confiance' : 'ok'
+  const statut: LidarStatut =
+    secours67 || m.coverage < MIN_COVERAGE ? 'faible_confiance' : 'ok'
 
   // Reconstruction JOINTIVE et rectiligne (silhouette = emprise décalée du
   // débord) ; repli pan par pan sur l'ancienne vectorisation (enveloppe
@@ -513,6 +632,7 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
       pans,
     },
     toit_lidar_millesime: millesime,
+    toit_lidar_diag: Object.keys(baseDiag).length ? baseDiag : null,
   }
 }
 
@@ -528,13 +648,7 @@ async function computeSafe(lng: number, lat: number): Promise<LidarResult> {
     return await Promise.race([computeLidar(lng, lat), deadline])
   } catch (e) {
     console.error('Mesure LiDAR :', e)
-    return {
-      toit_lidar_statut: 'error',
-      toit_lidar_m2: null,
-      toit_lidar_principal_m2: null,
-      toit_lidar_pans: null,
-      toit_lidar_millesime: null,
-    }
+    return emptyResult('error', null, null)
   } finally {
     clearTimeout(timer)
   }
@@ -586,6 +700,7 @@ export function measurePointRoof(pointId: string, lng: number, lat: number): Pro
         p_statut: result.toit_lidar_statut,
         p_millesime: result.toit_lidar_millesime,
         p_version: LIDAR_VERSION,
+        p_diag: result.toit_lidar_diag,
       })
       if (error) {
         const { error: e2 } = await supabase
