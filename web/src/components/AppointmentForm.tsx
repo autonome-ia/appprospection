@@ -19,19 +19,29 @@ interface Props {
   onSaved: () => void
 }
 
-function toLocalInput(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
+const pad = (n: number) => String(n).padStart(2, '0')
+const toDateInput = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+const toTimeInput = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`
 
-function defaultWhen(): string {
+function defaultDate(): Date {
   const d = new Date()
   d.setHours(d.getHours() + 1, 0, 0, 0)
-  return toLocalInput(d)
+  return d
+}
+
+// Les RDV se prennent à l'heure pile ou à la demi-heure : un sélecteur de
+// CRÉNEAUX (7 h → 21 h) remplace la roue des minutes du datetime-local natif
+// (interminable au doigt, et iOS ignore l'attribut step). Un seul tap.
+const TIME_SLOTS: string[] = []
+for (let h = 7; h <= 21; h++) {
+  TIME_SLOTS.push(`${pad(h)}:00`)
+  if (h < 21) TIME_SLOTS.push(`${pad(h)}:30`)
 }
 
 export function AppointmentForm({ open, onOpenChange, profile, existing, pointId, coords, pointNote, onSaved }: Props) {
-  const [when, setWhen] = useState(existing ? toLocalInput(new Date(existing.scheduled_at)) : defaultWhen())
+  const init = existing ? new Date(existing.scheduled_at) : defaultDate()
+  const [dateStr, setDateStr] = useState(toDateInput(init))
+  const [timeStr, setTimeStr] = useState(toTimeInput(init))
   const [clientName, setClientName] = useState(existing?.client_name ?? '')
   const [clientPhone, setClientPhone] = useState(existing?.client_phone ?? '')
   const [address, setAddress] = useState(existing?.address ?? '')
@@ -55,7 +65,7 @@ export function AppointmentForm({ open, onOpenChange, profile, existing, pointId
   async function save() {
     setSaving(true)
     try {
-      const scheduled_at = new Date(when).toISOString()
+      const scheduled_at = new Date(`${dateStr}T${timeStr}`).toISOString()
       const payload = {
         client_name: clientName.trim() || null,
         client_phone: clientPhone.trim() || null,
@@ -111,8 +121,34 @@ export function AppointmentForm({ open, onOpenChange, profile, existing, pointId
             </button>
           </div>
 
-          <p className="eyebrow field-label">Date et heure</p>
-          <input className="field-input" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+          <div className="field-grid">
+            <div>
+              <p className="eyebrow field-label">Date</p>
+              <input
+                className="field-input"
+                type="date"
+                value={dateStr}
+                onChange={(e) => setDateStr(e.target.value)}
+              />
+            </div>
+            <div>
+              <p className="eyebrow field-label">Heure</p>
+              <select
+                className="field-input tnum"
+                value={timeStr}
+                onChange={(e) => setTimeStr(e.target.value)}
+              >
+                {/* RDV existant à une heure hors créneaux (ancien picker) :
+                    son heure exacte reste proposée, rien ne se déplace. */}
+                {!TIME_SLOTS.includes(timeStr) && <option value={timeStr}>{timeStr}</option>}
+                {TIME_SLOTS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           <div className="field-grid">
             <div>
