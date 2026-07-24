@@ -10,5 +10,5 @@ alter table public.points
 
 update public.points p
   set visited_at = coalesce(
-    (select max(e.created_at) from public.point_events e where e.point_id = p.id),
+    (select max(e.occurred_at) from public.point_events e where e.point_id = p.id),
     p.created_at);
