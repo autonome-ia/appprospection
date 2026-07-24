@@ -3,7 +3,7 @@ import { X, Home } from 'lucide-react'
 import { StatusPicker } from './StatusPicker'
 import { HouseBadges } from './HouseBadges'
 import { RoofModule } from './RoofModule'
-import type { PointStatus } from '../domain/status'
+import { STATUS_BY_VALUE, type PointStatus } from '../domain/status'
 import type { HouseInfo } from '../data/enrich'
 import type { LidarResult } from '../data/lidar'
 import { suggestedWastePct } from '../domain/house'
@@ -90,6 +90,11 @@ export function HousePreviewSheet({
             <p className="house-loading">Pas d’informations pour ce bâtiment.</p>
           )}
 
+          {/* Picker AVANT le bloc toiture (audit UX A2) : les chips passaient
+              hors champ sous la 3D — l'acte principal reste au-dessus du pli. */}
+          <p className="eyebrow field-label">Poser un point</p>
+          <StatusPicker active={activeStatus} onChange={onStatusChange} />
+
           {lidarOk && lidar.toit_lidar_pans && (
             // Ouvert d'emblée : la fiche AVANT prospection est un moment
             // d'argumentaire (audit UX, B2).
@@ -108,14 +113,19 @@ export function HousePreviewSheet({
             />
           )}
 
-          <p className="eyebrow field-label">Poser un point</p>
-          <StatusPicker active={activeStatus} onChange={onStatusChange} />
-
           <p className="data-attribution">Données IGN (BD TOPO, LiDAR HD) · BDNB (CSTB)</p>
 
           <div className="drawer-footer">
-            <button type="button" className="btn btn-primary" onClick={() => onPose(activeStatus)}>
-              Poser le point
+            {/* Libellé dynamique (audit UX A2) : le bouton disait « Poser le
+                point » sans refléter le statut — risque de poser le statut
+                resté actif de la maison précédente. */}
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ background: STATUS_BY_VALUE[activeStatus].color }}
+              onClick={() => onPose(activeStatus)}
+            >
+              Poser · {STATUS_BY_VALUE[activeStatus].label}
             </button>
           </div>
           </div>
