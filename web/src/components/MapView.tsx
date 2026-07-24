@@ -703,18 +703,19 @@ export function MapView({
     const houseSrc = map.getSource(HOUSE_SRC) as maplibregl.GeoJSONSource | undefined
     // Seuls les pans significatifs sont dessinés : les miettes (< 10 m²)
     // restent comptées dans le badge total mais morcelaient la lecture.
-    const drawable = (pans ?? []).filter(
-      (p) => p.contour && p.contour.length >= 4 && p.m2 >= 10,
-    )
+    // Index ORIGINAL conservé : même couleur qu'en 3D et sur le plan (A21).
+    const drawable = (pans ?? [])
+      .map((p, idx) => ({ p, idx }))
+      .filter(({ p }) => p.contour && p.contour.length >= 4 && p.m2 >= 10)
     if (!drawable.length) {
       src.setData(EMPTY_FC)
       return
     }
     src.setData({
       type: 'FeatureCollection',
-      features: drawable.map((p, i) => ({
+      features: drawable.map(({ p, idx }) => ({
         type: 'Feature',
-        properties: { color: PAN_COLORS[i % PAN_COLORS.length] },
+        properties: { color: PAN_COLORS[idx % PAN_COLORS.length] },
         geometry: { type: 'Polygon', coordinates: [p.contour!] },
       })),
     })
@@ -725,12 +726,12 @@ export function MapView({
     const drawLabels = () => {
       for (const m of panLabelsRef.current) m.remove()
       panLabelsRef.current = []
-      const centres = drawable.filter((p) => p.centre)
+      const centres = drawable.filter(({ p }) => p.centre)
       if (!centres.length) return
       if (map.getZoom() < 17.5 && centres.length > 1) {
-        const total = Math.round(centres.reduce((s, p) => s + p.m2, 0))
-        const cx = centres.reduce((s, p) => s + p.centre![0], 0) / centres.length
-        const cy = centres.reduce((s, p) => s + p.centre![1], 0) / centres.length
+        const total = Math.round(centres.reduce((s, { p }) => s + p.m2, 0))
+        const cx = centres.reduce((s, { p }) => s + p.centre![0], 0) / centres.length
+        const cy = centres.reduce((s, { p }) => s + p.centre![1], 0) / centres.length
         const el = document.createElement('div')
         el.className = 'pan-chip tnum'
         el.textContent = `Σ ${total} m²`
@@ -739,12 +740,11 @@ export function MapView({
         )
         return
       }
-      for (const [i, p] of drawable.entries()) {
-        if (!p.centre) continue
+      for (const { p, idx } of centres) {
         const el = document.createElement('div')
         el.className = 'pan-chip tnum'
         el.textContent = `${p.m2} m²`
-        el.style.borderColor = PAN_COLORS[i % PAN_COLORS.length]
+        el.style.borderColor = PAN_COLORS[idx % PAN_COLORS.length]
         panLabelsRef.current.push(
           new maplibregl.Marker({ element: el }).setLngLat(p.centre!).addTo(map),
         )

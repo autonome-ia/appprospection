@@ -269,7 +269,7 @@ export function mountRoofScene(
     plane: [number, number, number] // y = a·est + b·nord + c
     color: Color
   }
-  const locals: LocalPan[] = drawable.map(({ pan, idx }, i) => {
+  const locals: LocalPan[] = drawable.map(({ pan, idx }) => {
     const ring = pan.contour!.slice(0, -1)
     const alts = pan.alts!.slice(0, -1)
     const pts2d = ring.map(([lng, lat]) => {
@@ -284,7 +284,10 @@ export function mountRoofScene(
       pts2d,
       ys,
       plane: fitPlane(pts2d.map((p, v) => [p.x, p.y, ys[v]])),
-      color: new Color(PAN_COLORS[i % PAN_COLORS.length]),
+      // Couleur par index ORIGINAL du pan (audit UX A21) : chaque liste
+      // filtrait différemment, un même pan changeait de couleur entre la
+      // 3D, le plan et l'ortho.
+      color: new Color(PAN_COLORS[idx % PAN_COLORS.length]),
     }
   })
 

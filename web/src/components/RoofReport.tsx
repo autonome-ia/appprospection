@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { FileText, Printer, Share2, X } from 'lucide-react'
 import type { RoofData } from '../domain/house'
 import { RoofDiagramSvg, panLetters } from './RoofDiagram'
+import { useSession } from '../lib/session'
 
 // -----------------------------------------------------------------------------
 // Rapport client : le document propre remis (ou montré) au prospect à la fin
@@ -51,8 +52,17 @@ export function RoofReport({
   onClose,
 }: Props) {
   const [open, setOpen] = useState(embedded)
+  const { profile } = useSession()
   const letters = panLetters(roof)
   if (letters.size === 0) return null
+
+  // Identité (audit UX A23) : un rapport anonyme face aux références
+  // brandées (Roofr, EagleView) — « Établi le … par … ».
+  const identLine = `Établi le ${new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date())}${profile?.full_name ? ` par ${profile.full_name}` : ''}`
 
   if (!open && !embedded) {
     return (
@@ -79,6 +89,7 @@ export function RoofReport({
       totalM2 != null && totalM2 !== maisonM2 ? `Total avec annexes : ${totalM2} m²` : null,
       `Surface de commande conseillée (+${wastePct} % de chutes) : ${Math.round(base * (1 + wastePct / 100))} m²`,
       survol ? `Survol laser IGN ${survol} · précision ±5 %` : null,
+      identLine,
     ].filter(Boolean)
     void navigator.share?.({ title: 'Rapport de toiture', text: lines.join('\n') }).catch(() => {})
   }
@@ -114,6 +125,7 @@ export function RoofReport({
             Mesure au laser aéroporté — nuage de points IGN LiDAR HD
             {survol ? ` · survol ${survol}` : ''} · précision ±5 %
           </p>
+          <p className="roof-report-ident">{identLine}</p>
         </header>
 
         <div className="roof-report-totals tnum">

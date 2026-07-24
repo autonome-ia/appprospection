@@ -64,7 +64,7 @@ function buildDiagram(roof: RoofData) {
   // Lettres : A = le plus grand pan (convention des rapports pros).
   const letterOf = panLetters(roof)
 
-  const pans: DiagramPan[] = drawable.map(({ pan, idx }, i) => {
+  const pans: DiagramPan[] = drawable.map(({ pan, idx }) => {
     const pts = pan.contour!.map(([lng, lat]) => {
       const [e, no] = toLocal(lng, lat, lng0, lat0)
       return [e, -no] as [number, number]
@@ -78,7 +78,7 @@ function buildDiagram(roof: RoofData) {
     return {
       idx,
       letter: letterOf.get(idx)!,
-      color: PAN_COLORS[i % PAN_COLORS.length],
+      color: PAN_COLORS[idx % PAN_COLORS.length], // index ORIGINAL : même couleur qu'en 3D (A21)
       pts,
       alts: pan.alts ?? [],
       m2: pan.m2,

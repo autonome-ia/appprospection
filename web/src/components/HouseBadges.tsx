@@ -1,3 +1,6 @@
+import type { ReactNode } from 'react'
+import { toast } from 'sonner'
+import { Scan } from 'lucide-react'
 import {
   MAT_MURS_LABELS,
   matToitLabel,
@@ -5,6 +8,30 @@ import {
   type HouseExtra,
   type LidarDiag,
 } from '../domain/house'
+
+/** Badge à provenance TAPPABLE (audit UX A7) : toute la pédagogie vivait
+    dans des `title`, inexistants sur iPhone — un tap montre l'explication. */
+function Badge({
+  className = '',
+  info,
+  children,
+}: {
+  className?: string
+  info: string
+  children: ReactNode
+}) {
+  return (
+    <span
+      className={`house-badge ${className}`}
+      title={info}
+      role="button"
+      tabIndex={0}
+      onClick={() => toast(info)}
+    >
+      {children}
+    </span>
+  )
+}
 
 interface Props {
   annee: number | null
@@ -104,12 +131,18 @@ export function HouseBadges({
   )
     return null
 
+  // Tilde réservé au douteux (audit UX A19) : « ~1989 » systématique
+  // affaiblissait l'accroche alors que l'année BDNB est fiable.
+  const anneeDouteuse = anneeFallback || (anneeShown !== null && SUSPECT_YEARS.has(anneeShown))
+
+  // Ordre = argumentaire (audit UX A20) : année · DPE · matériau · surface,
+  // les badges secondaires (BD TOPO…) en fin de ligne.
   return (
     <div className="house-badges">
       {anneeShown !== null && (
-        <span
-          className="house-badge tnum"
-          title={
+        <Badge
+          className="tnum"
+          info={
             anneeFallback
               ? 'Année d’apparition du bâtiment (BD TOPO)'
               : SUSPECT_YEARS.has(anneeShown)
@@ -117,79 +150,73 @@ export function HouseBadges({
                 : 'Année de construction (données fiscales, BDNB)'
           }
         >
-          ~{anneeShown}
-        </span>
+          {anneeDouteuse ? '~' : ''}
+          {anneeShown}
+        </Badge>
       )}
-      {enConstruction && (
-        <span className="house-badge" title="État du bâtiment (BD TOPO)">
-          {extra!.etat}
-        </span>
+      {dpe && (
+        <Badge className={`dpe dpe-${dpe.toLowerCase()}`} info="Classe DPE (BDNB)">
+          DPE {dpe}
+        </Badge>
       )}
       {matConfirme ? (
-        <span className="house-badge is-confirmed" title="Toiture confirmée sur le terrain">
+        <Badge className="is-confirmed" info="Toiture confirmée sur le terrain">
           {matConfirme}
-        </span>
+        </Badge>
       ) : matToit ? (
-        <span
-          className="house-badge"
-          title="Donnée fiscale — probable, une rénovation récente peut ne pas apparaître"
-        >
+        <Badge info="Donnée fiscale — probable, une rénovation récente peut ne pas apparaître">
           {matToit}
-        </span>
+        </Badge>
       ) : null}
       {lidarM2 != null ? (
-        <span
-          className="house-badge is-measured tnum"
-          title={`Toit de la maison, hors annexes et extensions — mesuré au laser (nuage de points LiDAR HD IGN${
+        <Badge
+          className="is-measured tnum"
+          info={`Toit de la maison, hors annexes et extensions — mesuré au laser (nuage de points LiDAR HD IGN${
             lidarMillesime ? `, survol ${lidarMillesime.slice(0, 4)}` : ''
           })`}
         >
-          {lidarM2} m² toit
-        </span>
+          <Scan size={11} strokeWidth={2} /> {lidarM2} m² · laser
+        </Badge>
       ) : lidarPending ? (
-        <span className="house-badge is-pending" title="Mesure de la toiture au laser en cours">
+        <Badge className="is-pending" info="Mesure de la toiture au laser en cours">
           mesure du toit…
-        </span>
+        </Badge>
       ) : toitM2 !== null ? (
-        <span className="house-badge tnum" title="Estimation : emprise au sol × pente (altitudes IGN)">
-          ~{toitM2} m² toit
-        </span>
+        <Badge className="tnum" info="Estimation : emprise au sol × pente (altitudes IGN)">
+          ~{toitM2} m² · estimé
+        </Badge>
       ) : null}
+      {enConstruction && <Badge info="État du bâtiment (BD TOPO)">{extra!.etat}</Badge>}
       {excuse && (
-        <span className="house-badge is-muted" title={excuse.title}>
+        <Badge className="is-muted" info={excuse.title}>
           {excuse.label}
-        </span>
+        </Badge>
       )}
       {vegBadge !== null && (
-        <span
-          className="house-badge"
-          title={`Végétation haute sur ~${vegBadge} % de l’emprise (LiDAR) — mousse et gouttières à surveiller`}
+        <Badge
+          className="is-muted"
+          info={`Végétation haute sur ~${vegBadge} % de l’emprise (LiDAR) — mousse et gouttières à surveiller`}
         >
           végétation surplombante
-        </span>
+        </Badge>
       )}
       {murs && (
-        <span className="house-badge" title="Matériau des murs (donnée fiscale, BD TOPO)">
+        <Badge className="is-muted" info="Matériau des murs (donnée fiscale, BD TOPO)">
           Murs {murs}
-        </span>
+        </Badge>
       )}
       {(extra?.etages ?? 0) >= 2 && (
-        <span className="house-badge tnum" title="Nombre d’étages (BD TOPO)">
+        <Badge className="is-muted tnum" info="Nombre d’étages (BD TOPO)">
           {extra!.etages} étages
-        </span>
+        </Badge>
       )}
       {(extra?.logements ?? 0) >= 2 && (
-        <span
-          className="house-badge tnum"
-          title="Nombre de logements (BD TOPO) — bâtiment probablement collectif ou mitoyen"
+        <Badge
+          className="is-muted tnum"
+          info="Nombre de logements (BD TOPO) — bâtiment probablement collectif ou mitoyen"
         >
           {extra!.logements} logements
-        </span>
-      )}
-      {dpe && (
-        <span className={`house-badge dpe dpe-${dpe.toLowerCase()}`} title="Classe DPE (BDNB)">
-          DPE {dpe}
-        </span>
+        </Badge>
       )}
     </div>
   )

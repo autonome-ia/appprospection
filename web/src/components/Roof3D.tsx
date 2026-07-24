@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Box, Maximize2, X } from 'lucide-react'
 import type { LidarPan, RoofData } from '../domain/house'
 import { PAN_COLORS } from '../domain/colors'
+import { panLetters } from './RoofDiagram'
 import type { RoofMatKind, RoofSceneHandle } from '../lib/roof3d'
 
 interface Props {
@@ -25,7 +26,9 @@ function edgesLine(roof: RoofData): string | null {
       ['Arêtiers', a.aretier_m],
       ['Noues', a.noue_m],
       ['Rives', a.rive_m],
-      ['Égouts', a.egout_m],
+      // « Gouttières » : lu par le prospect pendant la démo (audit UX A22) —
+      // le rapport écrit garde la forme technique « Égouts (gouttières) ».
+      ['Gouttières', a.egout_m],
       ['Solins', a.solin_m],
     ] as [string, number][]
   )
@@ -161,15 +164,47 @@ export function Roof3D({ roof, wastePct, embedded = false }: Props) {
 
   const selectionM2 = roof.pans.reduce((s, p, i) => (excluded.has(i) ? s : s + p.m2), 0)
 
-  // Couleur de légende alignée sur la scène (index dans les pans DESSINABLES).
-  // Les pans trop petits pour la 3D restent listés — sans puce colorée — pour
-  // que TOUT ce qui compte dans le Σ soit visible et cochable.
-  const colorOf = new Map(drawable.map(({ idx }, i) => [idx, PAN_COLORS[i % PAN_COLORS.length]]))
+  // Couleur par index ORIGINAL du pan (audit UX A21) : la même partout
+  // (scène 3D, plan coté, pans sur l'ortho). Les pans trop petits pour la 3D
+  // restent listés — sans puce colorée — pour que TOUT ce qui compte dans le
+  // Σ soit visible et cochable.
+  const colorOf = new Map(drawable.map(({ idx }) => [idx, PAN_COLORS[idx % PAN_COLORS.length]]))
 
   const edges = edgesLine(roof)
 
+  // Lettres partagées 3D ↔ plan ↔ rapport (audit UX A21) : « le pan A »
+  // désigne la même chose partout pendant la démo.
+  const letters = panLetters(roof)
+
   const legend = (
     <>
+      {/* L'avant/après matériau — l'outil le plus vendeur — remonté sous le
+          canvas, titré, et « Couleurs » renommé « Mesure » (audit UX A8). */}
+      <p className="eyebrow roof3d-mats-title">Votre toit en…</p>
+      <div className="roof3d-mats" role="group" aria-label="Matériau proposé">
+        {(
+          [
+            ['couleurs', 'Mesure'],
+            ['ardoise', 'Ardoise'],
+            ['tuile', 'Tuile'],
+            ['zinc', 'Zinc'],
+          ] as [RoofMatKind, string][]
+        ).map(([kind, label]) => (
+          <button
+            key={kind}
+            type="button"
+            className={`roof3d-mat ${matKind === kind ? 'is-active' : ''}`}
+            onClick={() => setMatKind(kind)}
+            title={
+              kind === 'couleurs'
+                ? 'Pans colorés par identification (mesure)'
+                : `Voir le toit du client en ${label.toLowerCase()} (avant/après)`
+            }
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <div className="roof3d-legend">
         <span className="pan-chip tnum roof3d-total" title="Somme des pans sélectionnés">
           Σ {selectionM2} m²
@@ -183,6 +218,7 @@ export function Roof3D({ roof, wastePct, embedded = false }: Props) {
             onClick={() => toggleRef.current(idx)}
             title={excluded.has(idx) ? 'Exclu — taper pour inclure' : 'Inclus — taper pour exclure'}
           >
+            {letters.get(idx) ? `${letters.get(idx)} · ` : ''}
             {pan.m2} m² · {pan.pente_deg}°
           </button>
         ))}
@@ -203,30 +239,6 @@ export function Roof3D({ roof, wastePct, embedded = false }: Props) {
           {edges}
         </p>
       )}
-      <div className="roof3d-mats" role="group" aria-label="Matériau proposé">
-        {(
-          [
-            ['couleurs', 'Couleurs'],
-            ['ardoise', 'Ardoise'],
-            ['tuile', 'Tuile'],
-            ['zinc', 'Zinc'],
-          ] as [RoofMatKind, string][]
-        ).map(([kind, label]) => (
-          <button
-            key={kind}
-            type="button"
-            className={`roof3d-mat ${matKind === kind ? 'is-active' : ''}`}
-            onClick={() => setMatKind(kind)}
-            title={
-              kind === 'couleurs'
-                ? 'Pans colorés par identification'
-                : `Voir le toit du client en ${label.toLowerCase()} (avant/après)`
-            }
-          >
-            {label}
-          </button>
-        ))}
-      </div>
     </>
   )
 
