@@ -56,9 +56,17 @@ const PLACE_MIN_ZOOM = 15
 const PREVIEW_MIN_ZOOM = 16
 // Délai avant d'ouvrir la fiche maison : un double-tap (zoom) l'annule.
 const PREVIEW_DELAY = 300
-// Hauteur approximative de la sheet détail (px) : padding bas appliqué à la
-// carte pour recadrer le point sélectionné AU-DESSUS de la sheet.
-const SHEET_PADDING = 310
+// Recadrage au-dessus de la sheet : hauteur RÉELLE de la sheet ouverte,
+// mesurée au moment du mouvement — l'ancienne constante 310 datait d'avant
+// l'enrichissement de la fiche (badges, 3D, plan coté) : le point et ses
+// pans de toit étaient recadrés DERRIÈRE la sheet. Plafonné à 60 % du
+// viewport pour garder une bande de carte utile ; 310 reste le plancher
+// (sheet pas encore montée au moment d'un flyTo).
+function sheetPadding(): number {
+  const el = document.querySelector('.drawer-content')
+  const h = el ? Math.round(el.getBoundingClientRect().height) + 16 : 0
+  return Math.min(Math.max(h, 310), Math.round(window.innerHeight * 0.6))
+}
 
 const EMPTY_FC: FeatureCollection<Point> = { type: 'FeatureCollection', features: [] }
 
@@ -739,16 +747,23 @@ export function MapView({
       return
     }
     const pt = selectedId ? pointsRef.current.find((p) => p.id === selectedId) : null
-    if (pt) {
-      map.easeTo({
-        center: [pt.lng, pt.lat],
-        padding: { top: 0, bottom: SHEET_PADDING, left: 0, right: 0 },
-        duration: 350,
+    // La fiche maison (avant prospection) recadre aussi : sans mouvement de
+    // caméra, la sheet recouvrait la maison tapée et sa surbrillance — on ne
+    // pouvait pas vérifier QUELLE maison la fiche décrit avant de poser.
+    const target = pt ?? housePreview
+    if (target) {
+      // rAF : laisse la sheet se monter pour mesurer sa hauteur réelle.
+      const raf = requestAnimationFrame(() => {
+        map.easeTo({
+          center: [target.lng, target.lat],
+          padding: { top: 0, bottom: sheetPadding(), left: 0, right: 0 },
+          duration: 350,
+        })
       })
-    } else {
-      map.easeTo({ padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: 250 })
+      return () => cancelAnimationFrame(raf)
     }
-  }, [selectedId, mapLoaded])
+    map.easeTo({ padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: 250 })
+  }, [selectedId, housePreview, mapLoaded])
 
   // « Voir sur la carte » depuis l'agenda : vole vers le point et le sélectionne.
   useEffect(() => {
@@ -758,7 +773,7 @@ export function MapView({
     map.flyTo({
       center: [focus.lng, focus.lat],
       zoom: 18,
-      padding: { top: 0, bottom: SHEET_PADDING, left: 0, right: 0 },
+      padding: { top: 0, bottom: sheetPadding(), left: 0, right: 0 },
     })
     setSelectedId(focus.pointId)
     onFocusHandled?.()
