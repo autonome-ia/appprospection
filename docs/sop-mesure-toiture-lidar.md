@@ -458,3 +458,53 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
     exclus même à pente égale ; les échardes absorbées suivent leur absorbeur).
     Repli : ancien typage par pente. Le total reste stocké (stats, SaaS). Tests : +2
     (bâtière soudée ; l'annexe plate à deux niveaux exclue du corps) — 24/24.
+- **26/07/2026 (rattrapage journal) — Niveau 3 livré : pans COCHABLES dans la
+  maquette 3D** (`LIDAR_VERSION` 17, commit « Maquette 3D : pans COCHABLES ») : tap
+  sur un pan / sa pastille / sa puce de légende pour l'inclure ou l'exclure, total
+  « Σ m² » en direct ; présélection = drapeau `maison` par pan (corps principal).
+  Sélection non persistée (choix v1). L'entrée avait été oubliée ici (roadmap seule).
+- **26/07/2026 (suite) — Reprise, revue, veille multi-agents, paliers 1-3 (v17 → v20).**
+  1. **État vérifié** : 31 tests verts, build OK, banc 22/23 propres (seul résidu :
+     pseudo-voile 1,39 de danton130, documenté). Écart SOP↔roadmap comblé (entrée v17).
+  2. **Revue critique des 4 modules** — corrigé dans la foulée : sélection niveau 3
+     périmée quand une NOUVELLE mesure arrivait pendant que la maquette était ouverte
+     (index d'exclusion sur les anciens pans → reset sur changement de `roof`) ;
+     badge ≠ Σ à l'arrondi près (les deux sont désormais des sommes de m² arrondis
+     par pan) ; pans < 10 m² comptés dans Σ mais ni visibles ni décochables (toute
+     la légende est cochable) ; `pointercancel` non purgé (tap fantôme) ; contexte
+     WebGL iOS non géré. Noté sans correctif : collision théorique du `chainCache`
+     (deux frontières mêmes extrémités/même nombre de coins — gardes aval), timeout
+     qui n'annule pas le travail en vol (assumé).
+  3. **Veille** (5 agents parallèles, vérifications en direct) → `etude-veille-lidar.md` ;
+     menaces : aucune (règle « 1 couche par appel WFS » actée au 15/06/2026).
+  4. **Livré (paliers 1-3)** :
+     - **Viewer** : rendu à la demande + shadow map figée (GPU ~0 immobile),
+       NeutralToneMapping + normalBias, robustesse contexte WebGL iOS, finitions
+       tactiles ;
+     - **v18 — verdicts parlants** : diag jsonb (motifs no_data : hors_couverture /
+       canopee / posterieur_survol / sans_batiment / sans_points ; % végétation
+       classe 5 ; secours classe 67 plafonné faible_confiance ; classification +
+       édition de dalle), `grand_batiment` croisé (logements/étages/IDs RNB,
+       coupe-circuit 600 m²), badges d'explication sur la fiche.
+       **Migration `db/0011` À EXÉCUTER** (colonne + RPC re-signé p_diag) ;
+     - **v19 — longueurs par type d'arête** (`edgeMetrics` : faîtage / arêtier /
+       noue / rive / égout / solin, classification par soudure + pente + drainage,
+       longueur vraie 3D ; 4 tests) + **badge = Σ** + **chutes suggérées**
+       (10 % base / 15 % ardoise / +5 % noues, plafond 20 % — À VALIDER factures) ;
+     - **v20 — géométrie d'entrée** : découpage RNB des polygones fusionnés (bandes),
+       voisin accolé même parcelle (BAN-PLUS) inclus dans la collecte au lieu
+       d'exclu (piste Deschard), MNH en éclaireur parallèle (25 Ko, x-bil) ;
+     - **Cache COPC par dalle** (header+hiérarchie + points utiles par nœud, LRU
+       30 Mo) : transfert ÷5-10 dès la 2e maison du quartier ;
+     - **Fiche** : attributs BD TOPO enfin lus (`maison_extra`, **migration `db/0010`
+       À EXÉCUTER**), plan coté SVG (`RoofDiagram`), **rapport client** imprimable/
+       partageable (`RoofReport`, print → PDF natif), avant/après matériaux
+       (textures procédurales ardoise/tuile/zinc orientées par azimut).
+  5. **Fixtures** : le banc (23 nuages) rejoue mesure+reconstruction hors réseau —
+     les changements de collecte (RNB/parcelle/MNH) ne sont PAS couverts par les
+     fixtures : à sonder sur le terrain (Deschard, une bande fusionnée, une maison
+     sous canopée).
+  Reste ouvert : factures ventilées (chutes + précision Deschard), persistance de la
+  sélection niveau 3, pans cochables sur l'ortho, union des emprises même-parcelle
+  pour la reconstruction, re-mesure sur réédition de dalle, capture 3D dans le
+  rapport, adresse par bâtiment (BAN-PLUS), Web Worker si jank.

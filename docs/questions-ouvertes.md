@@ -54,3 +54,7 @@
 
 24. 🔴 On te propose un **premier MVP** = carte partagée + points + agenda auto + stats de base (voir `SPEC.md` §8). **Mesure de toit, CRM, chat, hors-ligne** viendraient après. Es-tu OK pour démarrer comme ça, ou un de ces éléments est indispensable dès le jour 1 ?
 25. 🟠 Si tu ne devais garder **qu'une seule** fonctionnalité pour convaincre ton équipe de l'utiliser, ce serait laquelle ?
+
+## I. Mesure de toiture (LiDAR)
+
+26. 🔴 **Pourcentages de chutes** : l'app affiche désormais « surface de commande = mesure + X % de chutes » (10 % base, 15 % ardoise, +5 % si noues — standards US type EagleView). Il nous faut **2-3 factures VENTILÉES** (m² par poste, % de chutes réellement compté) pour caler ces pourcentages sur ta pratique — c'est aussi la clé de l'écart Deschard (−15 % : facturé ≈ géométrique + chutes).
