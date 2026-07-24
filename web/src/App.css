@@ -1260,18 +1260,28 @@
   display: flex;
   flex-direction: column;
   max-height: 92vh;
-  overflow-y: auto;
+  /* PAS de scroll ici : fixed + transform (vaul) + overflow sur le MÊME
+     élément fige le défilement sur iOS Safari (bug WebKit connu) — c'est
+     .drawer-body, enfant sans transform, qui défile. */
+  overflow: hidden;
   background: var(--surface);
   border-radius: 22px 22px 0 0;
   padding: 8px 20px calc(20px + env(safe-area-inset-bottom, 0));
   box-shadow: var(--shadow-lg);
   outline: none;
 }
-/* Corps défilant des sheets : display:contents = zéro impact de mise en
-   page, l'élément ne sert qu'à porter data-vaul-no-drag (vaul remonte le
-   DOM depuis le doigt : trouvé -> il laisse le scroll natif au contenu). */
+/* Corps DÉFILANT des sheets : conteneur interne sans transform (le scroll
+   sur la sheet elle-même est figé par iOS, voir .drawer-content) ; porte
+   aussi data-vaul-no-drag pour que vaul laisse le geste au scroll natif.
+   La fermeture au doigt reste possible sur la poignée et l'en-tête. */
 .drawer-body {
-  display: contents;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 /* Accueil : sections « À relancer » et « Activité récente » */
 .home-section {
