@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { motion } from 'motion/react'
 import { ArrowUp, ArrowDown, ChevronLeft, Pencil } from 'lucide-react'
@@ -156,14 +156,40 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
     loadProfiles()
   }, [loadProfiles])
 
-  useEffect(() => {
+  // Échec ≠ vraies stats à zéro : sans drapeau persistant, un échec réseau
+  // laissait un tableau de bord entièrement à zéro présenté comme réel
+  // (contre-audit, bug 27).
+  const [loadError, setLoadError] = useState(false)
+  // Anti-course : « Mois » (4 requêtes paginées, lent) pouvait résoudre
+  // APRÈS « Jour » et s'afficher sous le segment « Jour » (bug 29). Seule la
+  // réponse de la dernière demande est appliquée.
+  const statsSeq = useRef(0)
+  const loadStats = useCallback(() => {
+    const seq = ++statsSeq.current
     fetchStatsComparison(period)
-      .then(setData)
+      .then((d) => {
+        if (seq !== statsSeq.current) return
+        setData(d)
+        setLoadError(false)
+      })
       .catch((e) => {
         console.error('Stats :', e)
-        toast.error('Statistiques impossibles à charger — vérifiez le réseau')
+        if (seq !== statsSeq.current) return
+        setLoadError(true)
       })
   }, [period])
+
+  useEffect(() => {
+    loadStats()
+    // iOS restaure la PWA sans recharger la page : sans ça, les bornes de
+    // période restaient figées (les chiffres d'HIER sous le segment « Jour »
+    // au brief du matin — bug 28).
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') loadStats()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [loadStats])
 
   if (!profile) return <div className="placeholder">Connexion requise.</div>
 
@@ -239,6 +265,15 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
         ))}
       </div>
       {rangeLabel && <p className="stats-range">{rangeLabel}</p>}
+
+      {loadError && (
+        <div className="load-error">
+          <span>Statistiques impossibles à charger — vérifiez le réseau.</span>
+          <button type="button" className="text-btn" onClick={loadStats}>
+            Réessayer
+          </button>
+        </div>
+      )}
 
       {isManager && drillId && (
         <button type="button" className="drill-back" onClick={() => setDrillId(null)}>
