@@ -1003,7 +1003,10 @@ export function measurePointRoof(pointId: string, lng: number, lat: number): Pro
   if (hit) return hit
   const p = (async () => {
     const result = await fetchHouseLidar(lng, lat)
-    if (supabase) {
+    // Un verdict `error` (timeout 60 s, 4G faible) n'est JAMAIS persisté :
+    // il écrasait une mesure « ok » déjà en base pour toute l'équipe (audit).
+    // Sans cache, le point reste « à mesurer » : le retry est naturel.
+    if (supabase && result.toit_lidar_statut !== 'error') {
       const { error } = await supabase.rpc('cache_point_lidar', {
         p_point_id: pointId,
         p_m2: result.toit_lidar_m2,

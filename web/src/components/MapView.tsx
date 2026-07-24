@@ -136,6 +136,8 @@ export function MapView({
   selectedIdRef.current = selectedId
   const placingRef = useRef(placing)
   placingRef.current = placing
+  const activeRef = useRef(active)
+  activeRef.current = active
   const housePreviewRef = useRef(housePreview)
   housePreviewRef.current = housePreview
   // Ouverture de fiche maison en attente (timer) : annulée par un double-tap.
@@ -343,8 +345,10 @@ export function MapView({
           const p = f.properties as ClusterProps | null
           if (!p || !p.cluster) continue
           const coords = (f.geometry as Point).coordinates as [number, number]
-          // Clé = id + total : si le contenu change, on redessine.
-          const key = `${p.cluster_id}:${p.point_count}`
+          // Clé = id + total + POSITION : après un changement de filtre, un
+          // cluster_id réutilisé au même effectif gardait un badge à une
+          // position obsolète, avec un zoom de tap incohérent (audit).
+          const key = `${p.cluster_id}:${p.point_count}:${coords[0].toFixed(5)}:${coords[1].toFixed(5)}`
           if (visible.has(key)) continue // dédoublonne (tuiles voisines)
           visible.add(key)
           if (badges.has(key)) continue
@@ -496,6 +500,9 @@ export function MapView({
       const { lng, lat } = e.lngLat
       pendingPreviewRef.current = window.setTimeout(() => {
         pendingPreviewRef.current = null
+        // Le mode visée a pu s'ouvrir pendant le délai (tap puis FAB « + ») :
+        // la fiche maison ne doit pas surgir par-dessus le réticule (audit).
+        if (placingRef.current) return
         setHousePreview({ lng, lat })
       }, PREVIEW_DELAY)
     })
@@ -513,6 +520,18 @@ export function MapView({
   // -> formulaire de rendez-vous ; autres statuts -> fiche du point (contexte
   // à chaud). Utilisé par le réticule ET par la fiche maison.
   const poseAt = (lng: number, lat: number, status: PointStatus) => {
+    // Profil pas (encore) chargé alors que Supabase est configuré : la pose
+    // partirait en « mode local » silencieux — point PERDU au rafraîchissement
+    // (audit, bloquant). On refuse plutôt que de mentir.
+    if (isSupabaseConfigured && !profile) {
+      toast.error('Connexion en cours — réessayez dans un instant')
+      return
+    }
+    // Un filtre actif qui masquerait le point tout juste posé = risque de
+    // double pose (audit) : on l'assouplit. Le filtre d'ancienneté exclut par
+    // construction un point qu'on vient de visiter.
+    if (ageFilter !== null) setAgeFilter(null)
+    if (statusFilter.size > 0 && !statusFilter.has(status)) setStatusFilter(new Set())
     const { point, saved } = addPoint(lng, lat, status)
     toast.success(`Point posé — ${STATUS_BY_VALUE[status].label}`, {
       action: {
@@ -526,6 +545,9 @@ export function MapView({
     })
     void saved.then((created) => {
       if (!created) return
+      // L'insert peut se confirmer APRÈS un changement d'onglet : ne pas
+      // faire surgir la fiche/le formulaire RDV par-dessus l'Agenda (audit).
+      if (!activeRef.current) return
       if (status === 'rdv_pris' && isSupabaseConfigured) {
         setRdvPoint(created)
       } else {

@@ -53,6 +53,11 @@ export function RoofReport({ roof, address, maisonM2, totalM2, millesime, wasteP
   const base = maisonM2 ?? totalM2 ?? 0
   const wasteRows = [...new Set([0, 10, wastePct, 20])].sort((a, b) => a - b)
   const survol = millesime ? millesime.slice(0, 4) : null
+  // PWA iOS INSTALLÉE : window.print() est un no-op (pas de moteur
+  // d'impression en mode standalone) — le bouton est masqué, Partager reste.
+  const canPrint = !(
+    'standalone' in navigator && (navigator as { standalone?: boolean }).standalone === true
+  )
 
   const share = () => {
     const lines = [
@@ -69,9 +74,11 @@ export function RoofReport({ roof, address, maisonM2, totalM2, millesime, wasteP
     <div className="roof-report-overlay">
       <div className="roof-report">
         <div className="roof-report-actions">
-          <button type="button" className="btn btn-primary" onClick={() => window.print()}>
-            <Printer size={15} /> Imprimer / PDF
-          </button>
+          {canPrint && (
+            <button type="button" className="btn btn-primary" onClick={() => window.print()}>
+              <Printer size={15} /> Imprimer / PDF
+            </button>
+          )}
           {'share' in navigator && (
             <button type="button" className="btn" onClick={share}>
               <Share2 size={15} /> Partager

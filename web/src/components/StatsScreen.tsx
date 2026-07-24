@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import { motion } from 'motion/react'
 import { ArrowUp, ArrowDown, ChevronLeft, Pencil } from 'lucide-react'
 import {
@@ -156,7 +157,12 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
   }, [loadProfiles])
 
   useEffect(() => {
-    fetchStatsComparison(period).then(setData).catch((e) => console.error('Stats :', e))
+    fetchStatsComparison(period)
+      .then(setData)
+      .catch((e) => {
+        console.error('Stats :', e)
+        toast.error('Statistiques impossibles à charger — vérifiez le réseau')
+      })
   }, [period])
 
   if (!profile) return <div className="placeholder">Connexion requise.</div>
@@ -198,8 +204,13 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
     if (val === null) return
     const v = parseInt(val, 10)
     if (!Number.isNaN(v)) {
-      await updateWeeklyTarget(id, v)
-      loadProfiles()
+      try {
+        await updateWeeklyTarget(id, v)
+        loadProfiles()
+      } catch (e) {
+        console.error('Objectif hebdo :', e)
+        toast.error('Objectif non enregistré — vérifiez le réseau')
+      }
     }
   }
 

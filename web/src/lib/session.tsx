@@ -46,9 +46,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      // Callback SYNCHRONE : un await de requête supabase ICI bloque le
+      // verrou interne d'auth (deadlock connu de supabase-js) — le profil se
+      // charge hors du callback.
       setSession(newSession)
-      setProfile(newSession ? await fetchProfile(newSession.user.id) : null)
+      setTimeout(() => {
+        void (async () => {
+          if (!newSession) {
+            setProfile(null)
+            return
+          }
+          const p = await fetchProfile(newSession.user.id)
+          // Échec transitoire (réveil de la PWA, réseau) : on GARDE le profil
+          // déjà chargé — le remettre à null faisait basculer les poses en
+          // « mode local » silencieux, points perdus au rafraîchissement.
+          setProfile((prev) => p ?? (prev && prev.id === newSession.user.id ? prev : null))
+        })()
+      }, 0)
     })
 
     return () => sub.subscription.unsubscribe()

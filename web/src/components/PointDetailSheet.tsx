@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
 import { X, Trash2, Clock, User, MapPin } from 'lucide-react'
@@ -84,8 +84,20 @@ export function PointDetailSheet({
   // récupérés à la demande pour la maquette 3D (cache côté data/points).
   const [cachedPans, setCachedPans] = useState<RoofData | null>(null)
 
+  // Instantané des valeurs INITIALES du formulaire : la sauvegarde n'envoie
+  // que ce que l'utilisateur a touché DANS CETTE SESSION — comparer à `point`
+  // (mis à jour par le realtime) réécrivait l'ancien statut par-dessus le
+  // changement d'un collègue, et journalisait un faux événement (audit).
+  const initialRef = useRef({ status: 'absent' as PointStatus, clientName: '', revisitAt: '', matConfirme: '' })
+
   useEffect(() => {
-    if (!point) return
+    if (!open || !point) return
+    initialRef.current = {
+      status: point.status,
+      clientName: point.client_name ?? '',
+      revisitAt: point.revisit_at ?? '',
+      matConfirme: point.mat_toit_confirme ?? '',
+    }
     setStatus(point.status)
     setClientName(point.client_name ?? '')
     setRevisitAt(point.revisit_at ?? '')
@@ -127,7 +139,13 @@ export function PointDetailSheet({
       void import('../data/lidar')
         .then((m) => m.measurePointRoof(point.id, point.lng, point.lat))
         .then((r) => {
-          if (active) setLiveLidar(r)
+          // Une re-mesure en ERREUR (réseau) ne masque pas une mesure valide
+          // déjà en cache : la fiche garde le badge « ok » (audit).
+          if (active) {
+            setLiveLidar(
+              r.toit_lidar_statut === 'error' && point.toit_lidar_statut === 'ok' ? null : r,
+            )
+          }
         })
         .catch((e) => console.error('Mesure LiDAR :', e))
         .finally(() => {
@@ -156,18 +174,21 @@ export function PointDetailSheet({
     return () => {
       active = false
     }
-    // Dépend de l'ID (pas de l'objet) : les mises à jour temps réel du point
-    // (ex. arrivée du cache d'enrichissement) ne réinitialisent pas la saisie.
+    // Dépend de l'ID et de l'OUVERTURE (pas de l'objet) : les mises à jour
+    // temps réel ne réinitialisent pas la saisie, mais ROUVRIR la même fiche
+    // repart bien d'un formulaire propre (une note restée dans le champ
+    // pouvait être enregistrée en double — audit).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [point?.id])
+  }, [point?.id, open])
 
   if (!point) return null
 
+  const init = initialRef.current
   const dirty =
-    status !== point.status ||
-    clientName !== (point.client_name ?? '') ||
-    matConfirme !== (point.mat_toit_confirme ?? '') ||
-    (status === 'a_revoir' && revisitAt !== (point.revisit_at ?? '')) ||
+    status !== init.status ||
+    clientName !== init.clientName ||
+    matConfirme !== init.matConfirme ||
+    (status === 'a_revoir' && revisitAt !== init.revisitAt) ||
     newNote.trim().length > 0
 
   // Journal affiché : le vrai journal, ou à défaut la dernière note connue
@@ -193,15 +214,17 @@ export function PointDetailSheet({
       revisit_at?: string | null
       mat_toit_confirme?: string | null
     } = {}
-    if (status !== point.status) changes.status = status
-    if (clientName !== (point.client_name ?? ''))
+    // Diff contre l'instantané INITIAL (pas contre `point`, mis à jour par le
+    // realtime) : seuls les champs touchés par l'utilisateur partent en base.
+    const init = initialRef.current
+    if (status !== init.status) changes.status = status
+    if (clientName !== init.clientName)
       changes.client_name = clientName.trim() ? clientName.trim() : null
-    if (matConfirme !== (point.mat_toit_confirme ?? ''))
-      changes.mat_toit_confirme = matConfirme || null
+    if (matConfirme !== init.matConfirme) changes.mat_toit_confirme = matConfirme || null
     // Date de relance : suivie seulement pour « à revoir », effacée sinon.
     if (status === 'a_revoir') {
-      if (revisitAt !== (point.revisit_at ?? '')) changes.revisit_at = revisitAt || null
-    } else if (point.revisit_at) {
+      if (revisitAt !== init.revisitAt) changes.revisit_at = revisitAt || null
+    } else if (status !== init.status && init.revisitAt) {
       changes.revisit_at = null
     }
     const becameRdv = changes.status === 'rdv_pris'

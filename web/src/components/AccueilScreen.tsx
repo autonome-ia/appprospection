@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import { MapPin, LogOut, ChevronRight, BellRing, Activity } from 'lucide-react'
 import { useSession } from '../lib/session'
-import { fetchRelances } from '../data/points'
+import { fetchRelances, localDayKey } from '../data/points'
 import { fetchRecentActivity, type ActivityItem } from '../data/stats'
 import { STATUS_BY_VALUE } from '../domain/status'
 import type { MapPoint } from '../domain/types'
@@ -18,7 +18,9 @@ function timeAgo(iso: string): string {
 }
 
 function relanceLabel(iso: string): string {
-  const today = new Date().toISOString().slice(0, 10)
+  // Jour LOCAL (toISOString = UTC : « aujourd'hui » était faux entre minuit
+  // et 2 h, heure française — audit).
+  const today = localDayKey(new Date())
   if (iso === today) return 'aujourd’hui'
   const d = new Date(`${iso}T00:00:00`)
   return `depuis le ${new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(d)}`

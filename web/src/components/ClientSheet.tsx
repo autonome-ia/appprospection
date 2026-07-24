@@ -85,7 +85,12 @@ export function ClientSheet({ appt, onOpenChange, onEdit, onShowOnMap }: Props) 
           void import('../data/lidar')
             .then((m) => m.measurePointRoof(p.id, p.lng, p.lat))
             .then((r) => {
-              if (active) setLiveLidar(r)
+              // Une re-mesure en erreur ne masque pas un cache valide.
+              if (active) {
+                setLiveLidar(
+                  r.toit_lidar_statut === 'error' && p.toit_lidar_statut === 'ok' ? null : r,
+                )
+              }
             })
             .catch((e) => console.error('Mesure LiDAR :', e))
             .finally(() => {
@@ -120,9 +125,11 @@ export function ClientSheet({ appt, onOpenChange, onEdit, onShowOnMap }: Props) 
   const address = appt.address ?? point?.address ?? null
 
   return (
-    <Drawer.Root open onOpenChange={onOpenChange}>
+    // NON modale : un drawer modal vaul coupe les interactions hors de lui
+    // (pointer-events) — le plein écran 3D et le rapport, portés dans <body>,
+    // étaient totalement inertes (audit, bloquant).
+    <Drawer.Root open onOpenChange={onOpenChange} modal={false}>
       <Drawer.Portal>
-        <Drawer.Overlay className="drawer-overlay" />
         <Drawer.Content className="drawer-content">
           <div className="drawer-grip" />
 

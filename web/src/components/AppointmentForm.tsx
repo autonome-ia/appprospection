@@ -96,8 +96,8 @@ export function AppointmentForm({ open, onOpenChange, profile, existing, pointId
       // modification). Best effort : un échec n'annule pas le RDV.
       const linkedPointId = existing ? existing.point_id : (pointId ?? null)
       if (linkedPointId) {
-        if (clientName) {
-          setPointClientName(linkedPointId, clientName).catch((e) =>
+        if (clientName.trim()) {
+          setPointClientName(linkedPointId, clientName.trim()).catch((e) =>
             console.error('Synchro client du point :', e),
           )
         }
