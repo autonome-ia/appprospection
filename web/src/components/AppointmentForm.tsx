@@ -96,8 +96,15 @@ export function AppointmentForm({ open, onOpenChange, profile, existing, pointId
       // modification). Best effort : un échec n'annule pas le RDV.
       const linkedPointId = existing ? existing.point_id : (pointId ?? null)
       if (linkedPointId) {
-        if (clientName.trim()) {
-          setPointClientName(linkedPointId, clientName.trim()).catch((e) =>
+        // Synchronisé SEULEMENT si le nom a réellement changé dans CE
+        // formulaire : décaler l'heure d'un RDV repoussait l'ancien nom sur
+        // le point, écrasant une correction faite entre-temps sur la fiche
+        // (contre-audit, bug 10). L'effacement (null) se propage aussi.
+        const nameChanged = existing
+          ? (clientName.trim() || null) !== (existing.client_name ?? null)
+          : clientName.trim().length > 0
+        if (nameChanged) {
+          setPointClientName(linkedPointId, clientName.trim() || null).catch((e) =>
             console.error('Synchro client du point :', e),
           )
         }
