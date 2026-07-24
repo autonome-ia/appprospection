@@ -363,13 +363,25 @@ export function AgendaScreen({
 
         <div className="cal-grid">
           {cells.map((d) => {
-            const dayAppts = byDay[dateKey(d)] ?? []
+            const dayAppts = (byDay[dateKey(d)] ?? []).sort((a, b) =>
+              a.scheduled_at.localeCompare(b.scheduled_at),
+            )
             const dayRevisits = revisitsByDay[dateKey(d)] ?? []
-            // Pastilles du jour : RDV (couleur du statut) puis relances (ambre).
-            const dotColors = [
-              ...dayAppts.map((a) => APPOINTMENT_STATUS_META[a.status].color),
-              ...dayRevisits.map(() => STATUS_BY_VALUE.a_revoir.color),
-            ].slice(0, 3)
+            // Étiquettes façon agenda iOS (référence capture briac) : le NOM
+            // du client lisible sur tout le mois — couleur = statut du RDV,
+            // ambre = maison à revoir. Débordement en « +n ».
+            const items = [
+              ...dayAppts.map((a) => ({
+                label: a.client_name ?? a.address ?? 'RDV',
+                color: APPOINTMENT_STATUS_META[a.status].color,
+              })),
+              ...dayRevisits.map((p) => ({
+                label: p.client_name ?? p.address ?? 'À revoir',
+                color: STATUS_BY_VALUE.a_revoir.color,
+              })),
+            ]
+            const shown = items.slice(0, 4)
+            const extra = items.length - shown.length
             const out = d.getMonth() !== monthDate.getMonth()
             const isSel = sameDay(d, selected)
             const isToday = sameDay(d, today)
@@ -384,10 +396,13 @@ export function AgendaScreen({
                 }}
               >
                 <span className="cal-daynum">{d.getDate()}</span>
-                <span className="cal-dots">
-                  {dotColors.map((c, i) => (
-                    <span key={i} className="cal-dot" style={{ background: c }} />
+                <span className="cal-events">
+                  {shown.map((it, i) => (
+                    <span key={i} className="cal-event" style={{ background: it.color }}>
+                      {it.label}
+                    </span>
                   ))}
+                  {extra > 0 && <span className="cal-more">+{extra}</span>}
                 </span>
               </button>
             )
