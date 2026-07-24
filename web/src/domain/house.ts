@@ -102,8 +102,12 @@ export interface HouseEnrichment {
  *      le pan), arcs extérieurs choisis par LONGUEUR attendue, et une boucle
  *      sans jonction ne prend le polygone entier que si elle le remplit.
  *      Banc : 15/23 → 21/23 maisons réelles propres.
+ * v16 : chaînes de 2 coins (une arête entre deux jonctions) — le riverain se
+ *      lit sur les cellules bordant l'arête (le « milieu » était la jonction
+ *      elle-même : arête classée extérieure et projetée sur la silhouette,
+ *      contours en vrille — danton130). Banc : 22/23 propres.
  */
-export const LIDAR_VERSION = 15
+export const LIDAR_VERSION = 16
 
 /** Un pan de toiture mesuré (stocké en jsonb sur le point). */
 export interface LidarPan {

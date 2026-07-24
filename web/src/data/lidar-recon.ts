@@ -825,17 +825,40 @@ export function reconstructRoof(
         const rawChain =
           c === cuts.length - 1 ? [...rotated.slice(a), rotated[0]] : rotated.slice(a, b + 1)
         // Riverain : étiquettes au milieu de la chaîne, moins soi-même.
-        const mid = rawChain[Math.floor(rawChain.length / 2)]
-        const midLabels = [...(corners.get(`${mid[0]}:${mid[1]}`) ?? [])].filter(
-          (l) => l !== i && l !== OUTSIDE,
-        )
-        const partner =
-          midLabels.length === 1 && !corners.get(`${mid[0]}:${mid[1]}`)?.has(OUTSIDE)
-            ? midLabels[0]
-            : OUTSIDE
-        debug?.(
-          `pan ${i} chaîne ${rawChain.length} coins -> partner ${partner} (mid ${[...(corners.get(`${mid[0]}:${mid[1]}`) ?? [])].join('/')})`,
-        )
+        // Chaîne de 2 coins (une seule arête entre deux jonctions) : le
+        // « milieu » EST une jonction (≥ 3 étiquettes) — le riverain se lit
+        // alors sur les DEUX CELLULES bordant l'arête (sinon l'arête était
+        // classée extérieure et projetée sur la silhouette : contours en
+        // vrille, audit danton130).
+        let partner: number
+        if (rawChain.length === 2) {
+          const [a, b] = rawChain
+          const cells: [number, number][] =
+            a[0] === b[0]
+              ? [
+                  [a[0] - 1, Math.min(a[1], b[1])],
+                  [a[0], Math.min(a[1], b[1])],
+                ]
+              : [
+                  [Math.min(a[0], b[0]), a[1] - 1],
+                  [Math.min(a[0], b[0]), a[1]],
+                ]
+          partner = OUTSIDE
+          for (const [cx, cy] of cells) {
+            const l = labels.get(`${cx}:${cy}`)
+            if (l !== undefined && l !== i) partner = l
+          }
+        } else {
+          const mid = rawChain[Math.floor(rawChain.length / 2)]
+          const midLabels = [...(corners.get(`${mid[0]}:${mid[1]}`) ?? [])].filter(
+            (l) => l !== i && l !== OUTSIDE,
+          )
+          partner =
+            midLabels.length === 1 && !corners.get(`${mid[0]}:${mid[1]}`)?.has(OUTSIDE)
+              ? midLabels[0]
+              : OUTSIDE
+        }
+        debug?.(`pan ${i} chaîne ${rawChain.length} coins -> partner ${partner}`)
         chains.push({ raw: rawChain, partner })
       }
     }
