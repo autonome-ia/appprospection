@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Drawer } from 'vaul'
-import { CalendarClock, MapPin, Pencil, Phone, StickyNote, X } from 'lucide-react'
+import { CalendarClock, MapPin, Navigation, Pencil, Phone, StickyNote, X } from 'lucide-react'
 import { fetchPoint, fetchPointPans } from '../data/points'
 import {
   lidarNeedsMeasure,
@@ -28,6 +28,20 @@ interface Props {
   /** Ferme la fiche et ouvre le formulaire de modification du RDV. */
   onEdit: (a: Appointment) => void
   onShowOnMap?: (target: { pointId: string; lng: number; lat: number }) => void
+}
+
+/**
+ * Lien universel Waze (ouvre l'app en navigation, repli site web) : les
+ * coordonnées du point priment sur l'adresse texte — c'est LA maison, pas
+ * le géocodage approximatif du numéro de rue.
+ */
+export function wazeUrl(
+  point: { lng: number; lat: number } | null | undefined,
+  address: string | null,
+): string | null {
+  if (point) return `https://waze.com/ul?ll=${point.lat},${point.lng}&navigate=yes`
+  if (address) return `https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`
+  return null
 }
 
 const fmtFull = (iso: string) =>
@@ -147,7 +161,15 @@ export function ClientSheet({ appt, onOpenChange, onEdit, onShowOnMap }: Props) 
             {address && (
               <div className="client-row">
                 <MapPin size={15} strokeWidth={1.9} />
-                <span>{address}</span>
+                <a
+                  href={wazeUrl(appt.point, address)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Itinéraire en voiture (Waze)"
+                >
+                  {address}
+                  <Navigation size={13} strokeWidth={2} className="client-waze" />
+                </a>
               </div>
             )}
             {appt.notes && (

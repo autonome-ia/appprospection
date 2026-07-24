@@ -10,7 +10,7 @@ import {
 import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
 import { fetchRevisits } from '../data/points'
 import { AppointmentForm } from './AppointmentForm'
-import { ClientSheet } from './ClientSheet'
+import { ClientSheet, wazeUrl } from './ClientSheet'
 import { APPOINTMENT_STATUS_META, APPOINTMENT_OUTCOMES, type Appointment } from '../domain/appointments'
 import { STATUS_BY_VALUE } from '../domain/status'
 import { colorForCommercial } from '../domain/colors'
@@ -49,7 +49,17 @@ function AppointmentCard({ appt, who, profile, onChanged, onEdit, onShowOnMap, t
       </div>
 
       {appt.client_name && <div className="appt-client">{appt.client_name}</div>}
-      {appt.address && <div className="appt-address">{appt.address}</div>}
+      {appt.address && (
+        <a
+          className="appt-address is-nav"
+          href={wazeUrl(appt.point, appt.address)!}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Itinéraire en voiture (Waze)"
+        >
+          {appt.address}
+        </a>
+      )}
 
       {/* Les notes sont LE contexte du commercial : toujours visibles, quel
           que soit le statut du RDV. */}

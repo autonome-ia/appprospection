@@ -1589,6 +1589,17 @@
 .client-row.is-context span {
   color: var(--ink-3);
 }
+.client-waze {
+  display: inline-block;
+  vertical-align: -1px;
+  margin-left: 5px;
+}
+/* Adresse cliquable = itinéraire Waze (fiche client + cartes RDV). */
+.appt-address.is-nav {
+  display: block;
+  color: var(--accent);
+  text-decoration: none;
+}
 /* Rapport client : plein écran, imprimable (PDF natif du téléphone). */
 .roof-report-overlay {
   position: fixed;
