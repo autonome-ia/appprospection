@@ -27,7 +27,12 @@ export async function fetchAppointments(): Promise<Appointment[]> {
     const { data, error } = await supabase
       .from('appointments')
       .select(COLS)
+      // Tie-breaker unique : les RDV sont posés sur des créneaux :00/:30,
+      // les ex æquo de scheduled_at sont la norme — sans lui, l'ordre entre
+      // égaux change d'une requête à l'autre et un RDV peut être dupliqué
+      // ou perdu à la frontière des 1 000 lignes.
       .order('scheduled_at')
+      .order('id')
       .range(from, from + PAGE - 1)
     if (error) throw error
     const rows = data ?? []

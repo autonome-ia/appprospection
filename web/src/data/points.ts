@@ -67,6 +67,7 @@ export async function fetchPoints(): Promise<MapPoint[]> {
       .from('points')
       .select(COLS)
       .order('created_at')
+      .order('id') // tie-breaker unique : ordre stable entre pages
       .range(from, from + PAGE - 1)
     if (error) throw error
     const rows = data ?? []

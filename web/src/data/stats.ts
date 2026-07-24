@@ -63,7 +63,11 @@ async function fetchAllRows(
       .select(cols)
       .gte(timeCol, startISO)
       .lt(timeCol, endISO)
-      .order(timeCol) // tri stable : pagination cohérente
+      // Le tri n'est stable qu'avec un tie-breaker UNIQUE : sans lui, les
+      // ex æquo de timeCol changent d'ordre entre pages (lignes dupliquées
+      // ou perdues à la frontière des 1 000).
+      .order(timeCol)
+      .order('id')
       .range(from, from + PAGE - 1)
     if (error) throw error
     const rows = (data ?? []) as unknown as Record<string, unknown>[]
