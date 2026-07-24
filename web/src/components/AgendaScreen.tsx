@@ -63,6 +63,9 @@ function AppointmentCard({
   // Un appel en vol désactive les boutons : un double tap « Vendu » comptait
   // la vente DEUX fois dans les stats (audit).
   const [busy, setBusy] = useState(false)
+  // Suppression en deux taps (audit UX A32) : fini le window.confirm système
+  // hors DA — même pattern que la fiche point.
+  const [confirmDel, setConfirmDel] = useState(false)
   // La RLS ne laisse supprimer que le titulaire ou un manager : proposer le
   // bouton aux autres produisait un faux « RDV supprimé » (audit).
   const canDelete = profile.role === 'manager' || appt.commercial_id === profile.id
@@ -194,7 +197,11 @@ function AppointmentCard({
             className="text-btn danger"
             disabled={busy}
             onClick={async () => {
-              if (!window.confirm('Supprimer ce RDV ?')) return
+              if (!confirmDel) {
+                setConfirmDel(true)
+                window.setTimeout(() => setConfirmDel(false), 4000)
+                return
+              }
               setBusy(true)
               try {
                 await deleteAppointment(appt.id)
@@ -208,7 +215,7 @@ function AppointmentCard({
               }
             }}
           >
-            <Trash2 size={14} strokeWidth={1.8} /> Supprimer
+            <Trash2 size={14} strokeWidth={1.8} /> {confirmDel ? 'Confirmer ?' : 'Supprimer'}
           </button>
         )}
       </div>

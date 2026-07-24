@@ -1182,6 +1182,23 @@
   color: var(--ink-3);
   white-space: nowrap;
 }
+/* Stepper d'objectif hebdo (audit UX A32). */
+.obj-stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+.obj-stepper .obj-big {
+  min-width: 34px;
+  text-align: center;
+}
+.obj-save {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 8px 18px;
+}
+
 /* Affordance du drill-down (audit UX A25) + étiquettes du graphe (A26). */
 .rank-chevron {
   color: var(--ink-3);

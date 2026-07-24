@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { motion } from 'motion/react'
-import { ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Info, Pencil } from 'lucide-react'
+import { ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Info, Minus, Pencil, Plus } from 'lucide-react'
 import {
   fetchStatsComparison,
   ratio,
@@ -174,6 +174,9 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
   const [data, setData] = useState<{ current: StatsResult; previous: StatsResult; range: { start: Date; end: Date } } | null>(null)
   const [profiles, setProfiles] = useState<OrgProfile[]>([])
   const [drillId, setDrillId] = useState<string | null>(null)
+  // Édition de l'objectif hebdo : stepper inline (audit UX A32) — fini le
+  // window.prompt système (clavier libre, saisie invalide avalée).
+  const [targetEdit, setTargetEdit] = useState<number | null>(null)
 
   const isManager = profile?.role === 'manager'
   const meId = profile?.id ?? null
@@ -208,6 +211,9 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
         setLoadError(true)
       })
   }, [period])
+
+  // Changer de commercial ferme l'éditeur d'objectif.
+  useEffect(() => setTargetEdit(null), [drillId])
 
   useEffect(() => {
     loadStats()
@@ -264,18 +270,16 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
   const objectiveTarget = focusId ? targetOf(focusId) : teamTarget
   const days = data ? daysOf(data.range.start, data.range.end) : []
 
-  const editTarget = async (id: string) => {
-    const val = window.prompt(`Objectif hebdo de RDV pour ${nameOf(id)} :`, String(targetOf(id)))
-    if (val === null) return
-    const v = parseInt(val, 10)
-    if (!Number.isNaN(v)) {
-      try {
-        await updateWeeklyTarget(id, v)
-        loadProfiles()
-      } catch (e) {
-        console.error('Objectif hebdo :', e)
-        toast.error('Objectif non enregistré — vérifiez le réseau')
-      }
+  const saveTarget = async () => {
+    if (!drillId || targetEdit === null) return
+    try {
+      await updateWeeklyTarget(drillId, targetEdit)
+      loadProfiles()
+      setTargetEdit(null)
+      toast.success('Objectif mis à jour')
+    } catch (e) {
+      console.error('Objectif hebdo :', e)
+      toast.error('Objectif non enregistré — vérifiez le réseau')
     }
   }
 
@@ -344,23 +348,48 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
             </span>
             {/* Le crayon vit ici, plus dans les lignes du classement où il
                 brouillait le drill-down (audit UX A25). */}
-            {isManager && drillId && (
+            {isManager && drillId && targetEdit === null && (
               <button
                 type="button"
                 className="rank-edit"
-                onClick={() => editTarget(drillId)}
+                onClick={() => setTargetEdit(targetOf(drillId))}
                 aria-label="Modifier l'objectif"
               >
                 <Pencil size={15} strokeWidth={1.8} />
               </button>
             )}
           </div>
-          <div className="obj-bar-bg">
-            <div
-              className="obj-bar"
-              style={{ width: `${objectiveTarget > 0 ? Math.min(100, (cur.rdv_pris / objectiveTarget) * 100) : 0}%` }}
-            />
-          </div>
+          {targetEdit !== null && drillId ? (
+            <div className="obj-stepper">
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={() => setTargetEdit(Math.max(0, targetEdit - 1))}
+                aria-label="Diminuer"
+              >
+                <Minus size={16} />
+              </button>
+              <span className="obj-big tnum">{targetEdit}</span>
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={() => setTargetEdit(targetEdit + 1)}
+                aria-label="Augmenter"
+              >
+                <Plus size={16} />
+              </button>
+              <button type="button" className="btn btn-primary obj-save" onClick={saveTarget}>
+                OK
+              </button>
+            </div>
+          ) : (
+            <div className="obj-bar-bg">
+              <div
+                className="obj-bar"
+                style={{ width: `${objectiveTarget > 0 ? Math.min(100, (cur.rdv_pris / objectiveTarget) * 100) : 0}%` }}
+              />
+            </div>
+          )}
         </div>
       )}
 
