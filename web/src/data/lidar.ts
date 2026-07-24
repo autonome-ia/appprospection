@@ -184,8 +184,8 @@ interface WfsFeature {
   geometry?: { type: string; coordinates: unknown }
 }
 
-function featureRing(f: WfsFeature): Ring | null {
-  const g = f.geometry
+/** Anneau extérieur d'un (Multi)Polygon GeoJSON WGS84, projeté en L93. */
+function geoRing(g: { type?: string; coordinates?: unknown } | null | undefined): Ring | null {
   if (!g || (g.type !== 'Polygon' && g.type !== 'MultiPolygon')) return null
   const outer = (
     g.type === 'Polygon'
@@ -196,6 +196,136 @@ function featureRing(f: WfsFeature): Ring | null {
   return outer.map(([x, y]) => toL93(x, y))
 }
 
+function featureRing(f: WfsFeature): Ring | null {
+  return geoRing(f.geometry)
+}
+
+/** Plus courte distance entre deux anneaux (0 si un sommet est dedans). */
+function ringGap(a: Ring, b: Ring): number {
+  let best = Infinity
+  for (const [x, y] of a) {
+    best = Math.min(best, pointInRing(x, y, b) ? 0 : distToRing(x, y, b))
+    if (best === 0) return 0
+  }
+  for (const [x, y] of b) {
+    best = Math.min(best, pointInRing(x, y, a) ? 0 : distToRing(x, y, a))
+    if (best === 0) return 0
+  }
+  return best
+}
+
+/**
+ * Géométries RNB des maisons d'un polygone BD TOPO fusionné (bande de
+ * maisons : `identifiants_rnb` en porte plusieurs, séparés par « / »).
+ * API RNB : gratuite, sans clé, CORS ouvert, ~20 req/s (vérifié, veille).
+ */
+async function fetchRnbShapes(ids: string[]): Promise<Ring[] | null> {
+  try {
+    const rings = await Promise.all(
+      ids.map(async (id) => {
+        const r = await fetchT(
+          `https://rnb-api.beta.gouv.fr/api/alpha/buildings/${encodeURIComponent(id)}/`,
+        )
+        if (!r.ok) throw new Error(`RNB ${r.status}`)
+        const j = (await r.json()) as { shape?: { type?: string; coordinates?: unknown } }
+        const ring = geoRing(j.shape)
+        if (!ring) throw new Error('RNB : shape absente')
+        return ring
+      }),
+    )
+    return rings
+  } catch (e) {
+    console.error('Découpage RNB :', e)
+    return null // repli : polygone BD TOPO entier
+  }
+}
+
+/** Parcelle cadastrale (idu) de chaque bâtiment (BAN-PLUS:lien_bati_parcelle). */
+async function fetchParcelles(cleabs: string[]): Promise<Map<string, string> | null> {
+  try {
+    const params = new URLSearchParams({
+      SERVICE: 'WFS',
+      VERSION: '2.0.0',
+      REQUEST: 'GetFeature',
+      TYPENAMES: 'BAN-PLUS:lien_bati_parcelle',
+      COUNT: '50',
+      outputFormat: 'application/json',
+      CQL_FILTER: `id_bat IN (${cleabs.map((c) => `'${c}'`).join(',')})`,
+    })
+    const r = await fetchT(`https://data.geopf.fr/wfs/ows?${params.toString()}`)
+    if (!r.ok) throw new Error(`WFS lien_bati_parcelle ${r.status}`)
+    const j = (await r.json()) as {
+      features?: { properties?: { id_bat?: string; idu?: string } }[]
+    }
+    const map = new Map<string, string>()
+    for (const f of j.features ?? []) {
+      const p = f.properties
+      if (p?.id_bat && p.idu && !map.has(p.id_bat)) map.set(p.id_bat, p.idu)
+    }
+    return map
+  } catch (e) {
+    console.error('Parcelles BAN-PLUS :', e)
+    return null
+  }
+}
+
+// --- MNH LiDAR HD (hauteur du sursol, raster WMS) --------------------------------
+// GetMap en image/x-bil;bits=32 : Float32 brut little-endian, ~25 Ko pour une
+// emprise de maison, décodable sans aucune lib (vérifié en direct, veille).
+const MNH_LAYER = 'IGNF_LIDAR-HD_MNH_ELEVATION.ELEVATIONGRIDCOVERAGE.LAMB93'
+
+/**
+ * Hauteur MAX du sursol (m) sur l'emprise, ou null si le raster est
+ * indisponible. Éclaireur des verdicts : ~0 = plus rien debout (maison rasée
+ * ou postérieure au survol) ; haut avec 0 point classe 6 = canopée/classif.
+ */
+async function fetchMnhMax(ring: Ring): Promise<number | null> {
+  try {
+    const xs = ring.map((p) => p[0])
+    const ys = ring.map((p) => p[1])
+    const minx = Math.min(...xs)
+    const maxx = Math.max(...xs)
+    const miny = Math.min(...ys)
+    const maxy = Math.max(...ys)
+    const w = Math.max(8, Math.min(120, Math.round((maxx - minx) * 2))) // ~0,5 m/px
+    const h = Math.max(8, Math.min(120, Math.round((maxy - miny) * 2)))
+    const params = new URLSearchParams({
+      SERVICE: 'WMS',
+      VERSION: '1.3.0',
+      REQUEST: 'GetMap',
+      LAYERS: MNH_LAYER,
+      STYLES: '',
+      CRS: 'EPSG:2154',
+      BBOX: `${minx},${miny},${maxx},${maxy}`,
+      WIDTH: String(w),
+      HEIGHT: String(h),
+      FORMAT: 'image/x-bil;bits=32',
+    })
+    const r = await fetchT(`https://data.geopf.fr/wms-r/wms?${params.toString()}`)
+    if (!r.ok) return null
+    const buf = await r.arrayBuffer()
+    if (buf.byteLength !== w * h * 4) return null // PNG d'erreur, pas du BIL
+    const data = new Float32Array(buf)
+    const resx = (maxx - minx) / w
+    const resy = (maxy - miny) / h
+    let max = 0
+    let inside = 0
+    for (let j = 0; j < h; j++) {
+      for (let i = 0; i < w; i++) {
+        const x = minx + (i + 0.5) * resx
+        const y = maxy - (j + 0.5) * resy
+        if (!pointInRing(x, y, ring)) continue
+        inside++
+        const v = data[j * w + i]
+        if (Number.isFinite(v) && v > max && v < 100) max = v // nodata écarté
+      }
+    }
+    return inside >= 4 ? Math.round(max * 10) / 10 : null
+  } catch {
+    return null // non bloquant par construction
+  }
+}
+
 // Tap hors de tout polygone (trottoir, jardin) : au-delà de cette distance,
 // aucun bâtiment ne peut être raisonnablement désigné -> no_data plutôt que
 // de mesurer (et afficher comme « sûre ») la toiture d'une autre maison.
@@ -204,6 +334,10 @@ const MAX_SNAP_M = 10
 interface BuildingInfo {
   ring: Ring
   neighbors: Ring[]
+  /** Voisins accolés de la MÊME parcelle (annexe/extension de la propriété,
+      ou moitié de toit éclatée par la BD TOPO — piste Deschard) : leurs
+      points rejoignent la collecte au lieu d'être exclus. */
+  annexes: Ring[]
   /** Hauteur BD TOPO (faîtage − sol) : la plus fiable pour la maquette. */
   hauteur: number | null
   /** Repli : gouttière − sol (bruité sur terrain en pente). */
@@ -213,6 +347,9 @@ interface BuildingInfo {
   etages: number | null
   /** Nombre d'IDs RNB portés par le polygone (> 1 = maisons fusionnées). */
   rnbCount: number
+  /** Fusion RNB résolue : `ring` est la maison tapée, ses sœurs sont
+      passées en voisins (v20). */
+  rnbSplit: boolean
   /** Année d'apparition du bâtiment — un no_data avec apparition postérieure
       au survol a une cause certaine. */
   anneeApparition: number | null
@@ -244,16 +381,70 @@ async function fetchBuildingAndNeighbors(lng: number, lat: number): Promise<Buil
     }
   }
   if (!main) return null
-  const ring = featureRing(main)
+  let ring = featureRing(main)
   if (!ring) return null
   const mainId = main.properties?.cleabs
-  const neighbors: Ring[] = []
+  const props = main.properties ?? {}
+  const neighborFeats: { ring: Ring; cleabs: string | null }[] = []
   for (const f of feats) {
     if (f.properties?.cleabs === mainId) continue
     const r = featureRing(f)
-    if (r) neighbors.push(r)
+    if (r) {
+      neighborFeats.push({
+        ring: r,
+        cleabs: typeof f.properties?.cleabs === 'string' ? f.properties.cleabs : null,
+      })
+    }
   }
-  const props = main.properties ?? {}
+
+  // Polygone FUSIONNÉ (bande de maisons) : plusieurs IDs RNB. Le RNB fournit
+  // la géométrie PROPRE de chaque maison — celle qui contient le tap devient
+  // l'emprise, ses sœurs des voisins à exclure. Repli silencieux sur le
+  // polygone entier si l'API RNB est indisponible.
+  const rnbIds =
+    typeof props.identifiants_rnb === 'string' && props.identifiants_rnb
+      ? props.identifiants_rnb.split('/').filter(Boolean)
+      : []
+  let rnbSplit = false
+  if (rnbIds.length > 1 && rnbIds.length <= 6) {
+    const shapes = await fetchRnbShapes(rnbIds)
+    if (shapes) {
+      const [px, py] = toL93(lng, lat)
+      let bestIdx = -1
+      let bestD = MAX_SNAP_M
+      shapes.forEach((s, i) => {
+        const d = pointInRing(px, py, s) ? 0 : distToRing(px, py, s)
+        if (d < bestD) {
+          bestD = d
+          bestIdx = i
+        }
+      })
+      if (bestIdx >= 0) {
+        ring = shapes[bestIdx]
+        shapes.forEach((s, i) => {
+          if (i !== bestIdx) neighborFeats.push({ ring: s, cleabs: null })
+        })
+        rnbSplit = true
+      }
+    }
+  }
+
+  // Voisin ACCOLÉ de la même parcelle cadastrale (BAN-PLUS) : annexe ou
+  // extension de la propriété — voire moitié de toit éclatée par la BD TOPO
+  // (Deschard). Ses points rejoignent la collecte au lieu d'être exclus ;
+  // le corps principal (soudures) garde le badge sur LA maison.
+  const annexes: Ring[] = []
+  const touching = neighborFeats.filter((n) => n.cleabs && ringGap(ring!, n.ring) < 0.5)
+  if (typeof mainId === 'string' && touching.length) {
+    const parc = await fetchParcelles([mainId, ...touching.map((n) => n.cleabs!)])
+    const mainIdu = parc?.get(mainId)
+    if (parc && mainIdu) {
+      for (const n of touching) {
+        if (parc.get(n.cleabs!) === mainIdu) annexes.push(n.ring)
+      }
+    }
+  }
+  const neighbors = neighborFeats.filter((n) => !annexes.includes(n.ring)).map((n) => n.ring)
   const altToit =
     typeof props.altitude_minimale_toit === 'number' ? props.altitude_minimale_toit : null
   const altSol =
@@ -265,15 +456,14 @@ async function fetchBuildingAndNeighbors(lng: number, lat: number): Promise<Buil
   return {
     ring,
     neighbors,
+    annexes,
     hauteur: typeof props.hauteur === 'number' && props.hauteur > 0 ? props.hauteur : null,
     gouttiereSol: altToit != null && altSol != null && altToit > altSol ? altToit - altSol : null,
     logements:
       typeof props.nombre_de_logements === 'number' ? props.nombre_de_logements : null,
     etages: typeof props.nombre_d_etages === 'number' ? props.nombre_d_etages : null,
-    rnbCount:
-      typeof props.identifiants_rnb === 'string' && props.identifiants_rnb
-        ? props.identifiants_rnb.split('/').filter(Boolean).length
-        : 0,
+    rnbCount: rnbIds.length,
+    rnbSplit,
     anneeApparition: Number.isFinite(apparition) && apparition > 1000 ? apparition : null,
   }
 }
@@ -481,9 +671,13 @@ interface RoofPoints {
 }
 
 /** Points « bâtiment » (classe 6) dans le polygone bufferisé, toutes dalles. */
-async function collectRoofPoints(ring: Ring, neighbors: Ring[]): Promise<RoofPoints> {
-  const xs = ring.map((p) => p[0])
-  const ys = ring.map((p) => p[1])
+async function collectRoofPoints(
+  ring: Ring,
+  neighbors: Ring[],
+  annexes: Ring[] = [],
+): Promise<RoofPoints> {
+  const xs = [ring, ...annexes].flat().map((p) => p[0])
+  const ys = [ring, ...annexes].flat().map((p) => p[1])
   const bb: Bbox = {
     minx: Math.min(...xs) - BUFFER_M,
     maxx: Math.max(...xs) + BUFFER_M,
@@ -550,7 +744,11 @@ async function collectRoofPoints(ring: Ring, neighbors: Ring[]): Promise<RoofPoi
           }
           continue
         }
-        if (!pointInRing(x, y, ring) && distToRing(x, y, ring) > BUFFER_M) continue
+        const inMain = pointInRing(x, y, ring) || distToRing(x, y, ring) <= BUFFER_M
+        const inAnnex =
+          !inMain &&
+          annexes.some((a) => pointInRing(x, y, a) || distToRing(x, y, a) <= BUFFER_M)
+        if (!inMain && !inAnnex) continue
         if (neighbors.some((nring) => pointInRing(x, y, nring))) continue
         pts.push([x, y, arr[i + 2]])
       }
@@ -578,12 +776,22 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
   // maisons fusionnées (découpage RNB à venir — en attendant, le badge
   // mesurerait toute la bande : on s'abstient).
   const collectif =
-    (building.logements ?? 0) >= 4 || (building.etages ?? 0) >= 3 || building.rnbCount > 1
+    (building.logements ?? 0) >= 4 ||
+    (building.etages ?? 0) >= 3 ||
+    (building.rnbCount > 1 && !building.rnbSplit)
   if (emprise > MAX_EMPRISE_HARD_M2 || (emprise > MAX_EMPRISE_M2 && collectif)) {
     // La fiche n'affiche rien pour ce verdict, inutile de télécharger 2-3 Mo.
     return emptyResult('grand_batiment', null, null)
   }
-  const collected = await collectRoofPoints(building.ring, building.neighbors)
+  // MNH LiDAR HD en ÉCLAIREUR (raster 25 Ko), en parallèle de la collecte :
+  // zéro latence ajoutée, et un no_data devient explicable — sursol ~0 =
+  // maison rasée/postérieure au survol, sursol haut sans classe 6 = canopée
+  // ou classification pauvre. (Le court-circuit séquentiel a été écarté :
+  // payer un aller-retour sur TOUTES les mesures pour un cas rare.)
+  const [collected, mnhMax] = await Promise.all([
+    collectRoofPoints(building.ring, building.neighbors, building.annexes),
+    fetchMnhMax(building.ring),
+  ])
   if (collected.horsCouverture) {
     // Aucune dalle : zone pas ENCORE couverte (programme complet fin 2026) —
     // re-tenter plus tard vaut le coup, contrairement à une canopée.
@@ -593,6 +801,9 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
   if (collected.vegetationPct > 0) baseDiag.vegetation_pct = collected.vegetationPct
   if (collected.classif) baseDiag.classif = collected.classif
   if (collected.edition) baseDiag.edition = collected.edition
+  if (mnhMax != null) baseDiag.mnh_max_m = mnhMax
+  if (building.rnbSplit) baseDiag.rnb_split = true
+  if (building.annexes.length) baseDiag.meme_parcelle = true
 
   // Secours classe 67 « divers bâtis » : des toits réels (vérandas, annexes,
   // bâtis atypiques) que la classification auto ne range pas en 6. Coût
@@ -609,10 +820,11 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
     const motif: LidarDiag['motif'] =
       collected.vegetationPct >= VEG_CANOPEE_PCT
         ? 'canopee'
-        : building.anneeApparition != null &&
-            Number.isFinite(survol) &&
-            building.anneeApparition >= survol
-          ? 'posterieur_survol'
+        : (mnhMax != null && mnhMax < 1.5) ||
+            (building.anneeApparition != null &&
+              Number.isFinite(survol) &&
+              building.anneeApparition >= survol)
+          ? 'posterieur_survol' // plus rien debout au survol (MNH ~0) ou date
           : 'sans_points'
     return emptyResult('no_data', collected.millesime, { ...baseDiag, motif })
   }

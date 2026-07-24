@@ -146,6 +146,15 @@ export interface HouseEnrichment {
  * v17 : drapeau `maison` par pan (appartenance au corps principal) — nourrit
  *      les pans COCHABLES de la maquette 3D (niveau 3 : le commercial exclut
  *      du doigt un garage ou une extension, le total suit).
+ * v20 : géométrie d'entrée affinée (veille juillet 2026) — un polygone
+ *      BD TOPO à PLUSIEURS IDs RNB (maisons en bande fusionnées) est DÉCOUPÉ
+ *      par les géométries RNB (la maison tapée devient l'emprise, ses sœurs
+ *      des voisins à exclure) ; un voisin accolé de la MÊME parcelle
+ *      cadastrale (BAN-PLUS) n'est plus exclu comme mitoyen : ses points
+ *      rejoignent la collecte (annexe/extension de la même propriété —
+ *      piste Deschard). MNH LiDAR HD interrogé en parallèle (raster 25 Ko)
+ *      pour éclairer les verdicts (mnh_max_m au diag : maison rasée vs
+ *      canopée).
  * v19 : longueurs LINÉAIRES par type d'arête (`aretes` dans le jsonb) —
  *      faîtages, arêtiers, noues, rives, égouts, solins de marche, calculées
  *      depuis la reconstruction (edgeMetrics) : le chiffrage couvreur au
@@ -163,7 +172,7 @@ export interface HouseEnrichment {
  *      au lieu du seul seuil d'emprise (les grandes longères passaient à
  *      tort pour des collectifs).
  */
-export const LIDAR_VERSION = 19
+export const LIDAR_VERSION = 20
 
 /** Longueurs linéaires du toit par type d'arête (m — jsonb `aretes`, v19). */
 export interface RoofEdges {
@@ -208,6 +217,12 @@ export interface LidarDiag {
   classif?: string
   /** Date d'édition de la dalle (réédition IGN = re-mesure possible). */
   edition?: string
+  /** Hauteur max du sursol (MNH LiDAR HD, m) sur l'emprise — éclaireur. */
+  mnh_max_m?: number
+  /** Polygone BD TOPO fusionné découpé par maison via le RNB (v20). */
+  rnb_split?: boolean
+  /** Voisin(s) de la même parcelle inclus dans la collecte (annexe, v20). */
+  meme_parcelle?: boolean
 }
 
 /** Un pan de toiture mesuré (stocké en jsonb sur le point). */
