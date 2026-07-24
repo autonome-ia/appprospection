@@ -1774,6 +1774,23 @@
   body:has(.roof-report-overlay) #root {
     display: none;
   }
+  /* Les règles écran height:100% + overflow:hidden clippaient tout ce qui
+     dépasse la PREMIÈRE page (tableaux des pans, longueurs, chutes). */
+  body:has(.roof-report-overlay) {
+    height: auto;
+    overflow: visible;
+  }
+  html:has(.roof-report-overlay) {
+    height: auto;
+    overflow: visible;
+  }
+  /* Les sheets vaul et les toasts sont portés dans <body>, PAS dans #root :
+     la fiche (fond opaque, fixed, z-50) s'imprimait PAR-DESSUS le rapport. */
+  body:has(.roof-report-overlay) .drawer-content,
+  body:has(.roof-report-overlay) .drawer-overlay,
+  body:has(.roof-report-overlay) [data-sonner-toaster] {
+    display: none;
+  }
   .roof-report-overlay {
     position: static;
     overflow: visible;
