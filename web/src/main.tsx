@@ -14,6 +14,15 @@ window.addEventListener('vite:preloadError', (e) => {
   window.location.reload()
 })
 
+// iOS Safari pousse lui-même le viewport pour révéler un champ logé dans une
+// couche fixed (sheets vaul non modales : la protection anti-poussée de vaul
+// est coupée par modal={false}) et, en PWA installée, le décalage persiste
+// parfois après la fermeture du clavier : tout l'écran reste remonté. On
+// recolle le layout à chaque perte de focus d'un champ.
+window.addEventListener('focusout', () => {
+  requestAnimationFrame(() => window.scrollTo(0, 0))
+})
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
