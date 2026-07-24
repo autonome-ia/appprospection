@@ -707,7 +707,10 @@
 }
 .cal-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  /* minmax(0, 1fr) : sans le 0, une piste 1fr refuse de descendre sous la
+     largeur du contenu — les étiquettes nowrap faisaient déborder la grille
+     de l'écran sur mobile au lieu d'être coupées. */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 3px 2px;
 }
 /* Cases « mois » façon agenda iOS (référence capture briac) : hautes, avec
@@ -723,6 +726,8 @@
   padding: 3px 1px 4px;
   border-radius: var(--r-md);
   min-height: 78px;
+  min-width: 0; /* autorise la case à rétrécir : le texte se coupe dedans */
+  overflow: hidden;
 }
 .cal-cell:active {
   background: var(--surface-2);
@@ -757,9 +762,11 @@
   flex-direction: column;
   gap: 2px;
   width: 100%;
+  min-width: 0;
 }
 .cal-event {
   display: block;
+  max-width: 100%;
   padding: 2.5px 3px;
   border-radius: 4px;
   font-size: 9px;
