@@ -23,6 +23,9 @@ export interface MapPoint {
   address: string | null
   /** Date de relance (YYYY-MM-DD) pour les points « à revoir ». */
   revisit_at: string | null
+  /** Dernière VISITE commerciale (pose ou changement de statut — pas les
+      écritures techniques). Filtre « ancienneté » de la carte (db/0012). */
+  visited_at: string | null
   /** Fiche maison enrichie (open data BD TOPO / BDNB, cache à la pose). */
   annee_construction: number | null
   mat_toit: string | null

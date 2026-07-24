@@ -77,7 +77,10 @@ export async function setAppointmentOutcome(
 ): Promise<Appointment> {
   const updated = await updateAppointment(appt.id, { status: outcome })
   if (outcome === 'vendu' && appt.point_id && supabase) {
-    const { error } = await supabase.from('points').update({ status: 'vendu' }).eq('id', appt.point_id)
+    const { error } = await supabase
+      .from('points')
+      .update({ status: 'vendu', visited_at: new Date().toISOString() })
+      .eq('id', appt.point_id)
     if (!error) {
       await supabase.from('point_events').insert({
         organization_id: profile.organization_id,

@@ -119,6 +119,10 @@ export function MapView({
   // chantiers pour prospecter autour. Chips repliées derrière le bouton
   // filtres de la barre d'outils (la carte reste dégagée).
   const [statusFilter, setStatusFilter] = useState<ReadonlySet<PointStatus>>(new Set())
+  // Filtre « ancienneté » (jours depuis la DERNIÈRE visite, null = tout) :
+  // combiné en ET avec le statut — ex. « Absent » + « > 1 mois » = les portes
+  // à retenter en priorité.
+  const [ageFilter, setAgeFilter] = useState<number | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
   // Fiche maison AVANT prospection : maison tapée (sans marqueur) + ses infos.
   const [housePreview, setHousePreview] = useState<{ lng: number; lat: number } | null>(null)
@@ -674,11 +678,14 @@ export function MapView({
     const map = mapRef.current
     if (!map || !mapLoaded) return
     const source = map.getSource(POINTS_SOURCE) as maplibregl.GeoJSONSource | undefined
-    const visible = statusFilter.size
-      ? points.filter((p) => statusFilter.has(p.status))
-      : points
+    const cutoff = ageFilter !== null ? Date.now() - ageFilter * 86_400_000 : null
+    const visible = points.filter(
+      (p) =>
+        (statusFilter.size === 0 || statusFilter.has(p.status)) &&
+        (cutoff === null || (p.visited_at !== null && Date.parse(p.visited_at) < cutoff)),
+    )
     source?.setData(toFeatureCollection(visible))
-  }, [points, mapLoaded, statusFilter])
+  }, [points, mapLoaded, statusFilter, ageFilter])
 
   // Surbrillance du point sélectionné.
   useEffect(() => {
@@ -802,9 +809,9 @@ export function MapView({
         </button>
         <button
           type="button"
-          className={`map-tool ${filtersOpen || statusFilter.size > 0 ? 'is-on' : ''}`}
+          className={`map-tool ${filtersOpen || statusFilter.size > 0 || ageFilter !== null ? 'is-on' : ''}`}
           onClick={() => setFiltersOpen((v) => !v)}
-          title="Filtrer par statut"
+          title="Filtrer (statut, ancienneté)"
         >
           <SlidersHorizontal size={20} strokeWidth={1.8} />
         </button>
@@ -814,25 +821,46 @@ export function MapView({
         <>
           {filtersOpen && (
           <div className="map-filterbar">
-            {STATUSES.map((s) => (
-              <button
-                key={s.value}
-                type="button"
-                className={`chip ${statusFilter.has(s.value) ? 'is-active' : ''}`}
-                style={{ ['--chip' as string]: s.color }}
-                onClick={() =>
-                  setStatusFilter((prev) => {
-                    const next = new Set(prev)
-                    if (next.has(s.value)) next.delete(s.value)
-                    else next.add(s.value)
-                    return next
-                  })
-                }
-              >
-                <span className="chip-dot" style={{ background: s.color }} />
-                {s.label}
-              </button>
-            ))}
+            <div className="map-filterrow">
+              {STATUSES.map((s) => (
+                <button
+                  key={s.value}
+                  type="button"
+                  className={`chip ${statusFilter.has(s.value) ? 'is-active' : ''}`}
+                  style={{ ['--chip' as string]: s.color }}
+                  onClick={() =>
+                    setStatusFilter((prev) => {
+                      const next = new Set(prev)
+                      if (next.has(s.value)) next.delete(s.value)
+                      else next.add(s.value)
+                      return next
+                    })
+                  }
+                >
+                  <span className="chip-dot" style={{ background: s.color }} />
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <div className="map-filterrow">
+              {(
+                [
+                  [14, '> 2 sem'],
+                  [30, '> 1 mois'],
+                  [90, '> 3 mois'],
+                ] as [number, string][]
+              ).map(([days, label]) => (
+                <button
+                  key={days}
+                  type="button"
+                  className={`chip ${ageFilter === days ? 'is-active' : ''}`}
+                  onClick={() => setAgeFilter((prev) => (prev === days ? null : days))}
+                  title={`Dernière visite il y a plus de ${label.slice(2)}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
           )}
           <button
