@@ -6,6 +6,7 @@ import { AuthScreen } from './components/AuthScreen'
 import { AccueilScreen } from './components/AccueilScreen'
 import { AgendaScreen } from './components/AgendaScreen'
 import { StatsScreen } from './components/StatsScreen'
+import { ScreenBoundary } from './components/ScreenBoundary'
 import { SessionProvider, useSession } from './lib/session'
 import { isSupabaseConfigured } from './lib/supabase'
 import './App.css'
@@ -47,9 +48,21 @@ function AppInner() {
             onFocusHandled={() => setMapFocus(null)}
           />
         </div>
-        {tab === 'accueil' ? <AccueilScreen onShowOnMap={showOnMap} /> : null}
-        {tab === 'agenda' ? <AgendaScreen profile={profile} onShowOnMap={showOnMap} /> : null}
-        {tab === 'stats' ? <StatsScreen profile={profile} /> : null}
+        {tab === 'accueil' ? (
+          <ScreenBoundary>
+            <AccueilScreen onShowOnMap={showOnMap} />
+          </ScreenBoundary>
+        ) : null}
+        {tab === 'agenda' ? (
+          <ScreenBoundary>
+            <AgendaScreen profile={profile} onShowOnMap={showOnMap} />
+          </ScreenBoundary>
+        ) : null}
+        {tab === 'stats' ? (
+          <ScreenBoundary>
+            <StatsScreen profile={profile} />
+          </ScreenBoundary>
+        ) : null}
       </main>
 
       {!isSupabaseConfigured && <div className="mode-badge">Mode local (sans base)</div>}

@@ -347,13 +347,19 @@ interface RealtimeHandlers {
  * chaque mise en veille, les événements émis pendant la coupure sont PERDUS ;
  * un refetch au re-SUBSCRIBED est la seule façon de resynchroniser.
  */
+// Nom de canal UNIQUE par abonnement : la carte (persistante) et l'agenda
+// écoutent tous deux la table points — avec un nom partagé, supabase-js
+// retourne le canal existant et son .subscribe() relance une souscription
+// déjà active → exception au montage → écran blanc (bug briac).
+let pointsChannelSeq = 0
+
 export function subscribePoints(
   handlers: RealtimeHandlers,
   onStatus?: (status: string) => void,
 ): () => void {
   if (!supabase) return () => {}
   const channel = supabase
-    .channel('points-changes')
+    .channel(`points-changes-${++pointsChannelSeq}`)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'points' }, (p) =>
       handlers.onInsert?.(rowToPoint(p.new as Record<string, unknown>)),
     )

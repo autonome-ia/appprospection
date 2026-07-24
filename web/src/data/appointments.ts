@@ -128,13 +128,15 @@ export async function setAppointmentOutcome(
 
 /** Abonnement temps réel aux RDV. `onStatus` : re-SUBSCRIBED après une
     coupure (veille iOS) = événements perdus → l'appelant doit recharger. */
+let apptsChannelSeq = 0
+
 export function subscribeAppointments(
   reload: () => void,
   onStatus?: (status: string) => void,
 ): () => void {
   if (!supabase) return () => {}
   const channel = supabase
-    .channel('appointments-changes')
+    .channel(`appointments-changes-${++apptsChannelSeq}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => reload())
     .subscribe((status) => onStatus?.(status))
   return () => {
