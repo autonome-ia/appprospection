@@ -221,7 +221,19 @@ export async function deletePoint(id: string): Promise<void> {
   // alors que rien ne l'était (audit).
   const { data, error } = await supabase.from('points').delete().eq('id', id).select('id')
   if (error) throw error
-  if (!data?.length) throw new Error('Suppression refusée (point d’un autre commercial)')
+  if (!data?.length) {
+    // 0 ligne = refus RLS… ou ligne DÉJÀ supprimée par un collègue (le
+    // realtime n'est pas encore arrivé sur cet appareil). On vérifie avant
+    // d'accuser : absente = succès — sinon le point fantôme restait affiché
+    // avec un toast d'erreur mensonger (contre-audit, bug 11).
+    const { data: still, error: e2 } = await supabase
+      .from('points')
+      .select('id')
+      .eq('id', id)
+      .maybeSingle()
+    if (e2) throw e2
+    if (still) throw new Error('Suppression refusée (point d’un autre commercial)')
+  }
 }
 
 /** Clé jour LOCALE (YYYY-MM-DD) — toISOString() donne le jour UTC : entre

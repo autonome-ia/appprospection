@@ -88,7 +88,18 @@ export async function deleteAppointment(id: string): Promise<void> {
     .eq('id', id)
     .select('id')
   if (error) throw error
-  if (!data?.length) throw new Error('Suppression refusée (RDV d’un autre commercial)')
+  if (!data?.length) {
+    // 0 ligne = refus RLS… ou ligne DÉJÀ supprimée par un collègue (le
+    // realtime n'est pas encore arrivé sur cet appareil). On vérifie avant
+    // d'accuser : absente = succès (contre-audit, bug 11).
+    const { data: still, error: e2 } = await supabase
+      .from('appointments')
+      .select('id')
+      .eq('id', id)
+      .maybeSingle()
+    if (e2) throw e2
+    if (still) throw new Error('Suppression refusée (RDV d’un autre commercial)')
+  }
 }
 
 /**
@@ -114,18 +125,21 @@ export async function setAppointmentOutcome(
     if (error || !data?.length) {
       pointSynced = false
       console.error('Bascule du point en vendu :', error?.message ?? 'refusée (RLS)')
-    }
-    // Journalisé même si la bascule carte a échoué : la VENTE doit compter
-    // dans les stats (le RDV, lui, est bien vendu).
-    const { error: e2 } = await supabase.from('point_events').insert({
-      organization_id: profile.organization_id,
-      point_id: appt.point_id,
-      author_id: profile.id,
-      status: 'vendu',
-    })
-    if (e2) {
-      pointSynced = false
-      console.error('Journal de la vente :', e2.message)
+    } else {
+      // Journalisée SEULEMENT si la bascule a réussi : en cas d'échec, l'UI
+      // guide vers la correction par la fiche, qui journalise elle-même —
+      // l'insert inconditionnel produisait alors une DEUXIÈME vente dans les
+      // stats (contre-audit, bug 9).
+      const { error: e2 } = await supabase.from('point_events').insert({
+        organization_id: profile.organization_id,
+        point_id: appt.point_id,
+        author_id: profile.id,
+        status: 'vendu',
+      })
+      if (e2) {
+        pointSynced = false
+        console.error('Journal de la vente :', e2.message)
+      }
     }
   }
   return { appointment: updated, pointSynced }
