@@ -1561,6 +1561,34 @@
   font-family: var(--font-mono);
   fill: var(--ink-3);
 }
+/* Fiche client (vue « Clients » de l'agenda) : lignes d'infos avec icônes. */
+.client-info {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-bottom: 6px;
+}
+.client-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 14px;
+  color: var(--ink-2);
+  line-height: 1.35;
+}
+.client-row svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--ink-3);
+}
+.client-row a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+.client-row.is-context span {
+  color: var(--ink-3);
+}
 /* Rapport client : plein écran, imprimable (PDF natif du téléphone). */
 .roof-report-overlay {
   position: fixed;

@@ -94,6 +94,14 @@ export async function fetchPointPans(pointId: string): Promise<RoofData | null> 
   return pans
 }
 
+/** Point complet (projection carte) par id — fiche client de l'agenda. */
+export async function fetchPoint(id: string): Promise<MapPoint | null> {
+  if (!supabase) return null
+  const { data, error } = await supabase.from('points').select(COLS).eq('id', id).maybeSingle()
+  if (error) throw error
+  return data ? rowToPoint(data as Record<string, unknown>) : null
+}
+
 /** Détail d'un point + nom de l'auteur (2 requêtes, robuste sans jointure implicite). */
 export async function getPointDetail(id: string): Promise<PointDetail | null> {
   if (!supabase) return null

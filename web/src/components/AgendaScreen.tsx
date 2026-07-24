@@ -10,6 +10,7 @@ import {
 import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
 import { fetchRevisits } from '../data/points'
 import { AppointmentForm } from './AppointmentForm'
+import { ClientSheet } from './ClientSheet'
 import { APPOINTMENT_STATUS_META, APPOINTMENT_OUTCOMES, type Appointment } from '../domain/appointments'
 import { STATUS_BY_VALUE } from '../domain/status'
 import { colorForCommercial } from '../domain/colors'
@@ -178,6 +179,9 @@ export function AgendaScreen({
   const [editing, setEditing] = useState<Appointment | null>(null)
   const [monthDate, setMonthDate] = useState(() => startOfMonth(new Date()))
   const [selected, setSelected] = useState(() => new Date())
+  // Vue « Clients » : une ligne par client (RDV pris), tap -> fiche complète.
+  const [view, setView] = useState<'agenda' | 'clients'>('agenda')
+  const [clientAppt, setClientAppt] = useState<Appointment | null>(null)
 
   const reload = useCallback(() => {
     fetchAppointments().then(setAppts).catch((e) => console.error('Agenda :', e))
@@ -216,6 +220,35 @@ export function AgendaScreen({
     return m
   }, [revisits])
 
+  // Vue « Clients » : un client = une ligne. Regroupé par nom (repli adresse) ;
+  // la ligne porte le RDV le plus PERTINENT (prochain à venir, sinon le plus
+  // récent). Tri : à venir d'abord (par date), puis passés (du plus récent).
+  const clients = useMemo(() => {
+    const groups = new Map<string, Appointment[]>()
+    for (const a of appts) {
+      const key =
+        a.client_name?.trim().toLowerCase() || a.address?.trim().toLowerCase() || a.id
+      const list = groups.get(key)
+      if (list) list.push(a)
+      else groups.set(key, [a])
+    }
+    const now = Date.now()
+    const reps = [...groups.values()].map((list) => {
+      const upcoming = list
+        .filter((a) => a.status === 'a_venir' && Date.parse(a.scheduled_at) >= now - 3_600_000)
+        .sort((x, y) => x.scheduled_at.localeCompare(y.scheduled_at))
+      const rep =
+        upcoming[0] ?? [...list].sort((x, y) => y.scheduled_at.localeCompare(x.scheduled_at))[0]
+      return { rep, count: list.length, upcoming: upcoming.length > 0 }
+    })
+    return reps.sort((a, b) => {
+      if (a.upcoming !== b.upcoming) return a.upcoming ? -1 : 1
+      return a.upcoming
+        ? a.rep.scheduled_at.localeCompare(b.rep.scheduled_at)
+        : b.rep.scheduled_at.localeCompare(a.rep.scheduled_at)
+    })
+  }, [appts])
+
   if (!profile) return <div className="placeholder">Connexion requise.</div>
 
   const cells = monthCells(monthDate)
@@ -242,6 +275,65 @@ export function AgendaScreen({
         </button>
       </header>
 
+      <div className="seg">
+        {(
+          [
+            ['agenda', 'Agenda'],
+            ['clients', 'Clients'],
+          ] as ['agenda' | 'clients', string][]
+        ).map(([v, label]) => (
+          <button
+            key={v}
+            type="button"
+            className={`seg-btn ${view === v ? 'is-active' : ''}`}
+            onClick={() => setView(v)}
+          >
+            {view === v && <span className="seg-ind" />}
+            <span className="seg-text">{label}</span>
+          </button>
+        ))}
+      </div>
+
+      {view === 'clients' && (
+        <section className="appt-section">
+          <p className="eyebrow section-title">
+            {clients.length} client{clients.length > 1 ? 's' : ''}
+          </p>
+          {clients.length === 0 ? (
+            <div className="empty-state">
+              <CalendarClock size={26} strokeWidth={1.5} />
+              <p>Aucun rendez-vous pris pour l’instant.</p>
+            </div>
+          ) : (
+            clients.map(({ rep, count }) => {
+              const meta = APPOINTMENT_STATUS_META[rep.status]
+              const title = rep.client_name ?? rep.address ?? 'Client'
+              return (
+                <button
+                  key={rep.id}
+                  type="button"
+                  className="home-row"
+                  onClick={() => setClientAppt(rep)}
+                >
+                  <span className="status-dot" style={{ background: meta.color }} />
+                  <span className="home-row-main">
+                    <span className="home-row-title">{title}</span>
+                    <span className="home-row-sub">
+                      {rep.client_name && rep.address ? `${rep.address} · ` : ''}
+                      {meta.label}
+                      {count > 1 ? ` · ${count} RDV` : ''}
+                    </span>
+                  </span>
+                  <span className="home-row-when tnum">{fmt(rep.scheduled_at)}</span>
+                </button>
+              )
+            })
+          )}
+        </section>
+      )}
+
+      {view === 'agenda' && (
+      <>
       <div className="cal">
         <div className="cal-nav">
           <button type="button" className="icon-btn" onClick={() => shiftMonth(-1)} aria-label="Mois précédent">
@@ -345,6 +437,20 @@ export function AgendaScreen({
           </>
         )}
       </section>
+      </>
+      )}
+
+      {clientAppt && (
+        <ClientSheet
+          appt={clientAppt}
+          onOpenChange={(o) => !o && setClientAppt(null)}
+          onEdit={(a) => {
+            setClientAppt(null)
+            setEditing(a)
+          }}
+          onShowOnMap={onShowOnMap}
+        />
+      )}
 
       {creating && (
         <AppointmentForm

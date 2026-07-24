@@ -95,6 +95,11 @@
 - [ ] ⬜ **Sondes terrain post-v20** : re-taper Deschard (annexe même-parcelle), une bande fusionnée (découpage RNB), une maison sous canopée (motif) — les fixtures ne couvrent pas la collecte.
 - [ ] ⬜ **Quick wins estimation actuelle** (« étage 1 », ½ j, à valider) : débords de toit, toits plats, formes en L — améliore le fallback partout où le LiDAR ne peut rien.
 
+## Retours terrain briac (fin juillet 2026)
+- [x] **Filtre carte par ancienneté** (voir section Fiabilité carte, migration `db/0012`).
+- [x] **RDV à la demi-heure** : le `datetime-local` (roue des 60 minutes, step ignoré par iOS) remplacé par date native + sélecteur de créneaux 7 h → 21 h (:00/:30) — un seul tap.
+- [x] **Agenda : vue « Clients »** : segmented Agenda/Clients en tête d'onglet ; une ligne par client (regroupé par nom, repli adresse — RDV le plus pertinent : prochain à venir, sinon dernier passé), tap → fiche client complète (RDV + badge statut, téléphone cliquable, adresse, notes, badges maison, **maquette 3D, plan coté, rapport client** — mêmes briques que la fiche carte, backfill de mesure automatique), boutons Carte / Modifier le RDV.
+
 ## Prochains chantiers (à choisir avec briac)
 - [ ] ⬜ **Écran de connexion** — dernier écran encore à l'ancien style ; l'habiller avec la DA (Geist/Lucide). Petit, rapide.
 - [ ] ⬜ **Équipe (invitations)** — le manager partage un code ; les commerciaux s'inscrivent avec ce code et rejoignent SON agence (aujourd'hui chaque inscription = nouvelle agence isolée). Débloque le test réel à plusieurs. *Dépend un peu de l'ami (Q13-16).*
