@@ -79,7 +79,7 @@ export type LidarStatut = 'ok' | 'faible_confiance' | 'grand_batiment' | 'no_dat
 
 export type { LidarDiag, LidarPan, RoofData } from '../domain/house'
 import type { LidarDiag, LidarPan, RoofData } from '../domain/house'
-import { mainBodyPans, reconstructRoof } from './lidar-recon'
+import { edgeMetrics, mainBodyPans, reconstructRoof } from './lidar-recon'
 
 export interface LidarResult {
   toit_lidar_statut: LidarStatut
@@ -578,8 +578,7 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
   // « La MAISON » (donnée couvreur, badge de la fiche) : composante des pans
   // reliés au plus grand pan incliné par des frontières SOUDÉES — un décroché
   // de niveau (extension, annexe, garage, toit plat accolé) coupe la
-  // composante, même à pente égale. Repli : typage par pente (totalPrincipal).
-  let principal = m.totalPrincipal
+  // composante, même à pente égale. Repli : typage par pente.
   let body: Set<number> | null = null
   if (recon) {
     const b = mainBodyPans(
@@ -588,11 +587,28 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
       recon.welds,
       recon.absorbed,
     )
-    if (b.size) {
-      body = b
-      principal = m.pans.reduce((s, p, i) => (b.has(i) ? s + p.realDedup : s), 0)
-    }
+    if (b.size) body = b
   }
+  // Longueurs par type d'arête (v19) : faîtières, gouttières, rives, noues,
+  // solins — chiffrage couvreur au mètre linéaire, quasi gratuit depuis la
+  // reconstruction. Arrondi au demi-mètre.
+  const aretes = recon
+    ? (() => {
+        const e = edgeMetrics(
+          recon,
+          m.pans.map((p) => p.plane),
+        )
+        const r = (x: number) => Math.round(x * 2) / 2
+        return {
+          faitage_m: r(e.faitage_m),
+          aretier_m: r(e.aretier_m),
+          noue_m: r(e.noue_m),
+          rive_m: r(e.rive_m),
+          egout_m: r(e.egout_m),
+          solin_m: r(e.solin_m),
+        }
+      })()
+    : null
   const pans: LidarPan[] = m.pans.map((p, i) => {
     const shape = shapes[i]
     return {
@@ -621,14 +637,22 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
     building.hauteur != null && comble > 0 ? building.hauteur - comble : building.gouttiereSol
   const murM =
     murRaw != null ? Math.round(Math.min(6, Math.max(1.8, murRaw)) * 10) / 10 : null
+  // Badge = Σ (v19) : total et corps principal = sommes des m² ARRONDIS par
+  // pan — le badge de la fiche et le total des pans cochables affichent
+  // exactement le même nombre (l'écart d'arrondi semait le doute en RDV).
+  const totalRounded = pans.reduce((s, p) => s + p.m2, 0)
+  const principalRounded = body
+    ? pans.reduce((s, p, i) => (body!.has(i) ? s + p.m2 : s), 0)
+    : pans.reduce((s, p) => (p.type === 'principal' ? s + p.m2 : s), 0)
   return {
     toit_lidar_statut: statut,
-    toit_lidar_m2: Math.round(m.total),
-    toit_lidar_principal_m2: Math.round(principal),
+    toit_lidar_m2: totalRounded,
+    toit_lidar_principal_m2: principalRounded,
     toit_lidar_pans: {
       mur_m: murM,
       // Emprise murale : silhouette des murs de la maquette (le toit déborde).
       emprise: building.ring.map(([x, y]) => roundLL(fromL93(x, y))),
+      aretes,
       pans,
     },
     toit_lidar_millesime: millesime,

@@ -115,6 +115,113 @@ export function mainBodyPans(
   return body
 }
 
+// --- Longueurs linéaires par type d'arête ---------------------------------------
+
+export interface RoofEdgesM {
+  faitage_m: number
+  aretier_m: number
+  noue_m: number
+  rive_m: number
+  egout_m: number
+  solin_m: number
+}
+
+const EDGE_FLAT_SLOPE = 0.12 // ≈ 7° : en deçà, une arête est « horizontale »
+
+/**
+ * Longueurs LINÉAIRES du toit par type d'arête — le chiffrage couvreur se
+ * fait autant au mètre (faîtières, gouttières, rives, noquets de marche)
+ * qu'au m² (contenu clé des rapports EagleView). Tout est déjà disponible :
+ * contours partagés sommet à sommet, soudures, plans des pans.
+ * - partagée + soudée + horizontale → faîtage ;
+ * - partagée + soudée + inclinée → noue si les DEUX surfaces montent vers
+ *   l'intérieur de leur pan (l'arête est un creux), sinon arêtier ;
+ * - partagée non soudée (marche) → solin ;
+ * - extérieure horizontale → égout (gouttière) ; inclinée → rive.
+ * Longueur VRAIE (3D) : hypot(longueur au sol, dénivelé).
+ */
+export function edgeMetrics(recon: ReconResult, planes: Plane[]): RoofEdgesM {
+  const out: RoofEdgesM = {
+    faitage_m: 0,
+    aretier_m: 0,
+    noue_m: 0,
+    rive_m: 0,
+    egout_m: 0,
+    solin_m: 0,
+  }
+  const weldSet = new Set(recon.welds.map(([a, b]) => `${Math.min(a, b)}:${Math.max(a, b)}`))
+  const vk = (x: number, y: number) => `${x.toFixed(3)}:${y.toFixed(3)}`
+  interface Use {
+    pan: number
+    za: number
+    zb: number
+    /** Normale 2D pointant vers l'INTÉRIEUR du pan (sens du contour). */
+    nx: number
+    ny: number
+    len2: number
+  }
+  const edges = new Map<string, Use[]>()
+  recon.pans.forEach((pan, idx) => {
+    if (!pan) return
+    // Orientation du contour : CCW → intérieur à gauche des arêtes orientées.
+    let sa = 0
+    for (let i = 0; i < pan.contour.length - 1; i++) {
+      sa +=
+        pan.contour[i][0] * pan.contour[i + 1][1] - pan.contour[i + 1][0] * pan.contour[i][1]
+    }
+    const inward = sa > 0 ? 1 : -1
+    for (let i = 0; i < pan.contour.length - 1; i++) {
+      const [ax, ay] = pan.contour[i]
+      const [bx, by] = pan.contour[i + 1]
+      const len2 = Math.hypot(bx - ax, by - ay)
+      if (len2 < 0.3) continue // miettes de jonction
+      const ka = vk(ax, ay)
+      const kb = vk(bx, by)
+      const key = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`
+      const list = edges.get(key) ?? []
+      list.push({
+        pan: idx,
+        za: pan.alts[i],
+        zb: pan.alts[i + 1],
+        nx: (inward * -(by - ay)) / len2,
+        ny: (inward * (bx - ax)) / len2,
+        len2,
+      })
+      edges.set(key, list)
+    }
+  })
+  for (const uses of edges.values()) {
+    const u = uses[0]
+    const slope = Math.abs(u.zb - u.za) / u.len2
+    const len3 = Math.hypot(u.len2, u.zb - u.za)
+    if (uses.length >= 2) {
+      const [i, j] = [uses[0].pan, uses[1].pan]
+      const welded = weldSet.has(`${Math.min(i, j)}:${Math.max(i, j)}`)
+      if (!welded) {
+        // Marche entre niveaux : le solin (noquet) court le long de l'arête.
+        out.solin_m += len3
+      } else if (slope < EDGE_FLAT_SLOPE) {
+        out.faitage_m += len3
+      } else {
+        // La surface de chaque pan monte-t-elle en s'éloignant de l'arête
+        // vers SON intérieur ? Deux montées = l'arête est un creux : noue.
+        let rises = 0
+        for (const use of uses.slice(0, 2)) {
+          const [a, b] = planes[use.pan]
+          if (a * use.nx + b * use.ny > 0) rises++
+        }
+        if (rises >= 2) out.noue_m += len3
+        else out.aretier_m += len3
+      }
+    } else if (slope < EDGE_FLAT_SLOPE) {
+      out.egout_m += len3
+    } else {
+      out.rive_m += len3
+    }
+  }
+  return out
+}
+
 // --- Décalage du polygone d'emprise (débord de toit) ----------------------------
 
 function signedArea(ring: Ring): number {

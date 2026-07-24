@@ -6,6 +6,7 @@ import { Roof3D } from './Roof3D'
 import type { PointStatus } from '../domain/status'
 import type { HouseInfo } from '../data/enrich'
 import type { LidarResult } from '../data/lidar'
+import { suggestedWastePct } from '../domain/house'
 
 interface Props {
   open: boolean
@@ -87,7 +88,16 @@ export function HousePreviewSheet({
             <p className="house-loading">Pas d’informations pour ce bâtiment.</p>
           )}
 
-          {lidarOk && lidar.toit_lidar_pans && <Roof3D roof={lidar.toit_lidar_pans} />}
+          {lidarOk && lidar.toit_lidar_pans && (
+            <Roof3D
+              roof={lidar.toit_lidar_pans}
+              wastePct={suggestedWastePct(
+                info?.mat_toit ?? null,
+                null,
+                lidar.toit_lidar_pans.aretes,
+              )}
+            />
+          )}
 
           <p className="eyebrow field-label">Poser un point</p>
           <StatusPicker active={activeStatus} onChange={onStatusChange} />

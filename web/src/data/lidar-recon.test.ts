@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import { distToRing, measureRoof, ringArea, type Pt, type Ring } from './lidar-core'
 import {
+  edgeMetrics,
   mainBodyPans,
   offsetRing,
   reconstructRoof,
@@ -382,5 +383,77 @@ describe('reconstructRoof v3', () => {
     const a = recon(pts, ring)
     const b = recon(pts, ring)
     expect(JSON.stringify(b)).toBe(JSON.stringify(a))
+  })
+})
+
+describe('edgeMetrics (longueurs par type d arete, v19)', () => {
+  function edgesOf(pts: Pt[], ring: Ring) {
+    const m = measureRoof(pts, ring)
+    const r = recon(pts, ring)
+    expect(r).not.toBeNull()
+    return edgeMetrics(
+      r!,
+      m.pans.map((p) => p.plane),
+    )
+  }
+
+  it('batiere : 1 faitage = longueur du toit, 2 egouts, 4 rives, ni noue ni solin', () => {
+    // Emprise 11x7 + debord 0,5 -> silhouette ~12x8.
+    const { pts, ring } = gable(11, 7, 0.4, 40, 3)
+    const e = edgesOf(pts, ring)
+    expect(e.faitage_m).toBeGreaterThan(10)
+    expect(e.faitage_m).toBeLessThan(14)
+    expect(e.egout_m).toBeGreaterThan(20) // 2 x ~12
+    expect(e.egout_m).toBeLessThan(28)
+    // 4 rives inclinees : ~4 x (4 m au sol / cos 40) = ~21.
+    expect(e.rive_m).toBeGreaterThan(16)
+    expect(e.rive_m).toBeLessThan(26)
+    expect(e.noue_m).toBe(0)
+    expect(e.solin_m).toBe(0)
+  })
+
+  it('croupe : aretiers presents, pas de noue, egouts = perimetre', () => {
+    const { pts, ring } = hip(12, 8, 0.4, 35, 1)
+    const e = edgesOf(pts, ring)
+    expect(e.aretier_m).toBeGreaterThan(15) // 4 diagonales de croupe
+    expect(e.noue_m).toBe(0)
+    // Tout le perimetre decale (~2x(13+9) = 44) est en gouttiere.
+    expect(e.egout_m).toBeGreaterThan(36)
+    expect(e.egout_m).toBeLessThan(50)
+    expect(e.solin_m).toBe(0)
+  })
+
+  it('deux niveaux : la marche batiere/annexe produit du SOLIN', () => {
+    const { pts, ring } = twoLevels(10, 6, 4, 40, 5)
+    const e = edgesOf(pts, ring)
+    expect(e.solin_m).toBeGreaterThan(5) // marche sur ~10 m de largeur
+  })
+
+  it('L : le coin rentrant produit de la NOUE (creux entre les deux ailes)', () => {
+    const rand = makeRand(11)
+    const gauss = makeGauss(rand)
+    const p = (35 * Math.PI) / 180
+    const ring: Ring = [
+      [0, 0],
+      [14, 0],
+      [14, 6],
+      [8, 6],
+      [8, 12],
+      [0, 12],
+      [0, 0],
+    ]
+    const pts: Pt[] = []
+    let tries = 0
+    while (pts.length < Math.round(120 * DENSITY) && tries++ < 100000) {
+      const x = rand() * 14
+      const y = rand() * 12
+      if (!pointInRingLocal(x, y, ring)) continue
+      pts.push([x, y, 10 + Math.tan(p) * distToRing(x, y, ring) + gauss() * NOISE])
+    }
+    const e = edgesOf(pts, ring)
+    expect(e.noue_m).toBeGreaterThan(2)
+    // Un court tronçon non soudé peut subsister près de la jonction des
+    // ailes (frontière < 4 coins : pas de verdict de soudure) — toléré.
+    expect(e.solin_m).toBeLessThan(4)
   })
 })

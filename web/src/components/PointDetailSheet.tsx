@@ -12,6 +12,7 @@ import {
 import {
   CONFIRMED_MAT_OPTIONS,
   lidarNeedsMeasure,
+  suggestedWastePct,
   type HouseEnrichment,
   type RoofData,
 } from '../domain/house'
@@ -323,7 +324,12 @@ export function PointDetailSheet({
             lidarDiag={liveLidar ? liveLidar.toit_lidar_diag : point.toit_lidar_diag}
           />
 
-          {lidarPans && <Roof3D roof={lidarPans} />}
+          {lidarPans && (
+            <Roof3D
+              roof={lidarPans}
+              wastePct={suggestedWastePct(matCode, point.mat_toit_confirme, lidarPans.aretes)}
+            />
+          )}
 
           {status === 'a_revoir' && (
             <>

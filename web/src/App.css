@@ -1484,6 +1484,20 @@
   border-color: var(--accent);
   color: var(--accent-ink);
 }
+/* Surface de commande (sélection + chutes) : informatif, non cochable. */
+.roof3d-waste {
+  color: var(--ink-2);
+  border-style: dashed;
+}
+/* Longueurs par type d'arête (faîtage, noues, rives…) sous la légende. */
+.roof3d-edges {
+  margin: 6px 2px 0;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.roof3d-full .roof3d-edges {
+  text-align: center;
+}
 .house-badge.dpe {
   color: #ffffff;
   border-color: transparent;

@@ -146,6 +146,12 @@ export interface HouseEnrichment {
  * v17 : drapeau `maison` par pan (appartenance au corps principal) — nourrit
  *      les pans COCHABLES de la maquette 3D (niveau 3 : le commercial exclut
  *      du doigt un garage ou une extension, le total suit).
+ * v19 : longueurs LINÉAIRES par type d'arête (`aretes` dans le jsonb) —
+ *      faîtages, arêtiers, noues, rives, égouts, solins de marche, calculées
+ *      depuis la reconstruction (edgeMetrics) : le chiffrage couvreur au
+ *      mètre linéaire (rapports EagleView). Et badge = Σ : le corps principal
+ *      (et le total) deviennent la somme des m² ARRONDIS par pan — le badge
+ *      de la fiche et le total de la maquette affichent le même nombre.
  * v18 : verdicts PARLANTS (veille juillet 2026) — diagnostic jsonb
  *      `toit_lidar_diag` (migration db/0011) : motif du no_data
  *      (hors_couverture / canopee / posterieur_survol / sans_batiment /
@@ -157,7 +163,34 @@ export interface HouseEnrichment {
  *      au lieu du seul seuil d'emprise (les grandes longères passaient à
  *      tort pour des collectifs).
  */
-export const LIDAR_VERSION = 18
+export const LIDAR_VERSION = 19
+
+/** Longueurs linéaires du toit par type d'arête (m — jsonb `aretes`, v19). */
+export interface RoofEdges {
+  faitage_m: number
+  aretier_m: number
+  noue_m: number
+  rive_m: number
+  egout_m: number
+  solin_m: number
+}
+
+/**
+ * % de chutes suggéré (surface de commande) : base 10 %, ardoise 15 %
+ * (casse à la coupe), +5 % si le toit a des noues ou beaucoup d'arêtiers
+ * (coupes en biais). Plafond 20 %. Standards métier (EagleView : tableau
+ * 0-22 %) — À VALIDER avec les factures ventilées du chef des ventes.
+ */
+export function suggestedWastePct(
+  matCode: string | null,
+  matConfirme: string | null,
+  aretes?: RoofEdges | null,
+): number {
+  const confirme = (matConfirme ?? '').toLowerCase()
+  let pct = confirme.includes('ardoise') || matCode?.charAt(0) === '2' ? 15 : 10
+  if ((aretes?.noue_m ?? 0) > 1 || (aretes?.aretier_m ?? 0) > 8) pct += 5
+  return Math.min(20, pct)
+}
 
 /** Diagnostic de la mesure (jsonb `toit_lidar_diag`, migration db/0011). */
 export interface LidarDiag {
@@ -204,6 +237,8 @@ export interface RoofData {
   mur_m: number | null
   /** Emprise murale BD TOPO (lng/lat, fermée) — extrusion des murs (v8+). */
   emprise: [number, number][] | null
+  /** Longueurs par type d'arête (v19) — chiffrage au mètre linéaire. */
+  aretes?: RoofEdges | null
   pans: LidarPan[]
 }
 
@@ -212,10 +247,12 @@ export function parseRoofPans(raw: unknown): RoofData | null {
   if (!raw) return null
   if (Array.isArray(raw)) return { mur_m: null, emprise: null, pans: raw as LidarPan[] }
   if (typeof raw === 'object' && Array.isArray((raw as { pans?: unknown }).pans)) {
-    const o = raw as { mur_m?: unknown; emprise?: unknown; pans: LidarPan[] }
+    const o = raw as { mur_m?: unknown; emprise?: unknown; aretes?: unknown; pans: LidarPan[] }
     return {
       mur_m: typeof o.mur_m === 'number' ? o.mur_m : null,
       emprise: Array.isArray(o.emprise) ? (o.emprise as [number, number][]) : null,
+      aretes:
+        o.aretes && typeof o.aretes === 'object' ? (o.aretes as RoofEdges) : null,
       pans: o.pans,
     }
   }

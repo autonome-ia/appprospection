@@ -8,6 +8,27 @@ import type { RoofSceneHandle } from '../lib/roof3d'
 interface Props {
   /** Toit mesuré (statut ok). La maquette exige les altitudes (v6+). */
   roof: RoofData
+  /** % de chutes suggéré (suggestedWastePct) — ligne « surface de commande ». */
+  wastePct?: number | null
+}
+
+/** Ligne des longueurs d'arêtes (v19) — seules les non nulles. */
+function edgesLine(roof: RoofData): string | null {
+  const a = roof.aretes
+  if (!a) return null
+  const parts = (
+    [
+      ['Faîtage', a.faitage_m],
+      ['Arêtiers', a.aretier_m],
+      ['Noues', a.noue_m],
+      ['Rives', a.rive_m],
+      ['Égouts', a.egout_m],
+      ['Solins', a.solin_m],
+    ] as [string, number][]
+  )
+    .filter(([, v]) => v >= 1)
+    .map(([k, v]) => `${k} ${v} m`)
+  return parts.length ? parts.join(' · ') : null
 }
 
 // Même filtre que lib/roof3d.isPan3D — dupliqué ici (3 conditions) pour ne pas
@@ -41,7 +62,7 @@ function defaultExcluded(pans: LidarPan[]): Set<number> {
  * « sélection » suit en direct. Présélection : le corps principal (« la
  * maison », hors annexes/extensions) ; le commercial ajuste devant le client.
  */
-export function Roof3D({ roof }: Props) {
+export function Roof3D({ roof, wastePct }: Props) {
   const [open, setOpen] = useState(false)
   const [full, setFull] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -134,24 +155,44 @@ export function Roof3D({ roof }: Props) {
   // que TOUT ce qui compte dans le Σ soit visible et cochable.
   const colorOf = new Map(drawable.map(({ idx }, i) => [idx, PAN_COLORS[i % PAN_COLORS.length]]))
 
+  const edges = edgesLine(roof)
+
   const legend = (
-    <div className="roof3d-legend">
-      <span className="pan-chip tnum roof3d-total" title="Somme des pans sélectionnés">
-        Σ {selectionM2} m²
-      </span>
-      {roof.pans.map((pan, idx) => (
-        <button
-          key={idx}
-          type="button"
-          className={`pan-chip tnum roof3d-toggle ${excluded.has(idx) ? 'is-off' : ''}`}
-          style={{ borderColor: colorOf.get(idx) ?? 'var(--line)' }}
-          onClick={() => toggleRef.current(idx)}
-          title={excluded.has(idx) ? 'Exclu — taper pour inclure' : 'Inclus — taper pour exclure'}
+    <>
+      <div className="roof3d-legend">
+        <span className="pan-chip tnum roof3d-total" title="Somme des pans sélectionnés">
+          Σ {selectionM2} m²
+        </span>
+        {roof.pans.map((pan, idx) => (
+          <button
+            key={idx}
+            type="button"
+            className={`pan-chip tnum roof3d-toggle ${excluded.has(idx) ? 'is-off' : ''}`}
+            style={{ borderColor: colorOf.get(idx) ?? 'var(--line)' }}
+            onClick={() => toggleRef.current(idx)}
+            title={excluded.has(idx) ? 'Exclu — taper pour inclure' : 'Inclus — taper pour exclure'}
+          >
+            {pan.m2} m² · {pan.pente_deg}°
+          </button>
+        ))}
+        {wastePct != null && wastePct > 0 && selectionM2 > 0 && (
+          <span
+            className="pan-chip tnum roof3d-waste"
+            title="Surface de commande estimée : sélection + chutes de coupe (selon matériau et complexité du toit) — pourcentage indicatif, à valider sur les factures"
+          >
+            + chutes ~{wastePct} % ≈ {Math.round(selectionM2 * (1 + wastePct / 100))} m²
+          </span>
+        )}
+      </div>
+      {edges && (
+        <p
+          className="roof3d-edges tnum"
+          title="Longueurs mesurées au laser par type d'arête (faîtières, gouttières, rives…)"
         >
-          {pan.m2} m² · {pan.pente_deg}°
-        </button>
-      ))}
-    </div>
+          {edges}
+        </p>
+      )}
+    </>
   )
 
   // Le drag du canvas pilote la caméra : on bloque la REMONTÉE (bulle) vers la
