@@ -41,12 +41,18 @@ function AppInner() {
             onglet est actif) : retour instantané, position/zoom conservés,
             pas de re-téléchargement des tuiles. */}
         <div className={`map-slot ${tab === 'carte' ? '' : 'is-hidden'}`}>
-          <MapView
-            profile={profile}
-            active={tab === 'carte'}
-            focus={mapFocus}
-            onFocusHandled={() => setMapFocus(null)}
-          />
+          {/* Boundary aussi ici : MapView (MapLibre + realtime + toutes les
+              sheets) est le composant le plus exposé — sans lui, une
+              exception de rendu démontait TOUTE l'app en écran blanc muet,
+              barre d'onglets comprise (contre-audit, bug 14). */}
+          <ScreenBoundary>
+            <MapView
+              profile={profile}
+              active={tab === 'carte'}
+              focus={mapFocus}
+              onFocusHandled={() => setMapFocus(null)}
+            />
+          </ScreenBoundary>
         </div>
         {tab === 'accueil' ? (
           <ScreenBoundary>
