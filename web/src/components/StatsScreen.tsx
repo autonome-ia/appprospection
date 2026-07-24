@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { motion } from 'motion/react'
-import { ArrowUp, ArrowDown, ChevronLeft, Pencil } from 'lucide-react'
+import { ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Info, Pencil } from 'lucide-react'
 import {
   fetchStatsComparison,
   ratio,
@@ -98,7 +98,19 @@ function Funnel({ s }: { s: CommercialStats }) {
             </div>
           )}
           <div className="funnel-step">
-            <span className="funnel-step-label">{step.label}</span>
+            <span className="funnel-step-label">
+              {step.label}
+              {/* Définition au tap (audit UX A27) : le TODO interne affiché
+                  en pied d'écran sapait la confiance dans les chiffres. */}
+              {step.key === 'contacts' && (
+                <Info
+                  size={12}
+                  strokeWidth={2}
+                  className="funnel-info"
+                  onClick={() => toast('Un « contact » = la porte s’est ouverte : à revoir, RDV pris ou vendu.')}
+                />
+              )}
+            </span>
             <span className="funnel-step-value tnum">{s[step.key] as number}</span>
           </div>
         </div>
@@ -120,8 +132,22 @@ function Funnel({ s }: { s: CommercialStats }) {
   )
 }
 
+// Initiales de jours indexées par getDay() (0 = dimanche).
+const DAY_INITIALS = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
+
 function Chart({ daily, days }: { daily: Record<string, number>; days: string[] }) {
   const max = Math.max(1, ...days.map((d) => daily[d] ?? 0))
+  // Étiquettes sous les barres (audit UX A26) : barres anonymes, impossible
+  // de distinguer mercredi de samedi (le jour vivait dans un title, mort au
+  // tactile). Semaine : initiales ; Mois : 1 · 8 · 15 · 22 · 29.
+  const isMonth = days.length > 10
+  const todayKey = dayKey(new Date())
+  const labelOf = (d: string) => {
+    const date = new Date(`${d}T00:00:00`)
+    if (!isMonth) return DAY_INITIALS[date.getDay()]
+    const dom = date.getDate()
+    return dom % 7 === 1 ? String(dom) : ''
+  }
   return (
     <div className="card">
       <p className="eyebrow">Portes toquées par jour</p>
@@ -130,7 +156,11 @@ function Chart({ daily, days }: { daily: Record<string, number>; days: string[] 
           const v = daily[d] ?? 0
           return (
             <div key={d} className="chart-col" title={`${d} : ${v}`}>
-              <div className="chart-bar" style={{ height: `${(v / max) * 100}%` }} />
+              <div
+                className={`chart-bar ${d === todayKey ? 'is-today' : ''}`}
+                style={{ height: `${(v / max) * 100}%` }}
+              />
+              <span className="chart-day">{labelOf(d)}</span>
             </div>
           )
         })}
@@ -209,7 +239,12 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
   const convCur = ratio(cur.ventes, cur.portes)
   const convPrev = ratio(prev.ventes, prev.portes)
 
-  const ranked = [...profiles].sort((a, b) => {
+  // Classement : les COMMERCIAUX seuls (audit UX A24) — le manager
+  // apparaissait à 0 vente et faussait « Ma position : 3 sur 6 ». Ses
+  // événements restent comptés dans les agrégats équipe.
+  const commercials = profiles.filter((p) => p.role === 'commercial')
+  const teamTarget = commercials.reduce((s, p) => s + (p.weekly_rdv_target ?? 0), 0)
+  const ranked = [...commercials].sort((a, b) => {
     const sa = data?.current.byCommercial[a.id]?.ventes ?? 0
     const sb = data?.current.byCommercial[b.id]?.ventes ?? 0
     const ra = data?.current.byCommercial[a.id]?.rdv_pris ?? 0
@@ -222,7 +257,11 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
     : ''
 
   const showChart = period !== 'jour' && data
-  const showObjective = period === 'semaine' && focusId
+  // Objectif hebdo : par commercial en drill-down/vue perso, AGRÉGÉ en vue
+  // Équipe (audit UX A28 — le manager additionnait de tête les X/Y).
+  const showObjective =
+    period === 'semaine' && (focusId !== null || (isManager && teamTarget > 0))
+  const objectiveTarget = focusId ? targetOf(focusId) : teamTarget
   const days = data ? daysOf(data.range.start, data.range.end) : []
 
   const editTarget = async (id: string) => {
@@ -285,21 +324,41 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
       <div className="kpis">
         <Kpi label="Ventes" value={String(cur.ventes)} delta={cur.ventes - prev.ventes} />
         <Kpi label="RDV pris" value={String(cur.rdv_pris)} delta={cur.rdv_pris - prev.rdv_pris} />
-        <Kpi label="Conversion" value={pct1(convCur)} delta={Math.round((convCur - convPrev) * 100)} unit="pts" />
+        {focusId ? (
+          <Kpi label="Conversion" value={pct1(convCur)} delta={Math.round((convCur - convPrev) * 100)} unit="pts" />
+        ) : (
+          // Vue Équipe : « qui toque ? » était invisible (audit UX A10) — la
+          // conversion reste lisible en pied de tunnel.
+          <Kpi label="Portes" value={String(cur.portes)} delta={cur.portes - prev.portes} />
+        )}
       </div>
 
       {showObjective && (
         <div className="card obj-card">
           <div className="obj-head">
-            <span className="eyebrow">Objectif hebdo de RDV</span>
-            <span className="obj-big tnum">
-              {cur.rdv_pris} / {targetOf(focusId!)}
+            <span className="eyebrow">
+              {focusId ? 'Objectif hebdo de RDV' : 'Objectif hebdo équipe'}
             </span>
+            <span className="obj-big tnum">
+              {cur.rdv_pris} / {objectiveTarget}
+            </span>
+            {/* Le crayon vit ici, plus dans les lignes du classement où il
+                brouillait le drill-down (audit UX A25). */}
+            {isManager && drillId && (
+              <button
+                type="button"
+                className="rank-edit"
+                onClick={() => editTarget(drillId)}
+                aria-label="Modifier l'objectif"
+              >
+                <Pencil size={15} strokeWidth={1.8} />
+              </button>
+            )}
           </div>
           <div className="obj-bar-bg">
             <div
               className="obj-bar"
-              style={{ width: `${targetOf(focusId!) > 0 ? Math.min(100, (cur.rdv_pris / targetOf(focusId!)) * 100) : 0}%` }}
+              style={{ width: `${objectiveTarget > 0 ? Math.min(100, (cur.rdv_pris / objectiveTarget) * 100) : 0}%` }}
             />
           </div>
         </div>
@@ -334,21 +393,27 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
                       {s.ventes} <span className="rank-sales-unit">vente{s.ventes > 1 ? 's' : ''}</span>
                     </span>
                   </div>
+                  {/* Portes dans la ligne (audit UX A10) : 0 porte et 80
+                      portes sans RDV étaient indiscernables. */}
                   <div className="rank-metrics tnum">
-                    {s.rdv_pris} RDV · conv. {pct1(ratio(s.ventes, s.portes))}
+                    {s.portes} portes · {s.rdv_pris} RDV · conv. {pct1(ratio(s.ventes, s.portes))}
                   </div>
-                  <div className="rank-obj">
-                    <div className="obj-bar-bg">
-                      <div className="obj-bar" style={{ width: `${targetPct}%` }} />
+                  {/* Barre d'objectif HEBDO seulement en Semaine (audit UX
+                      A9) : en Jour tout le monde était à 10 %, en Mois tout
+                      le monde le pulvérisait. */}
+                  {period === 'semaine' && (
+                    <div className="rank-obj">
+                      <div className="obj-bar-bg">
+                        <div className="obj-bar" style={{ width: `${targetPct}%` }} />
+                      </div>
+                      <span className="obj-text tnum">
+                        {s.rdv_pris}/{target}
+                      </span>
                     </div>
-                    <span className="obj-text tnum">
-                      {s.rdv_pris}/{target}
-                    </span>
-                  </div>
+                  )}
                 </button>
-                <button type="button" className="rank-edit" onClick={() => editTarget(p.id)} aria-label="Modifier l'objectif">
-                  <Pencil size={15} strokeWidth={1.8} />
-                </button>
+                {/* Affordance du drill-down (audit UX A25). */}
+                <ChevronRight size={15} strokeWidth={1.9} className="rank-chevron" />
               </div>
             )
           })}
@@ -372,7 +437,6 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
         </section>
       )}
 
-      <p className="stats-note">Un « contact » = à revoir / RDV pris / vendu. À ajuster selon le métier.</p>
     </div>
   )
 }

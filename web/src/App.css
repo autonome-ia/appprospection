@@ -1182,6 +1182,31 @@
   color: var(--ink-3);
   white-space: nowrap;
 }
+/* Affordance du drill-down (audit UX A25) + étiquettes du graphe (A26). */
+.rank-chevron {
+  color: var(--ink-3);
+  flex: 0 0 auto;
+  align-self: center;
+}
+.rank-clickable:active {
+  background: var(--surface-2);
+}
+.chart-day {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  text-align: center;
+}
+.chart-bar.is-today {
+  background: var(--accent);
+}
+.funnel-info {
+  color: var(--ink-3);
+  margin-left: 4px;
+  vertical-align: -1px;
+}
 .rank-edit {
   position: relative;
   border: none;
