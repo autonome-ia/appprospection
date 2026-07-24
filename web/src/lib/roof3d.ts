@@ -18,6 +18,7 @@
 import {
   BufferAttribute,
   BufferGeometry,
+  CanvasTexture,
   Color,
   DirectionalLight,
   DoubleSide,
@@ -32,9 +33,12 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   Raycaster,
+  RepeatWrapping,
   Scene,
   ShadowMaterial,
   ShapeUtils,
+  SRGBColorSpace,
+  type Texture,
   Vector2,
   Vector3,
   WebGLRenderer,
@@ -43,13 +47,98 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import type { LidarPan, RoofData } from '../domain/house'
 import { PAN_COLORS } from '../domain/colors'
 
+/** Matériau projeté sur les pans sélectionnés (avant/après, argument Hover). */
+export type RoofMatKind = 'couleurs' | 'ardoise' | 'tuile' | 'zinc'
+
 export interface RoofSceneHandle {
   dispose(): void
   /** Grise les pans exclus de la sélection (index dans roof.pans). */
   setExcluded(excluded: ReadonlySet<number>): void
+  /** Habille les pans sélectionnés du matériau proposé (texture répétée,
+      rangs orientés selon l'azimut du pan) — « votre toit en ardoise ». */
+  setMaterial(kind: RoofMatKind): void
   /** Contexte WebGL perdu et jamais restauré (iOS en arrière-plan) :
       l'appelant remonte la scène (reconstruction en quelques ms). */
   isContextLost(): boolean
+}
+
+// --- Textures procédurales (zéro asset : dessinées dans un canvas) ---------------
+// 1 répétition de texture = 2 m au sol (UV = mètres / 2). Sobres et mates,
+// cohérentes avec la DA maquette — pas de photoréalisme (décision actée).
+
+const matCanvasCache = new Map<string, HTMLCanvasElement>()
+
+function matCanvas(kind: Exclude<RoofMatKind, 'couleurs'>): HTMLCanvasElement {
+  const hit = matCanvasCache.get(kind)
+  if (hit) return hit
+  const c = document.createElement('canvas')
+  c.width = 128
+  c.height = 128
+  const g = c.getContext('2d')!
+  const vary = (i: number, j: number) => ((i * 31 + j * 17) % 7) - 3 // déterministe
+  if (kind === 'ardoise') {
+    g.fillStyle = '#46505c'
+    g.fillRect(0, 0, 128, 128)
+    // rangs de 16 px (0,25 m), ardoises de 32 px, à joints décalés
+    for (let row = 0; row < 8; row++) {
+      const off = row % 2 ? 16 : 0
+      for (let col = -1; col < 5; col++) {
+        const l = 30 + vary(row, col) * 2
+        g.fillStyle = `hsl(213 12% ${l}%)`
+        g.fillRect(col * 32 + off, row * 16, 31, 15)
+      }
+    }
+  } else if (kind === 'tuile') {
+    g.fillStyle = '#9c4f38'
+    g.fillRect(0, 0, 128, 128)
+    // rangs de tuiles à about arrondi (0,25 m), joints décalés
+    for (let row = 0; row < 8; row++) {
+      const off = row % 2 ? 16 : 0
+      for (let col = -1; col < 5; col++) {
+        const l = 42 + vary(row, col) * 2
+        g.fillStyle = `hsl(14 42% ${l}%)`
+        g.beginPath()
+        g.moveTo(col * 32 + off, row * 16)
+        g.lineTo(col * 32 + off + 31, row * 16)
+        g.lineTo(col * 32 + off + 31, row * 16 + 10)
+        g.arc(col * 32 + off + 15.5, row * 16 + 10, 15.5, 0, Math.PI)
+        g.closePath()
+        g.fill()
+      }
+    }
+  } else {
+    // zinc à joint debout : bacs clairs, tasseaux verticaux tous les 0,5 m
+    g.fillStyle = '#9fa8ae'
+    g.fillRect(0, 0, 128, 128)
+    for (let col = 0; col < 4; col++) {
+      const l = 66 + vary(0, col)
+      g.fillStyle = `hsl(202 8% ${l}%)`
+      g.fillRect(col * 32 + 2, 0, 28, 128)
+      g.fillStyle = '#7d868c'
+      g.fillRect(col * 32, 0, 2, 128)
+    }
+  }
+  matCanvasCache.set(kind, c)
+  return c
+}
+
+// Texture par (matériau, azimut arrondi) : les rangs courent perpendiculaires
+// à la ligne de pente du pan. Cache module (partagé entre montages).
+const matTexCache = new Map<string, Texture>()
+
+function matTexture(kind: Exclude<RoofMatKind, 'couleurs'>, azimutDeg: number): Texture {
+  const az = ((Math.round(azimutDeg / 15) * 15) % 360 + 360) % 360
+  const key = `${kind}:${az}`
+  const hit = matTexCache.get(key)
+  if (hit) return hit
+  const t = new CanvasTexture(matCanvas(kind))
+  t.wrapS = RepeatWrapping
+  t.wrapT = RepeatWrapping
+  t.center.set(0.5, 0.5)
+  t.rotation = (-az * Math.PI) / 180
+  t.colorSpace = SRGBColorSpace
+  matTexCache.set(key, t)
+  return t
 }
 
 export interface RoofSceneOptions {
@@ -128,6 +217,7 @@ function fitPlane(pts: [number, number, number][]): [number, number, number] {
 }
 
 const OFF_COLOR = new Color(0xd8d5cd) // pan exclu de la sélection : gris pierre
+const WHITE = new Color(0xffffff)
 
 export function mountRoofScene(
   container: HTMLElement,
@@ -151,6 +241,7 @@ export function mountRoofScene(
     mat: MeshLambertMaterial
     edgeMat: LineBasicMaterial
     base: Color
+    azimut: number
   }[] = []
 
   // Origine locale : centroïde de tous les sommets.
@@ -172,6 +263,7 @@ export function mountRoofScene(
   interface LocalPan {
     idx: number // index dans roof.pans (clé de sélection)
     m2: number
+    azimut: number // exposition boussole (orientation des textures matériau)
     pts2d: Vector2[] // (est, nord)
     ys: number[] // altitude de chaque sommet
     plane: [number, number, number] // y = a·est + b·nord + c
@@ -188,6 +280,7 @@ export function mountRoofScene(
     return {
       idx,
       m2: pan.m2,
+      azimut: pan.azimut_deg ?? 0,
       pts2d,
       ys,
       plane: fitPlane(pts2d.map((p, v) => [p.x, p.y, ys[v]])),
@@ -235,6 +328,13 @@ export function mountRoofScene(
     centroid.multiplyScalar(1 / n)
     const geo = new BufferGeometry()
     geo.setAttribute('position', new BufferAttribute(positions, 3))
+    // UVs planaires en mètres/2 (1 répétition de texture matériau = 2 m).
+    const uvs = new Float32Array(n * 2)
+    for (let v = 0; v < n; v++) {
+      uvs[v * 2] = lp.pts2d[v].x / 2
+      uvs[v * 2 + 1] = lp.pts2d[v].y / 2
+    }
+    geo.setAttribute('uv', new BufferAttribute(uvs, 2))
     geo.setIndex(tris.flat())
     geo.computeVertexNormals()
     const mat = new MeshLambertMaterial({ color: lp.color, side: DoubleSide })
@@ -243,7 +343,14 @@ export function mountRoofScene(
     solid.add(mesh)
 
     const edgeMat = new LineBasicMaterial({ color: lp.color.clone().multiplyScalar(0.55) })
-    panRegistry.push({ idx: lp.idx, mesh, mat, edgeMat, base: lp.color.clone() })
+    panRegistry.push({
+      idx: lp.idx,
+      mesh,
+      mat,
+      edgeMat,
+      base: lp.color.clone(),
+      azimut: lp.azimut,
+    })
     const edgeGeo = new BufferGeometry()
     const edgePos = new Float32Array(positions)
     for (let v = 0; v < n; v++) edgePos[v * 3 + 1] += 0.05
@@ -584,6 +691,32 @@ export function mountRoofScene(
   })
   resize.observe(container)
 
+  // Habillage des pans : exclusion (grisé) + matériau proposé (texture sur
+  // les pans SÉLECTIONNÉS, la couleur d'identification passe en blanc — les
+  // puces de légende gardent la palette).
+  let lookExcluded: ReadonlySet<number> = new Set()
+  let lookMat: RoofMatKind = 'couleurs'
+  const applyLook = () => {
+    for (const rec of panRegistry) {
+      const off = lookExcluded.has(rec.idx)
+      const tex = !off && lookMat !== 'couleurs' ? matTexture(lookMat, rec.azimut) : null
+      if (rec.mat.map !== tex) {
+        rec.mat.map = tex
+        rec.mat.needsUpdate = true
+      }
+      rec.mat.color.copy(off ? OFF_COLOR : tex ? WHITE : rec.base)
+      rec.mat.transparent = off
+      rec.mat.opacity = off ? 0.35 : 1
+      rec.edgeMat.color.copy(
+        off ? OFF_COLOR.clone().multiplyScalar(0.8) : rec.base.clone().multiplyScalar(0.55),
+      )
+    }
+    for (const chip of chips) {
+      chip.el.classList.toggle('is-off', lookExcluded.has(chip.idx))
+    }
+    schedule() // rendu à la demande : tout changement d'habillage a sa frame
+  }
+
   return {
     dispose() {
       cancelAnimationFrame(raf)
@@ -601,20 +734,12 @@ export function mountRoofScene(
       renderer.domElement.remove()
     },
     setExcluded(excluded) {
-      for (const rec of panRegistry) {
-        const off = excluded.has(rec.idx)
-        rec.mat.color.copy(off ? OFF_COLOR : rec.base)
-        rec.mat.transparent = off
-        rec.mat.opacity = off ? 0.35 : 1
-        rec.mat.needsUpdate = true
-        rec.edgeMat.color.copy(
-          off ? OFF_COLOR.clone().multiplyScalar(0.8) : rec.base.clone().multiplyScalar(0.55),
-        )
-      }
-      for (const chip of chips) {
-        chip.el.classList.toggle('is-off', excluded.has(chip.idx))
-      }
-      schedule() // rendu à la demande : le grisage doit provoquer sa frame
+      lookExcluded = excluded
+      applyLook()
+    },
+    setMaterial(kind) {
+      lookMat = kind
+      applyLook()
     },
     isContextLost() {
       return renderer.getContext().isContextLost()

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { Box, Maximize2, X } from 'lucide-react'
 import type { LidarPan, RoofData } from '../domain/house'
 import { PAN_COLORS } from '../domain/colors'
-import type { RoofSceneHandle } from '../lib/roof3d'
+import type { RoofMatKind, RoofSceneHandle } from '../lib/roof3d'
 
 interface Props {
   /** Toit mesuré (statut ok). La maquette exige les altitudes (v6+). */
@@ -69,6 +69,8 @@ export function Roof3D({ roof, wastePct }: Props) {
   // Remontage forcé quand le contexte WebGL est perdu sans retour (iOS).
   const [retry, setRetry] = useState(0)
   const [excluded, setExcluded] = useState<ReadonlySet<number>>(() => defaultExcluded(roof.pans))
+  // Avant/après : matériau proposé projeté sur les pans sélectionnés.
+  const [matKind, setMatKind] = useState<RoofMatKind>('couleurs')
   // `roof` change d'identité quand une NOUVELLE mesure arrive (backfill,
   // montée de version) : les index d'exclusion pointeraient sur les anciens
   // pans — on repart de la présélection « maison » du nouveau toit.
@@ -95,6 +97,7 @@ export function Roof3D({ roof, wastePct }: Props) {
     let disposed = false
     let handle: RoofSceneHandle | null = null
     const excludedAtMount = excluded
+    const matAtMount = matKind
     import('../lib/roof3d')
       .then((m) => {
         if (disposed || !holder.isConnected) return
@@ -102,6 +105,7 @@ export function Roof3D({ roof, wastePct }: Props) {
           onTogglePan: (idx) => toggleRef.current(idx),
         })
         handle.setExcluded(excludedAtMount)
+        if (matAtMount !== 'couleurs') handle.setMaterial(matAtMount)
         handleRef.current = handle
       })
       .catch((e) => {
@@ -136,6 +140,10 @@ export function Roof3D({ roof, wastePct }: Props) {
   useEffect(() => {
     handleRef.current?.setExcluded(excluded)
   }, [excluded])
+
+  useEffect(() => {
+    handleRef.current?.setMaterial(matKind)
+  }, [matKind])
 
   if (drawable.length === 0 || failed) return null
 
@@ -192,6 +200,30 @@ export function Roof3D({ roof, wastePct }: Props) {
           {edges}
         </p>
       )}
+      <div className="roof3d-mats" role="group" aria-label="Matériau proposé">
+        {(
+          [
+            ['couleurs', 'Couleurs'],
+            ['ardoise', 'Ardoise'],
+            ['tuile', 'Tuile'],
+            ['zinc', 'Zinc'],
+          ] as [RoofMatKind, string][]
+        ).map(([kind, label]) => (
+          <button
+            key={kind}
+            type="button"
+            className={`roof3d-mat ${matKind === kind ? 'is-active' : ''}`}
+            onClick={() => setMatKind(kind)}
+            title={
+              kind === 'couleurs'
+                ? 'Pans colorés par identification'
+                : `Voir le toit du client en ${label.toLowerCase()} (avant/après)`
+            }
+          >
+            {label}
+          </button>
+        ))}
+      </div>
     </>
   )
 
