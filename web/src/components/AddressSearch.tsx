@@ -95,6 +95,11 @@ export function AddressSearch({ onSelect }: Props) {
     setResults([])
     setOpen(false)
     setRecents(saveRecent(r))
+    // Ferme le clavier iOS : les résultats empêchent le blur (onMouseDown
+    // preventDefault) pour gagner contre le onBlur différé — sans blur
+    // explicite, le clavier restait déployé sur la moitié basse de l'écran,
+    // pile là où atterrit la maison cherchée.
+    ;(document.activeElement as HTMLElement | null)?.blur()
     onSelect(r)
   }
 
