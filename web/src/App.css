@@ -1287,13 +1287,21 @@
   /* Verrouillage de l'axe HORIZONTAL : un enfant à largeur intrinsèque
      (select, ligne longue) créait une piste de glissement latéral. */
   overflow-x: hidden;
-  max-width: 100%;
+  /* Le clip (overflow) tranche l'anneau de focus 3px des champs, collés aux
+     bords : on élargit le corps de 4px et on les rend en padding. */
+  margin: 0 -4px;
+  padding: 0 4px;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
 .drawer-body > * {
   min-width: 0; /* les enfants flex acceptent de rétrécir sous leur contenu */
   max-width: 100%;
+  /* SANS ça, les enfants à overflow non-visible (journal de notes, textarea,
+     status-picker) sont COMPRESSÉS vers 0 pour tenir dans les 92dvh au lieu
+     de faire déborder (donc défiler) le corps : le bas de fiche devenait
+     inatteignable et la zone de note un filet. */
+  flex-shrink: 0;
 }
 /* Accueil : sections « À relancer » et « Activité récente » */
 .home-section {
