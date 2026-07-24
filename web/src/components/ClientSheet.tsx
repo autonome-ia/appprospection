@@ -11,9 +11,7 @@ import type { LidarResult } from '../data/lidar'
 import type { MapPoint } from '../domain/types'
 import { APPOINTMENT_STATUS_META, type Appointment } from '../domain/appointments'
 import { HouseBadges } from './HouseBadges'
-import { Roof3D } from './Roof3D'
-import { RoofDiagram } from './RoofDiagram'
-import { RoofReport } from './RoofReport'
+import { RoofModule } from './RoofModule'
 
 // -----------------------------------------------------------------------------
 // Fiche CLIENT de l'agenda (vue « Clients ») : tout ce qu'un commercial doit
@@ -212,23 +210,22 @@ export function ClientSheet({ appt, onOpenChange, onEdit, onShowOnMap }: Props) 
                 lidarDiag={liveLidar ? liveLidar.toit_lidar_diag : point.toit_lidar_diag}
               />
               {roof && (
-                <>
-                  <Roof3D roof={roof} wastePct={wastePct} />
-                  <RoofDiagram roof={roof} />
-                  <RoofReport
-                    roof={roof}
-                    address={address}
-                    maisonM2={lidarM2}
-                    totalM2={lidarTotal}
-                    millesime={lidarMillesime}
-                    wastePct={wastePct}
-                  />
-                </>
+                // Ouvert d'emblée : la fiche client sert à préparer et
+                // argumenter le RDV (audit UX, B2).
+                <RoofModule
+                  roof={roof}
+                  wastePct={wastePct}
+                  address={address}
+                  maisonM2={lidarM2}
+                  totalM2={lidarTotal}
+                  millesime={lidarMillesime}
+                  defaultOpen
+                />
               )}
             </>
           )}
 
-          <div className="drawer-actions">
+          <div className="drawer-footer">
             {appt.point && onShowOnMap && (
               <button
                 type="button"

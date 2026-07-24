@@ -10,6 +10,9 @@ interface Props {
   roof: RoofData
   /** % de chutes suggéré (suggestedWastePct) — ligne « surface de commande ». */
   wastePct?: number | null
+  /** Rendu DANS le module « Toiture mesurée » (RoofModule) : pas de bouton
+      déclencheur ni de fermeture inline — le module gère le repli. */
+  embedded?: boolean
 }
 
 /** Ligne des longueurs d'arêtes (v19) — seules les non nulles. */
@@ -62,8 +65,8 @@ function defaultExcluded(pans: LidarPan[]): Set<number> {
  * « sélection » suit en direct. Présélection : le corps principal (« la
  * maison », hors annexes/extensions) ; le commercial ajuste devant le client.
  */
-export function Roof3D({ roof, wastePct }: Props) {
-  const [open, setOpen] = useState(false)
+export function Roof3D({ roof, wastePct, embedded = false }: Props) {
+  const [open, setOpen] = useState(embedded)
   const [full, setFull] = useState(false)
   const [failed, setFailed] = useState(false)
   // Remontage forcé quand le contexte WebGL est perdu sans retour (iOS).
@@ -246,17 +249,19 @@ export function Roof3D({ roof, wastePct }: Props) {
         >
           <Maximize2 size={16} />
         </button>
-        <button
-          type="button"
-          className="icon-btn"
-          onClick={() => {
-            setFull(false)
-            setOpen(false)
-          }}
-          aria-label="Fermer la maquette 3D"
-        >
-          <X size={16} />
-        </button>
+        {(full || !embedded) && (
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => {
+              setFull(false)
+              if (!embedded) setOpen(false)
+            }}
+            aria-label={full ? 'Quitter le plein écran' : 'Fermer la maquette 3D'}
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
     </div>
   )

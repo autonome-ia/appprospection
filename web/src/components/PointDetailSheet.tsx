@@ -18,9 +18,7 @@ import {
 } from '../domain/house'
 import type { LidarResult } from '../data/lidar'
 import { HouseBadges } from './HouseBadges'
-import { Roof3D } from './Roof3D'
-import { RoofDiagram } from './RoofDiagram'
-import { RoofReport } from './RoofReport'
+import { RoofModule } from './RoofModule'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { STATUSES, STATUS_BY_VALUE, type PointStatus } from '../domain/status'
 import type { MapPoint } from '../domain/types'
@@ -389,21 +387,16 @@ export function PointDetailSheet({
           />
 
           {lidarPans && (
-            <>
-              <Roof3D
-                roof={lidarPans}
-                wastePct={suggestedWastePct(matCode, point.mat_toit_confirme, lidarPans.aretes)}
-              />
-              <RoofDiagram roof={lidarPans} />
-              <RoofReport
-                roof={lidarPans}
-                address={point.address}
-                maisonM2={lidarM2}
-                totalM2={liveLidar ? liveLidar.toit_lidar_m2 : point.toit_lidar_m2}
-                millesime={lidarMillesime}
-                wastePct={suggestedWastePct(matCode, point.mat_toit_confirme, lidarPans.aretes)}
-              />
-            </>
+            // Replié par défaut : à la porte, la 3D ne doit pas taxer la
+            // pose (statut, note, Enregistrer) — audit UX, B2.
+            <RoofModule
+              roof={lidarPans}
+              wastePct={suggestedWastePct(matCode, point.mat_toit_confirme, lidarPans.aretes)}
+              address={point.address}
+              maisonM2={lidarM2}
+              totalM2={liveLidar ? liveLidar.toit_lidar_m2 : point.toit_lidar_m2}
+              millesime={lidarMillesime}
+            />
           )}
 
           {status === 'a_revoir' && (
@@ -467,18 +460,29 @@ export function PointDetailSheet({
             rows={2}
           />
 
-          <div className="drawer-actions">
-            <button type="button" className="btn btn-danger" onClick={remove} disabled={saving}>
-              <Trash2 size={16} /> {confirmDelete ? 'Confirmer ?' : 'Supprimer'}
-            </button>
-            <button type="button" className="btn btn-primary" onClick={save} disabled={saving || !dirty}>
-              {saving ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
-          </div>
+          {/* Destructif déclassé : plus de rangée à égalité avec Enregistrer,
+              où le pouce arrivait lancé en fin de scroll (audit UX, A3).
+              La confirmation en deux taps est conservée. */}
+          <button
+            type="button"
+            className="text-btn danger drawer-delete"
+            onClick={remove}
+            disabled={saving}
+          >
+            <Trash2 size={14} /> {confirmDelete ? 'Confirmer la suppression ?' : 'Supprimer le point'}
+          </button>
 
           {hasHouseInfo && (
             <p className="data-attribution">Données IGN BD TOPO · BDNB (CSTB)</p>
           )}
+
+          {/* Sticky : l'action de tous les jours reste visible sans scroller
+              (le bas de fiche partait sous le pli dès que la 3D était ouverte). */}
+          <div className="drawer-footer">
+            <button type="button" className="btn btn-primary" onClick={save} disabled={saving || !dirty}>
+              {saving ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+          </div>
           </div>
         </Drawer.Content>
       </Drawer.Portal>

@@ -218,7 +218,7 @@ export function AppointmentForm({ open, onOpenChange, profile, existing, pointId
             onChange={(e) => setNotes(e.target.value)}
           />
 
-          <div className="drawer-actions">
+          <div className="drawer-footer">
             <button type="button" className="btn btn-ghost" onClick={() => onOpenChange(false)} disabled={saving}>
               Annuler
             </button>

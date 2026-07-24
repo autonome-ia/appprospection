@@ -22,6 +22,10 @@ interface Props {
   millesime: string | null
   /** % de chutes suggéré (mis en avant dans le tableau). */
   wastePct: number
+  /** Piloté par le module « Toiture mesurée » : ouvre l'overlay directement
+      (pas de bouton déclencheur) et rend la fermeture au parent. */
+  embedded?: boolean
+  onClose?: () => void
 }
 
 const CARDINALS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO']
@@ -36,12 +40,21 @@ const EDGE_LABELS: [keyof NonNullable<RoofData['aretes']>, string][] = [
   ['solin_m', 'Solins'],
 ]
 
-export function RoofReport({ roof, address, maisonM2, totalM2, millesime, wastePct }: Props) {
-  const [open, setOpen] = useState(false)
+export function RoofReport({
+  roof,
+  address,
+  maisonM2,
+  totalM2,
+  millesime,
+  wastePct,
+  embedded = false,
+  onClose,
+}: Props) {
+  const [open, setOpen] = useState(embedded)
   const letters = panLetters(roof)
   if (letters.size === 0) return null
 
-  if (!open) {
+  if (!open && !embedded) {
     return (
       <button type="button" className="roof3d-btn" onClick={() => setOpen(true)}>
         <FileText size={15} strokeWidth={1.9} />
@@ -87,7 +100,7 @@ export function RoofReport({ roof, address, maisonM2, totalM2, millesime, wasteP
           <button
             type="button"
             className="icon-btn"
-            onClick={() => setOpen(false)}
+            onClick={() => (embedded ? onClose?.() : setOpen(false))}
             aria-label="Fermer le rapport"
           >
             <X size={16} />

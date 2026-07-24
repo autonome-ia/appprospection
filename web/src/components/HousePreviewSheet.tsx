@@ -2,9 +2,7 @@ import { Drawer } from 'vaul'
 import { X, Home } from 'lucide-react'
 import { StatusPicker } from './StatusPicker'
 import { HouseBadges } from './HouseBadges'
-import { Roof3D } from './Roof3D'
-import { RoofDiagram } from './RoofDiagram'
-import { RoofReport } from './RoofReport'
+import { RoofModule } from './RoofModule'
 import type { PointStatus } from '../domain/status'
 import type { HouseInfo } from '../data/enrich'
 import type { LidarResult } from '../data/lidar'
@@ -93,41 +91,33 @@ export function HousePreviewSheet({
           )}
 
           {lidarOk && lidar.toit_lidar_pans && (
-            <>
-              <Roof3D
-                roof={lidar.toit_lidar_pans}
-                wastePct={suggestedWastePct(
-                  info?.mat_toit ?? null,
-                  null,
-                  lidar.toit_lidar_pans.aretes,
-                )}
-              />
-              <RoofDiagram roof={lidar.toit_lidar_pans} />
-              <RoofReport
-                roof={lidar.toit_lidar_pans}
-                address={address}
-                maisonM2={lidar.toit_lidar_principal_m2 || lidar.toit_lidar_m2}
-                totalM2={lidar.toit_lidar_m2}
-                millesime={lidar.toit_lidar_millesime}
-                wastePct={suggestedWastePct(
-                  info?.mat_toit ?? null,
-                  null,
-                  lidar.toit_lidar_pans.aretes,
-                )}
-              />
-            </>
+            // Ouvert d'emblée : la fiche AVANT prospection est un moment
+            // d'argumentaire (audit UX, B2).
+            <RoofModule
+              roof={lidar.toit_lidar_pans}
+              wastePct={suggestedWastePct(
+                info?.mat_toit ?? null,
+                null,
+                lidar.toit_lidar_pans.aretes,
+              )}
+              address={address}
+              maisonM2={lidar.toit_lidar_principal_m2 || lidar.toit_lidar_m2}
+              totalM2={lidar.toit_lidar_m2}
+              millesime={lidar.toit_lidar_millesime}
+              defaultOpen
+            />
           )}
 
           <p className="eyebrow field-label">Poser un point</p>
           <StatusPicker active={activeStatus} onChange={onStatusChange} />
 
-          <div className="drawer-actions">
+          <p className="data-attribution">Données IGN (BD TOPO, LiDAR HD) · BDNB (CSTB)</p>
+
+          <div className="drawer-footer">
             <button type="button" className="btn btn-primary" onClick={() => onPose(activeStatus)}>
               Poser le point
             </button>
           </div>
-
-          <p className="data-attribution">Données IGN (BD TOPO, LiDAR HD) · BDNB (CSTB)</p>
           </div>
         </Drawer.Content>
       </Drawer.Portal>

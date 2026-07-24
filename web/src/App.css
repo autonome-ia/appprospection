@@ -1560,6 +1560,78 @@
 .roof3d-full .roof3d-legend {
   justify-content: center;
 }
+/* =========================================================================
+   Module « Toiture mesurée » (audit UX B2) : un seul bloc repliable qui
+   regroupe 3D · Plan · Rapport — remplace trois blocs empilés.
+   ====================================================================== */
+.roof-module {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 4px 12px 12px;
+  background: var(--surface);
+}
+.roof-module:has(.roof-module-head[aria-expanded='false']) {
+  padding-bottom: 4px;
+}
+.roof-module-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 0;
+  border: none;
+  background: none;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 550;
+  text-align: left;
+}
+.roof-module-head svg:first-child {
+  color: var(--ink-3);
+}
+.roof-module-title {
+  flex: 1 1 auto;
+}
+.roof-module-m2 {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.roof-module-chevron {
+  color: var(--ink-3);
+  transition: transform 160ms var(--ease-out);
+}
+.roof-module-chevron.is-open {
+  transform: rotate(180deg);
+}
+/* Segmented 3D · Plan · Rapport : bascule 1 tap, style iOS sobre. */
+.roof-module-seg {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  margin-bottom: 10px;
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+}
+.roof-module-seg button {
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  border-radius: calc(var(--r-md) - 3px);
+  background: none;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 550;
+}
+.roof-module-seg button.is-active {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
 .roof3d-legend {
   display: flex;
   flex-wrap: wrap;
@@ -2032,6 +2104,28 @@ select.field-input {
   display: flex;
   gap: 10px;
   margin-top: 18px;
+}
+/* Pied d'action commun des sheets (gabarit, audit UX A3) : TOUJOURS visible,
+   le corps défile dessous — « Enregistrer » partait sous le pli dès que la
+   3D/plan était dépliée. Déborde de 4px (marges du corps) pour couvrir le
+   contenu qui défile derrière. */
+.drawer-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  gap: 10px;
+  margin: 18px -4px 0;
+  padding: 12px 4px 2px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+/* Suppression déclassée : un lien danger discret dans le flux, plus une
+   rangée pleine largeur mitoyenne d'Enregistrer. */
+.drawer-delete {
+  align-self: center;
+  margin-top: 18px;
+  color: var(--danger);
 }
 .btn {
   display: inline-flex;

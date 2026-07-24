@@ -207,11 +207,20 @@ export function RoofDiagramSvg({ roof }: Props) {
   )
 }
 
-/** Plan coté du toit mesuré — bouton discret sous la maquette 3D. */
-export function RoofDiagram({ roof }: Props) {
+/** Plan coté du toit mesuré — bouton discret sous la maquette 3D, ou rendu
+    direct (embedded) dans le module « Toiture mesurée ». */
+export function RoofDiagram({ roof, embedded = false }: Props & { embedded?: boolean }) {
   const [open, setOpen] = useState(false)
   const has = useMemo(() => buildDiagram(roof) !== null, [roof])
   if (!has) return null
+
+  if (embedded) {
+    return (
+      <div className="roof-diagram">
+        <RoofDiagramSvg roof={roof} />
+      </div>
+    )
+  }
 
   if (!open) {
     return (
