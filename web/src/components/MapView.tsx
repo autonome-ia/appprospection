@@ -132,6 +132,10 @@ export function MapView({
   // à retenter en priorité.
   const [ageFilter, setAgeFilter] = useState<number | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  // Badge du bouton filtres (nb de critères actifs).
+  const nFilters = statusFilter.size + (ageFilter !== null ? 1 : 0)
+  // « Poser ici » grisé tant que le zoom ne permet pas de viser une maison.
+  const [placeZoomOk, setPlaceZoomOk] = useState(true)
   // Fiche maison AVANT prospection : maison tapée (sans marqueur) + ses infos.
   const [housePreview, setHousePreview] = useState<{ lng: number; lat: number } | null>(null)
   const [houseInfo, setHouseInfo] = useState<HouseInfo | null>(null)
@@ -541,8 +545,12 @@ export function MapView({
     if (ageFilter !== null) setAgeFilter(null)
     if (statusFilter.size > 0 && !statusFilter.has(status)) setStatusFilter(new Set())
     const { point, saved } = addPoint(lng, lat, status)
+    // La fiche ne s'ouvre PLUS après chaque pose (audit UX A1 : 3 taps pour
+    // un « Absent », ×40-60 par tournée) — le toast sert de filet : Annuler,
+    // et « + Note » pour ouvrir la fiche seulement quand on a quelque chose
+    // à dire. « RDV pris » garde son enchaînement (formulaire RDV).
     toast.success(`Point posé — ${STATUS_BY_VALUE[status].label}`, {
-      action: {
+      cancel: {
         label: 'Annuler',
         onClick: () =>
           void removePoint(point.id).catch((e) => {
@@ -550,19 +558,37 @@ export function MapView({
             toast.error('Annulation impossible — vérifiez le réseau')
           }),
       },
+      action:
+        status === 'rdv_pris'
+          ? undefined
+          : {
+              label: '+ Note',
+              onClick: () =>
+                void saved.then((created) => {
+                  if (created && activeRef.current) setSelectedId(created.id)
+                }),
+            },
     })
     void saved.then((created) => {
       if (!created) return
       // L'insert peut se confirmer APRÈS un changement d'onglet : ne pas
-      // faire surgir la fiche/le formulaire RDV par-dessus l'Agenda (audit).
+      // faire surgir le formulaire RDV par-dessus l'Agenda (audit).
       if (!activeRef.current) return
-      if (status === 'rdv_pris' && isSupabaseConfigured) {
-        setRdvPoint(created)
-      } else {
-        setSelectedId(created.id)
-      }
+      if (status === 'rdv_pris' && isSupabaseConfigured) setRdvPoint(created)
     })
   }
+
+  // Suit le zoom pendant la visée : grise « Poser ici » sous le seuil.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!placing || !map) return
+    const update = () => setPlaceZoomOk(map.getZoom() >= PLACE_MIN_ZOOM)
+    update()
+    map.on('zoom', update)
+    return () => {
+      map.off('zoom', update)
+    }
+  }, [placing])
 
   // Pose le point sous le réticule.
   const confirmPlace = () => {
@@ -693,15 +719,41 @@ export function MapView({
       })),
     })
     if (housePreview) houseSrc?.setData(EMPTY_FC)
-    for (const [i, p] of drawable.entries()) {
-      if (!p.centre) continue
-      const el = document.createElement('div')
-      el.className = 'pan-chip tnum'
-      el.textContent = `${p.m2} m²`
-      el.style.borderColor = PAN_COLORS[i % PAN_COLORS.length]
-      panLabelsRef.current.push(
-        new maplibregl.Marker({ element: el }).setLngLat(p.centre).addTo(map),
-      )
+    // Pastilles selon le zoom (audit UX A31) : dézoomées, les pastilles à
+    // taille fixe s'empilaient en tas illisible SUR le toit — sous ~17,5 une
+    // seule pastille Σ au centroïde, le détail par pan au-delà.
+    const drawLabels = () => {
+      for (const m of panLabelsRef.current) m.remove()
+      panLabelsRef.current = []
+      const centres = drawable.filter((p) => p.centre)
+      if (!centres.length) return
+      if (map.getZoom() < 17.5 && centres.length > 1) {
+        const total = Math.round(centres.reduce((s, p) => s + p.m2, 0))
+        const cx = centres.reduce((s, p) => s + p.centre![0], 0) / centres.length
+        const cy = centres.reduce((s, p) => s + p.centre![1], 0) / centres.length
+        const el = document.createElement('div')
+        el.className = 'pan-chip tnum'
+        el.textContent = `Σ ${total} m²`
+        panLabelsRef.current.push(
+          new maplibregl.Marker({ element: el }).setLngLat([cx, cy]).addTo(map),
+        )
+        return
+      }
+      for (const [i, p] of drawable.entries()) {
+        if (!p.centre) continue
+        const el = document.createElement('div')
+        el.className = 'pan-chip tnum'
+        el.textContent = `${p.m2} m²`
+        el.style.borderColor = PAN_COLORS[i % PAN_COLORS.length]
+        panLabelsRef.current.push(
+          new maplibregl.Marker({ element: el }).setLngLat(p.centre!).addTo(map),
+        )
+      }
+    }
+    drawLabels()
+    map.on('zoomend', drawLabels)
+    return () => {
+      map.off('zoomend', drawLabels)
     }
     // houseInfo dans les deps : si la surbrillance bleue arrive APRÈS la
     // mesure, ce nettoyage doit rejouer.
@@ -851,14 +903,6 @@ export function MapView({
         >
           <Layers size={20} strokeWidth={1.8} />
         </button>
-        <button
-          type="button"
-          className={`map-tool ${filtersOpen || statusFilter.size > 0 || ageFilter !== null ? 'is-on' : ''}`}
-          onClick={() => setFiltersOpen((v) => !v)}
-          title="Filtrer (statut, ancienneté)"
-        >
-          <SlidersHorizontal size={20} strokeWidth={1.8} />
-        </button>
       </div>
 
       {!placing && (
@@ -907,11 +951,26 @@ export function MapView({
             </div>
           </div>
           )}
+          {/* Filtres en zone pouce, empilés sur le FAB (audit UX A14) : le
+              toggle vivait en haut à droite, ses chips apparaissent en bas. */}
+          <button
+            type="button"
+            className={`map-fab-filters ${filtersOpen || nFilters > 0 ? 'is-on' : ''}`}
+            onClick={() => setFiltersOpen((v) => !v)}
+            aria-label="Filtrer (statut, ancienneté)"
+          >
+            <SlidersHorizontal size={20} strokeWidth={1.8} />
+            {nFilters > 0 && <span className="map-fab-badge tnum">{nFilters}</span>}
+          </button>
           <button
             type="button"
             className="map-fab"
             onClick={() => {
               setHousePreview(null)
+              // Sous le zoom de pose, on rapproche AVANT d'ouvrir le réticule
+              // (audit UX A34 : l'erreur ne tombait qu'après avoir visé).
+              const m = mapRef.current
+              if (m && m.getZoom() < PLACE_MIN_ZOOM) m.easeTo({ zoom: 16.5, duration: 450 })
               setPlacing(true)
             }}
             aria-label="Poser un point"
@@ -941,8 +1000,13 @@ export function MapView({
               <button type="button" className="btn btn-ghost" onClick={() => setPlacing(false)}>
                 Annuler
               </button>
-              <button type="button" className="btn btn-primary" onClick={confirmPlace}>
-                Poser ici
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={confirmPlace}
+                disabled={!placeZoomOk}
+              >
+                {placeZoomOk ? 'Poser ici' : 'Zoomez pour viser'}
               </button>
             </div>
           </div>

@@ -60,6 +60,42 @@
 }
 
 /* Bouton "Poser un point" (zone pouce) */
+/* Bouton filtres en zone pouce, empilé au-dessus du FAB (audit UX A14). */
+.map-fab-filters {
+  position: absolute;
+  right: max(20px, calc(6px + env(safe-area-inset-right)));
+  bottom: 88px;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--surface);
+  color: var(--ink-2);
+  box-shadow: var(--shadow-md);
+}
+.map-fab-filters.is-on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.map-fab-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+}
 .map-fab {
   position: absolute;
   right: max(14px, env(safe-area-inset-right));
