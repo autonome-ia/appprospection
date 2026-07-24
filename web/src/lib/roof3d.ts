@@ -27,6 +27,7 @@ import {
   LineLoop,
   Mesh,
   MeshLambertMaterial,
+  NeutralToneMapping,
   PCFSoftShadowMap,
   PerspectiveCamera,
   PlaneGeometry,
@@ -46,6 +47,9 @@ export interface RoofSceneHandle {
   dispose(): void
   /** Grise les pans exclus de la sélection (index dans roof.pans). */
   setExcluded(excluded: ReadonlySet<number>): void
+  /** Contexte WebGL perdu et jamais restauré (iOS en arrière-plan) :
+      l'appelant remonte la scène (reconstruction en quelques ms). */
+  isContextLost(): boolean
 }
 
 export interface RoofSceneOptions {
@@ -416,6 +420,8 @@ export function mountRoofScene(
   sun.target.position.copy(centre)
   sun.castShadow = true
   sun.shadow.mapSize.set(1024, 1024)
+  // Pans quasi plats + soleil rasant = cas d'école de l'acné d'ombre.
+  sun.shadow.normalBias = 0.03
   const cam = sun.shadow.camera
   cam.left = -span * 1.6
   cam.right = span * 1.6
@@ -430,6 +436,11 @@ export function mountRoofScene(
   renderer.setSize(container.clientWidth, container.clientHeight)
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = PCFSoftShadowMap
+  // Scène statique (seule la caméra bouge) : la passe d'ombre n'est cuite
+  // qu'une fois au lieu d'être re-rendue à chaque frame.
+  renderer.shadowMap.autoUpdate = false
+  renderer.shadowMap.needsUpdate = true
+  renderer.toneMapping = NeutralToneMapping
   container.appendChild(renderer.domElement)
 
   const camera = new PerspectiveCamera(
@@ -446,6 +457,12 @@ export function mountRoofScene(
   let tapStart: { x: number; y: number; t: number } | null = null
   const onPointerDown = (e: PointerEvent) => {
     tapStart = { x: e.clientX, y: e.clientY, t: performance.now() }
+  }
+  // Geste interrompu par le système (notification, appel) : sans purge, le
+  // pointerup suivant validerait un « tap » avec un départ périmé et
+  // cocherait un pan par accident.
+  const onPointerCancel = () => {
+    tapStart = null
   }
   const onPointerUp = (e: PointerEvent) => {
     const start = tapStart
@@ -467,6 +484,7 @@ export function mountRoofScene(
   }
   renderer.domElement.addEventListener('pointerdown', onPointerDown)
   renderer.domElement.addEventListener('pointerup', onPointerUp)
+  renderer.domElement.addEventListener('pointercancel', onPointerCancel)
 
   const controls = new OrbitControls(camera, renderer.domElement)
   controls.target.copy(target)
@@ -507,8 +525,16 @@ export function mountRoofScene(
   }
   place(0)
 
+  // Rendu À LA DEMANDE (pattern three.js « rendering on demand » + damping) :
+  // la boucle continue ne vit que pendant l'entrée animée et l'autorotation.
+  // Ensuite, chaque frame est demandée — 'change' d'OrbitControls (drag et
+  // inertie : controls.update() ré-émet 'change' tant que la caméra bouge,
+  // la chaîne s'auto-entretient puis s'éteint), setExcluded, resize,
+  // contexte restauré. GPU à ~0 quand la maquette est immobile devant le
+  // client — batterie préservée en rendez-vous.
   let raf = 0
-  const loop = (now: number) => {
+  const draw = (now: number) => {
+    raf = 0
     if (t0 === null) t0 = now
     const k = Math.min(1, (now - t0) / 900)
     if (k < 1) {
@@ -530,9 +556,22 @@ export function mountRoofScene(
     }
     needle.style.transform = `rotate(${(controls.getAzimuthalAngle() * 180) / Math.PI}deg)`
     renderer.render(scene, camera)
-    raf = requestAnimationFrame(loop)
+    if (k < 1 || controls.autoRotate) schedule()
   }
-  raf = requestAnimationFrame(loop)
+  const schedule = () => {
+    if (!raf) raf = requestAnimationFrame(draw)
+  }
+  controls.addEventListener('change', schedule)
+  schedule()
+
+  // iOS Safari perd le contexte WebGL quand la PWA passe en arrière-plan.
+  // three restaure le contexte tout seul mais ne redemande NI frame NI passe
+  // d'ombre (figée par autoUpdate=false) : les deux sont relancées ici.
+  const onContextRestored = () => {
+    renderer.shadowMap.needsUpdate = true
+    schedule()
+  }
+  renderer.domElement.addEventListener('webglcontextrestored', onContextRestored)
 
   const resize = new ResizeObserver(() => {
     const w = container.clientWidth
@@ -541,6 +580,7 @@ export function mountRoofScene(
     renderer.setSize(w, h)
     camera.aspect = w / h
     camera.updateProjectionMatrix()
+    schedule()
   })
   resize.observe(container)
 
@@ -550,6 +590,9 @@ export function mountRoofScene(
       resize.disconnect()
       renderer.domElement.removeEventListener('pointerdown', onPointerDown)
       renderer.domElement.removeEventListener('pointerup', onPointerUp)
+      renderer.domElement.removeEventListener('pointercancel', onPointerCancel)
+      renderer.domElement.removeEventListener('webglcontextrestored', onContextRestored)
+      controls.removeEventListener('change', schedule)
       controls.dispose()
       for (const { el } of chips) el.remove()
       compass.remove()
@@ -571,6 +614,10 @@ export function mountRoofScene(
       for (const chip of chips) {
         chip.el.classList.toggle('is-off', excluded.has(chip.idx))
       }
+      schedule() // rendu à la demande : le grisage doit provoquer sa frame
+    },
+    isContextLost() {
+      return renderer.getContext().isContextLost()
     },
   }
 }

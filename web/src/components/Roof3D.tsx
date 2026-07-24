@@ -45,7 +45,15 @@ export function Roof3D({ roof }: Props) {
   const [open, setOpen] = useState(false)
   const [full, setFull] = useState(false)
   const [failed, setFailed] = useState(false)
+  // Remontage forcé quand le contexte WebGL est perdu sans retour (iOS).
+  const [retry, setRetry] = useState(0)
   const [excluded, setExcluded] = useState<ReadonlySet<number>>(() => defaultExcluded(roof.pans))
+  // `roof` change d'identité quand une NOUVELLE mesure arrive (backfill,
+  // montée de version) : les index d'exclusion pointeraient sur les anciens
+  // pans — on repart de la présélection « maison » du nouveau toit.
+  useEffect(() => {
+    setExcluded(defaultExcluded(roof.pans))
+  }, [roof])
   const holderRef = useRef<HTMLDivElement>(null)
   const handleRef = useRef<RoofSceneHandle | null>(null)
   // Le toggle est lu par la scène via une ref : pas de re-montage à chaque tap.
@@ -87,7 +95,22 @@ export function Roof3D({ roof }: Props) {
     // `full` déplace le canvas dans le portal : on remonte la scène (rapide).
     // `excluded` est appliqué via setExcluded, sans re-montage.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, full, roof])
+  }, [open, full, roof, retry])
+
+  // Retour au premier plan avec un contexte WebGL resté mort (three n'a pas
+  // reçu webglcontextrestored) : on remonte la scène — reconstruction en
+  // quelques ms depuis RoofData, aucun asset réseau.
+  useEffect(() => {
+    if (!open) return
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      window.setTimeout(() => {
+        if (handleRef.current?.isContextLost()) setRetry((v) => v + 1)
+      }, 1000)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [open])
 
   useEffect(() => {
     handleRef.current?.setExcluded(excluded)
@@ -106,17 +129,22 @@ export function Roof3D({ roof }: Props) {
 
   const selectionM2 = roof.pans.reduce((s, p, i) => (excluded.has(i) ? s : s + p.m2), 0)
 
+  // Couleur de légende alignée sur la scène (index dans les pans DESSINABLES).
+  // Les pans trop petits pour la 3D restent listés — sans puce colorée — pour
+  // que TOUT ce qui compte dans le Σ soit visible et cochable.
+  const colorOf = new Map(drawable.map(({ idx }, i) => [idx, PAN_COLORS[i % PAN_COLORS.length]]))
+
   const legend = (
     <div className="roof3d-legend">
       <span className="pan-chip tnum roof3d-total" title="Somme des pans sélectionnés">
         Σ {selectionM2} m²
       </span>
-      {drawable.map(({ pan, idx }, i) => (
+      {roof.pans.map((pan, idx) => (
         <button
           key={idx}
           type="button"
           className={`pan-chip tnum roof3d-toggle ${excluded.has(idx) ? 'is-off' : ''}`}
-          style={{ borderColor: PAN_COLORS[i % PAN_COLORS.length] }}
+          style={{ borderColor: colorOf.get(idx) ?? 'var(--line)' }}
           onClick={() => toggleRef.current(idx)}
           title={excluded.has(idx) ? 'Exclu — taper pour inclure' : 'Inclus — taper pour exclure'}
         >
