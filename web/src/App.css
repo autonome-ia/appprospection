@@ -1259,7 +1259,11 @@
   z-index: 50;
   display: flex;
   flex-direction: column;
+  /* dvh = viewport RÉELLEMENT visible sur iOS (vh = grand viewport, barre
+     Safari escamotée : le bas de la sheet passait sous la barre et la fin
+     du contenu restait inatteignable). Repli vh pour les vieux moteurs. */
   max-height: 92vh;
+  max-height: 92dvh;
   /* PAS de scroll ici : fixed + transform (vaul) + overflow sur le MÊME
      élément fige le défilement sur iOS Safari (bug WebKit connu) — c'est
      .drawer-body, enfant sans transform, qui défile. */
