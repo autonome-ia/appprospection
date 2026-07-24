@@ -1280,8 +1280,16 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  /* Verrouillage de l'axe HORIZONTAL : un enfant à largeur intrinsèque
+     (select, ligne longue) créait une piste de glissement latéral. */
+  overflow-x: hidden;
+  max-width: 100%;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+}
+.drawer-body > * {
+  min-width: 0; /* les enfants flex acceptent de rétrécir sous leur contenu */
+  max-width: 100%;
 }
 /* Accueil : sections « À relancer » et « Activité récente » */
 .home-section {
