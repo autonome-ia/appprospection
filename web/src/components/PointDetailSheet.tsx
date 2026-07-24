@@ -83,6 +83,8 @@ export function PointDetailSheet({
   // Pans du toit (contours + altitudes) : hors du SELECT global des points,
   // récupérés à la demande pour la maquette 3D (cache côté data/points).
   const [cachedPans, setCachedPans] = useState<RoofData | null>(null)
+  // Suppression en deux taps (voir remove()).
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   // Instantané des valeurs INITIALES du formulaire : la sauvegarde n'envoie
   // que ce que l'utilisateur a touché DANS CETTE SESSION — comparer à `point`
@@ -103,6 +105,7 @@ export function PointDetailSheet({
     setRevisitAt(point.revisit_at ?? '')
     setMatConfirme(point.mat_toit_confirme ?? '')
     setNewNote('')
+    setConfirmDelete(false)
     setDetail(null)
     setHistory([])
     setLiveEnrich(null)
@@ -257,6 +260,15 @@ export function PointDetailSheet({
 
   async function remove() {
     if (!point) return
+    // Deux taps : « Supprimer » est pleine largeur, à 10 px d'« Enregistrer »,
+    // pile où le pouce arrive lancé en fin de scroll — un tap raté effaçait
+    // définitivement le point ET son journal pour toute l'équipe
+    // (contre-audit, bug 20).
+    if (!confirmDelete) {
+      setConfirmDelete(true)
+      window.setTimeout(() => setConfirmDelete(false), 4000)
+      return
+    }
     setSaving(true)
     try {
       await onDelete(point.id)
@@ -457,7 +469,7 @@ export function PointDetailSheet({
 
           <div className="drawer-actions">
             <button type="button" className="btn btn-danger" onClick={remove} disabled={saving}>
-              <Trash2 size={16} /> Supprimer
+              <Trash2 size={16} /> {confirmDelete ? 'Confirmer ?' : 'Supprimer'}
             </button>
             <button type="button" className="btn btn-primary" onClick={save} disabled={saving || !dirty}>
               {saving ? 'Enregistrement…' : 'Enregistrer'}
