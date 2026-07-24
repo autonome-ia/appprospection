@@ -41,11 +41,48 @@ export const CONFIRMED_MAT_OPTIONS = [
 /** Années suspectes : valeurs de reprise/défaut connues des Fichiers fonciers. */
 export const SUSPECT_YEARS = new Set([1900, 1970, 2002, 2003])
 
+/** Libellé du matériau des murs (code fiscal dmatgm, BD TOPO materiaux_des_murs). */
+export const MAT_MURS_LABELS: Record<string, string> = {
+  '1': 'pierre',
+  '2': 'meulière',
+  '3': 'béton',
+  '4': 'briques',
+  '5': 'aggloméré',
+  '6': 'bois',
+  '9': 'autres',
+}
+
+/**
+ * Attributs BD TOPO du bâtiment déjà présents dans les réponses WFS que l'on
+ * télécharge — longtemps ignorés (audit + veille juillet 2026). Stockés en
+ * jsonb `points.maison_extra` (migration db/0010), backfill paresseux.
+ */
+export interface HouseExtra {
+  /** usage_1 (« Résidentiel », « Commercial et services »…). */
+  usage: string | null
+  /** usage_2 (« Annexe »…). */
+  usage_2: string | null
+  logements: number | null
+  etages: number | null
+  /** Année de date_d_apparition — repli quand la BDNB est muette. */
+  annee_apparition: number | null
+  /** etat_de_l_objet (« En service », « En construction »…). */
+  etat: string | null
+  /** construction_legere (abri, véranda, serre). */
+  legere: boolean | null
+  /** Code fiscal dmatgm (voir MAT_MURS_LABELS). */
+  mat_murs: string | null
+  /** Précision planimétrique du polygone (m) — au-delà de ~3 m, la
+      silhouette BD TOPO « source de vérité » du dessin est douteuse. */
+  precision_m: number | null
+}
+
 export interface HouseEnrichment {
   annee_construction: number | null
   mat_toit: string | null
   toit_surface_m2: number | null
   dpe_classe: string | null
+  maison_extra: HouseExtra | null
 }
 
 /**

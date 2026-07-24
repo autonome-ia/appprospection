@@ -1,4 +1,4 @@
-import { matToitLabel, SUSPECT_YEARS } from '../domain/house'
+import { MAT_MURS_LABELS, matToitLabel, SUSPECT_YEARS, type HouseExtra } from '../domain/house'
 
 interface Props {
   annee: number | null
@@ -13,6 +13,8 @@ interface Props {
       « flash » estimation → mesure, retour briac). */
   lidarPending?: boolean
   dpe: string | null
+  /** Attributs BD TOPO complémentaires (étages, murs, état…). */
+  extra?: HouseExtra | null
 }
 
 /** Badges compacts de la fiche maison (année, toiture, surface, DPE). */
@@ -25,31 +27,48 @@ export function HouseBadges({
   lidarMillesime,
   lidarPending,
   dpe,
+  extra,
 }: Props) {
   const matToit = matToitLabel(matCode)
+  // Repli : l'année d'apparition BD TOPO quand la BDNB est muette (fréquent).
+  const anneeShown = annee ?? extra?.annee_apparition ?? null
+  const anneeFallback = annee === null && anneeShown !== null
+  const murs = extra?.mat_murs ? MAT_MURS_LABELS[extra.mat_murs.charAt(0)] : null
+  const enConstruction = extra?.etat != null && extra.etat !== 'En service'
   if (
-    annee === null &&
+    anneeShown === null &&
     !matToit &&
     !matConfirme &&
     toitM2 === null &&
     lidarM2 == null &&
     !lidarPending &&
-    !dpe
+    !dpe &&
+    !murs &&
+    !enConstruction &&
+    (extra?.etages ?? 0) < 2 &&
+    (extra?.logements ?? 0) < 2
   )
     return null
 
   return (
     <div className="house-badges">
-      {annee !== null && (
+      {anneeShown !== null && (
         <span
           className="house-badge tnum"
           title={
-            SUSPECT_YEARS.has(annee)
-              ? 'Année approximative (valeur par défaut fréquente du cadastre)'
-              : 'Année de construction (données fiscales, BDNB)'
+            anneeFallback
+              ? 'Année d’apparition du bâtiment (BD TOPO)'
+              : SUSPECT_YEARS.has(anneeShown)
+                ? 'Année approximative (valeur par défaut fréquente du cadastre)'
+                : 'Année de construction (données fiscales, BDNB)'
           }
         >
-          ~{annee}
+          ~{anneeShown}
+        </span>
+      )}
+      {enConstruction && (
+        <span className="house-badge" title="État du bâtiment (BD TOPO)">
+          {extra!.etat}
         </span>
       )}
       {matConfirme ? (
@@ -82,6 +101,24 @@ export function HouseBadges({
           ~{toitM2} m² toit
         </span>
       ) : null}
+      {murs && (
+        <span className="house-badge" title="Matériau des murs (donnée fiscale, BD TOPO)">
+          Murs {murs}
+        </span>
+      )}
+      {(extra?.etages ?? 0) >= 2 && (
+        <span className="house-badge tnum" title="Nombre d’étages (BD TOPO)">
+          {extra!.etages} étages
+        </span>
+      )}
+      {(extra?.logements ?? 0) >= 2 && (
+        <span
+          className="house-badge tnum"
+          title="Nombre de logements (BD TOPO) — bâtiment probablement collectif ou mitoyen"
+        >
+          {extra!.logements} logements
+        </span>
+      )}
       {dpe && (
         <span className={`house-badge dpe dpe-${dpe.toLowerCase()}`} title="Classe DPE (BDNB)">
           DPE {dpe}

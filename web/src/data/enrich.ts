@@ -16,7 +16,7 @@ const L93 =
   '+proj=lcc +lat_1=49 +lat_2=44 +lat_0=46.5 +lon_0=3 +x_0=700000 +y_0=6600000 ' +
   '+ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs'
 
-import type { HouseEnrichment } from '../domain/house'
+import type { HouseEnrichment, HouseExtra } from '../domain/house'
 
 // --- Géométrie (tout en Lambert-93 : les unités sont des mètres) --------------
 
@@ -73,7 +73,36 @@ function roofSurface(
 interface BdTopoResult {
   mat_toit: string | null
   toit_surface_m2: number | null
+  maison_extra: HouseExtra | null
   geometry: Geometry | null
+}
+
+/**
+ * Attributs du bâtiment déjà présents dans CHAQUE réponse WFS (aucun octet de
+ * plus) mais longtemps ignorés : usage, logements, étages, état, murs…
+ * `date_d_apparition` sert de repli à l'année de construction quand la BDNB
+ * est muette (fréquent).
+ */
+function extractExtra(p: Record<string, unknown>): HouseExtra | null {
+  const str = (k: string) => (typeof p[k] === 'string' && p[k] ? (p[k] as string) : null)
+  const num = (k: string) => (typeof p[k] === 'number' ? (p[k] as number) : null)
+  const apparition = str('date_d_apparition')
+  const year = apparition ? Number(apparition.slice(0, 4)) : NaN
+  const extra: HouseExtra = {
+    usage: str('usage_1'),
+    usage_2: str('usage_2'),
+    logements: num('nombre_de_logements'),
+    etages: num('nombre_d_etages'),
+    annee_apparition: Number.isFinite(year) && year > 1000 ? year : null,
+    etat: str('etat_de_l_objet'),
+    legere: typeof p.construction_legere === 'boolean' ? (p.construction_legere as boolean) : null,
+    mat_murs: (() => {
+      const m = str('materiaux_des_murs')
+      return m && m.charAt(0) !== '0' ? m : null
+    })(),
+    precision_m: num('precision_planimetrique'),
+  }
+  return Object.values(extra).some((v) => v !== null) ? extra : null
 }
 
 async function fetchBdTopo(lng: number, lat: number): Promise<BdTopoResult> {
@@ -96,7 +125,7 @@ async function fetchBdTopo(lng: number, lat: number): Promise<BdTopoResult> {
     }[]
   }
   const f = j.features?.[0]
-  if (!f) return { mat_toit: null, toit_surface_m2: null, geometry: null }
+  if (!f) return { mat_toit: null, toit_surface_m2: null, maison_extra: null, geometry: null }
 
   const p = f.properties ?? {}
   const mat = typeof p.materiaux_de_la_toiture === 'string' ? p.materiaux_de_la_toiture : null
@@ -122,6 +151,7 @@ async function fetchBdTopo(lng: number, lat: number): Promise<BdTopoResult> {
   return {
     mat_toit: mat && mat.charAt(0) !== '0' ? mat : null,
     toit_surface_m2: surface,
+    maison_extra: extractExtra(p),
     geometry: (g as Geometry | undefined) ?? null,
   }
 }
@@ -185,7 +215,7 @@ async function loadHouseInfo(lng: number, lat: number): Promise<HouseInfo> {
   const t =
     topo.status === 'fulfilled'
       ? topo.value
-      : { mat_toit: null, toit_surface_m2: null, geometry: null }
+      : { mat_toit: null, toit_surface_m2: null, maison_extra: null, geometry: null }
   const b =
     bdnb.status === 'fulfilled' ? bdnb.value : { annee_construction: null, dpe_classe: null }
   if (topo.status === 'rejected') console.error('Enrichissement BD TOPO :', topo.reason)
@@ -195,6 +225,7 @@ async function loadHouseInfo(lng: number, lat: number): Promise<HouseInfo> {
     mat_toit: t.mat_toit,
     toit_surface_m2: t.toit_surface_m2,
     dpe_classe: b.dpe_classe,
+    maison_extra: t.maison_extra,
     geometry: t.geometry,
   }
 }
@@ -215,6 +246,7 @@ export async function enrichPoint(
     mat_toit: info.mat_toit,
     toit_surface_m2: info.toit_surface_m2,
     dpe_classe: info.dpe_classe,
+    maison_extra: info.maison_extra,
   }
 
   if (supabase) {
@@ -222,7 +254,17 @@ export async function enrichPoint(
       .from('points')
       .update({ ...enrich, enriched_at: new Date().toISOString() })
       .eq('id', pointId)
-    if (error) console.error('Cache enrichissement :', error.message)
+    if (error) {
+      // Migration db/0010 (colonne maison_extra) pas encore exécutée : on
+      // cache au moins les champs historiques plutôt que rien.
+      const { maison_extra: _omit, ...legacy } = enrich
+      void _omit
+      const { error: e2 } = await supabase
+        .from('points')
+        .update({ ...legacy, enriched_at: new Date().toISOString() })
+        .eq('id', pointId)
+      if (e2) console.error('Cache enrichissement :', error.message)
+    }
   }
   return enrich
 }

@@ -1,5 +1,5 @@
 import type { PointStatus } from './status'
-import type { RoofData } from './house'
+import type { HouseExtra, RoofData } from './house'
 
 /** Profil applicatif (table `profiles`). */
 export interface Profile {
@@ -30,6 +30,8 @@ export interface MapPoint {
   mat_toit_confirme: string | null
   toit_surface_m2: number | null
   dpe_classe: string | null
+  /** Attributs BD TOPO complémentaires (usage, étages, murs… — db/0010). */
+  maison_extra: HouseExtra | null
   enriched_at: string | null
   /** Surface de toiture MESURÉE (nuage de points LiDAR HD IGN, cache définitif). */
   toit_lidar_m2: number | null

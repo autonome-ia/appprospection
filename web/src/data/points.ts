@@ -8,7 +8,7 @@ import type { PointStatus } from '../domain/status'
 // pour tous les points à chaque chargement (carte, accueil, agenda) croîtrait
 // avec l'activité de l'équipe. Récupéré à la demande via fetchPointPans.
 const COLS =
-  'id, lng, lat, status, notes, client_name, address, revisit_at, annee_construction, mat_toit, mat_toit_confirme, toit_surface_m2, dpe_classe, enriched_at, toit_lidar_m2, toit_lidar_principal_m2, toit_lidar_statut, toit_lidar_millesime, toit_lidar_version'
+  'id, lng, lat, status, notes, client_name, address, revisit_at, annee_construction, mat_toit, mat_toit_confirme, toit_surface_m2, dpe_classe, maison_extra, enriched_at, toit_lidar_m2, toit_lidar_principal_m2, toit_lidar_statut, toit_lidar_millesime, toit_lidar_version'
 
 /** Détail complet d'un point (panneau au clic). */
 export interface PointDetail extends MapPoint {
@@ -32,6 +32,7 @@ function rowToPoint(r: Record<string, unknown>): MapPoint {
     mat_toit_confirme: (r.mat_toit_confirme as string | null) ?? null,
     toit_surface_m2: (r.toit_surface_m2 as number | null) ?? null,
     dpe_classe: (r.dpe_classe as string | null) ?? null,
+    maison_extra: (r.maison_extra as MapPoint['maison_extra']) ?? null,
     enriched_at: (r.enriched_at as string | null) ?? null,
     toit_lidar_m2: (r.toit_lidar_m2 as number | null) ?? null,
     toit_lidar_principal_m2: (r.toit_lidar_principal_m2 as number | null) ?? null,

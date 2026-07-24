@@ -98,9 +98,16 @@ export function PointDetailSheet({
     // encore de détail ni de journal en base.
     if (!isSupabaseConfigured || point.id.startsWith('temp-')) return
     let active = true
-    // Backfill paresseux : point jamais enrichi (posé avant le chantier) ->
-    // on récupère la fiche maison maintenant (et on la met en cache).
-    if (!point.enriched_at) {
+    // Backfill paresseux : point jamais enrichi (posé avant le chantier), ou
+    // enrichi avant l'arrivée des attributs BD TOPO complémentaires
+    // (maison_extra, db/0010) — seulement si un bâtiment avait été trouvé
+    // (mat/surface cachés), pour ne pas re-interroger à chaque ouverture les
+    // points sans bâtiment (quota BDNB).
+    if (
+      !point.enriched_at ||
+      (point.maison_extra == null &&
+        (point.mat_toit != null || point.toit_surface_m2 != null))
+    ) {
       void import('../data/enrich')
         .then((m) => m.enrichPoint(point.id, point.lng, point.lat))
         .then((e) => {
@@ -225,6 +232,7 @@ export function PointDetailSheet({
   const matCode = point.mat_toit ?? liveEnrich?.mat_toit ?? null
   const toitM2 = point.toit_surface_m2 ?? liveEnrich?.toit_surface_m2 ?? null
   const dpe = point.dpe_classe ?? liveEnrich?.dpe_classe ?? null
+  const extra = point.maison_extra ?? liveEnrich?.maison_extra ?? null
   // Mesure LiDAR : affichée seulement si le verdict est fiable (statut ok) —
   // sinon la fiche garde l'estimation, sans mentir. La re-mesure à la volée
   // (liveLidar) PRIME sur le cache du point : quand elle a été déclenchée,
@@ -310,6 +318,7 @@ export function PointDetailSheet({
             lidarMillesime={lidarMillesime}
             lidarPending={lidarPending && lidarM2 == null}
             dpe={dpe}
+            extra={extra}
           />
 
           {lidarPans && <Roof3D roof={lidarPans} />}

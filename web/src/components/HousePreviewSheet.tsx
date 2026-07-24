@@ -43,7 +43,8 @@ export function HousePreviewSheet({
     (info.annee_construction !== null ||
       info.mat_toit !== null ||
       info.toit_surface_m2 !== null ||
-      info.dpe_classe !== null)
+      info.dpe_classe !== null ||
+      info.maison_extra !== null)
 
   return (
     // Non modale : la carte reste visible (la maison est surlignée dessous).
@@ -78,6 +79,7 @@ export function HousePreviewSheet({
               lidarMillesime={lidarOk ? lidar.toit_lidar_millesime : null}
               lidarPending={lidar === null}
               dpe={info.dpe_classe}
+              extra={info.maison_extra}
             />
           ) : (
             <p className="house-loading">Pas d’informations pour ce bâtiment.</p>

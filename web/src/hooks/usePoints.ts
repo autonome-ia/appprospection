@@ -74,6 +74,7 @@ export function usePoints(profile: Profile | null) {
         mat_toit_confirme: null,
         toit_surface_m2: null,
         dpe_classe: null,
+        maison_extra: null,
         enriched_at: null,
         toit_lidar_m2: null,
         toit_lidar_principal_m2: null,
