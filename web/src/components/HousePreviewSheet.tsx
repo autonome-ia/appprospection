@@ -4,6 +4,7 @@ import { StatusPicker } from './StatusPicker'
 import { HouseBadges } from './HouseBadges'
 import { Roof3D } from './Roof3D'
 import { RoofDiagram } from './RoofDiagram'
+import { RoofReport } from './RoofReport'
 import type { PointStatus } from '../domain/status'
 import type { HouseInfo } from '../data/enrich'
 import type { LidarResult } from '../data/lidar'
@@ -100,6 +101,18 @@ export function HousePreviewSheet({
                 )}
               />
               <RoofDiagram roof={lidar.toit_lidar_pans} />
+              <RoofReport
+                roof={lidar.toit_lidar_pans}
+                address={address}
+                maisonM2={lidar.toit_lidar_principal_m2 || lidar.toit_lidar_m2}
+                totalM2={lidar.toit_lidar_m2}
+                millesime={lidar.toit_lidar_millesime}
+                wastePct={suggestedWastePct(
+                  info?.mat_toit ?? null,
+                  null,
+                  lidar.toit_lidar_pans.aretes,
+                )}
+              />
             </>
           )}
 

@@ -1555,6 +1555,110 @@
   font-family: var(--font-mono);
   fill: var(--ink-3);
 }
+/* Rapport client : plein écran, imprimable (PDF natif du téléphone). */
+.roof-report-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: var(--surface);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.roof-report {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: max(14px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.roof-report-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+.roof-report-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.roof-report-head h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.roof-report-address {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.roof-report-source {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.roof-report-totals {
+  display: flex;
+  gap: 20px;
+}
+.roof-report-totals > div {
+  display: flex;
+  flex-direction: column;
+}
+.roof-report-figure {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 650;
+}
+.roof-report-caption {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.roof-report svg {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+}
+.roof-report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.roof-report-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.roof-report-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono);
+}
+.roof-report-table .is-suggested {
+  color: var(--accent);
+  font-weight: 650;
+}
+@media print {
+  /* Seul le rapport s'imprime : l'app (racine React) est masquée. */
+  body:has(.roof-report-overlay) #root {
+    display: none;
+  }
+  .roof-report-overlay {
+    position: static;
+    overflow: visible;
+  }
+  .roof-report-actions {
+    display: none;
+  }
+}
 .house-badge.dpe {
   color: #ffffff;
   border-color: transparent;

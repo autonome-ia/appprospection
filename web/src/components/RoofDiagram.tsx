@@ -62,10 +62,7 @@ function buildDiagram(roof: RoofData) {
   lat0 /= n
 
   // Lettres : A = le plus grand pan (convention des rapports pros).
-  const letterOf = new Map<number, string>()
-  ;[...drawable]
-    .sort((a, b) => b.pan.m2 - a.pan.m2)
-    .forEach(({ idx }, i) => letterOf.set(idx, String.fromCharCode(65 + (i % 26))))
+  const letterOf = panLetters(roof)
 
   const pans: DiagramPan[] = drawable.map(({ pan, idx }, i) => {
     const pts = pan.contour!.map(([lng, lat]) => {
@@ -128,27 +125,26 @@ function buildDiagram(roof: RoofData) {
   return { pans, labels, minx, miny, w: maxx - minx, h: maxy - miny }
 }
 
-/** Plan coté du toit mesuré — bouton discret sous la maquette 3D. */
-export function RoofDiagram({ roof }: Props) {
-  const [open, setOpen] = useState(false)
+/** Lettre par pan (A = le plus grand) — partagée diagramme/rapport. */
+export function panLetters(roof: RoofData): Map<number, string> {
+  const letterOf = new Map<number, string>()
+  roof.pans
+    .map((pan, idx) => ({ pan, idx }))
+    .filter(({ pan }) => pan.contour && pan.contour.length >= 4)
+    .sort((a, b) => b.pan.m2 - a.pan.m2)
+    .forEach(({ idx }, i) => letterOf.set(idx, String.fromCharCode(65 + (i % 26))))
+  return letterOf
+}
+
+/** Le SVG seul (réutilisé par le rapport client). */
+export function RoofDiagramSvg({ roof }: Props) {
   const d = useMemo(() => buildDiagram(roof), [roof])
   if (!d) return null
-
-  if (!open) {
-    return (
-      <button type="button" className="roof3d-btn" onClick={() => setOpen(true)}>
-        <PencilRuler size={15} strokeWidth={1.9} />
-        Plan coté du toit
-      </button>
-    )
-  }
-
   const span = Math.max(d.w, d.h)
   const fs = span * 0.045 // tailles en unités « mètres » du viewBox
   const fsSmall = span * 0.034
   return (
-    <div className="roof-diagram">
-      <svg
+    <svg
         viewBox={`${d.minx} ${d.miny} ${d.w} ${d.h}`}
         role="img"
         aria-label="Plan du toit vu du dessus, cotes en mètres"
@@ -207,7 +203,27 @@ export function RoofDiagram({ roof }: Props) {
             N
           </text>
         </g>
-      </svg>
+    </svg>
+  )
+}
+
+/** Plan coté du toit mesuré — bouton discret sous la maquette 3D. */
+export function RoofDiagram({ roof }: Props) {
+  const [open, setOpen] = useState(false)
+  const has = useMemo(() => buildDiagram(roof) !== null, [roof])
+  if (!has) return null
+
+  if (!open) {
+    return (
+      <button type="button" className="roof3d-btn" onClick={() => setOpen(true)}>
+        <PencilRuler size={15} strokeWidth={1.9} />
+        Plan coté du toit
+      </button>
+    )
+  }
+  return (
+    <div className="roof-diagram">
+      <RoofDiagramSvg roof={roof} />
       <button type="button" className="roof3d-btn" onClick={() => setOpen(false)}>
         Masquer le plan
       </button>
