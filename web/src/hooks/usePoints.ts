@@ -45,49 +45,63 @@ export function usePoints(profile: Profile | null) {
   // base à la confirmation (avant : appliquées à l'écran seulement, puis
   // écrasées par la réconciliation — statut/note perdus, audit).
   const pendingEditsRef = useRef(new Map<string, { changes: PointChanges; notes: string[] }>())
+  // Posé par l'effet realtime : enregistre le rejeu d'une mutation LOCALE
+  // (statut modifié, note, suppression, réconciliation d'insert) si un
+  // refetch est en vol — sinon son snapshot, requêté AVANT la mutation,
+  // l'écraserait en s'appliquant après (contre-audit, bug 2).
+  const bufferLocalRef = useRef<(replay: () => void) => void>(() => {})
 
   const online = supabase !== null && profile !== null
 
   useEffect(() => {
     if (!online) return
     let active = true
-    // Les événements realtime reçus PENDANT un (re)fetch sont bufferisés et
-    // rejoués après : le snapshot du fetch n'écrase plus un statut/une
-    // suppression arrivés entre-temps (audit).
-    let fetching = false
-    let buffer: Array<
-      { t: 'upsert'; p: MapPoint } | { t: 'delete'; id: string }
-    > = []
+    // Les événements realtime ET les mutations locales survenus PENDANT un
+    // (re)fetch sont bufferisés (fonctions de rejeu) et rejoués après le
+    // snapshot : celui-ci n'écrase plus un statut/une suppression arrivés
+    // entre-temps (audit).
+    // `gen` : deux refetchs peuvent se croiser (visibilitychange PUIS
+    // re-SUBSCRIBED au réveil iOS) — seul le PLUS RÉCENT applique son
+    // snapshot, sinon le plus périmé gagnait s'il résolvait en dernier
+    // (contre-audit, bug 1).
+    let gen = 0
+    let inFlight = 0
+    let buffer: Array<() => void> = []
+
+    bufferLocalRef.current = (replay) => {
+      if (inFlight > 0) buffer.push(replay)
+    }
 
     const applyInsert = (p: MapPoint) =>
       setPoints((prev) => (prev.some((x) => x.id === p.id) ? prev : [...prev, p]))
     const applyUpdate = (p: MapPoint) =>
       setPoints((prev) => prev.map((x) => (x.id === p.id ? p : x)))
     const applyDelete = (id: string) => setPoints((prev) => prev.filter((x) => x.id !== id))
+    const applyUpsert = (p: MapPoint) => {
+      applyDelete(p.id) // remplace si présent…
+      applyInsert(p) // …ajoute sinon
+    }
 
     const refetch = async () => {
-      fetching = true
-      buffer = []
+      const my = ++gen
+      inFlight++
       try {
         const ps = await fetchPoints()
-        if (!active) return
+        // Un refetch plus récent est parti depuis : son snapshot fera foi,
+        // appliquer le nôtre (plus vieux) reculerait l'état.
+        if (!active || my !== gen) return
         setPoints((prev) => {
           // Fusion, pas remplacement : les points optimistes en vol survivent.
           const temp = prev.filter((x) => x.id.startsWith('temp-'))
           return [...ps, ...temp]
         })
-        for (const ev of buffer) {
-          if (ev.t === 'delete') applyDelete(ev.id)
-          else {
-            applyDelete(ev.p.id) // upsert : remplace si présent…
-            applyInsert(ev.p) // …ajoute sinon
-          }
-        }
+        for (const replay of buffer) replay()
+        buffer = []
       } catch (e) {
         console.error('Chargement des points :', e)
       } finally {
-        fetching = false
-        buffer = []
+        inFlight--
+        if (inFlight === 0) buffer = []
       }
     }
     void refetch()
@@ -96,15 +110,15 @@ export function usePoints(profile: Profile | null) {
     const unsubscribe = subscribePoints(
       {
         onInsert: (p) => {
-          if (fetching) buffer.push({ t: 'upsert', p })
+          if (inFlight > 0) buffer.push(() => applyUpsert(p))
           applyInsert(p)
         },
         onUpdate: (p) => {
-          if (fetching) buffer.push({ t: 'upsert', p })
+          if (inFlight > 0) buffer.push(() => applyUpsert(p))
           applyUpdate(p)
         },
         onDelete: (id) => {
-          if (fetching) buffer.push({ t: 'delete', id })
+          if (inFlight > 0) buffer.push(() => applyDelete(id))
           applyDelete(id)
         },
       },
@@ -130,6 +144,7 @@ export function usePoints(profile: Profile | null) {
 
     return () => {
       active = false
+      bufferLocalRef.current = () => {}
       document.removeEventListener('visibilitychange', onVisible)
       unsubscribe()
     }
@@ -174,7 +189,9 @@ export function usePoints(profile: Profile | null) {
           if (tempIdsRef.current.get(temp.id) === 'cancelled') {
             // Annulé pendant l'enregistrement : on efface aussi en base.
             tempIdsRef.current.delete(temp.id)
-            setPoints((prev) => prev.filter((x) => x.id !== p.id))
+            const applyCancel = (prev: MapPoint[]) => prev.filter((x) => x.id !== p.id)
+            bufferLocalRef.current(() => setPoints(applyCancel))
+            setPoints(applyCancel)
             await dbDeletePoint(p.id).catch((e) => console.error('Annulation du point :', e))
             return null
           }
@@ -199,14 +216,18 @@ export function usePoints(profile: Profile | null) {
             }
           }
           const settled = final
-          setPoints((prev) => {
+          const applySettled = (prev: MapPoint[]) => {
             // Remplace le point temporaire par le définitif (sans doublon si le
             // temps réel l'a déjà inséré).
             const rest = prev.filter((x) => x.id !== temp.id)
             return rest.some((x) => x.id === settled.id)
               ? rest.map((x) => (x.id === settled.id ? settled : x))
               : [...rest, settled]
-          })
+          }
+          // Rejoué si un refetch est en vol : son snapshot ne connaît pas
+          // encore l'id réel et ne conserve que les points temp-.
+          bufferLocalRef.current(() => setPoints(applySettled))
+          setPoints(applySettled)
           return settled
         })
         .catch((e: unknown) => {
@@ -245,7 +266,10 @@ export function usePoints(profile: Profile | null) {
         // Les erreurs (réseau, droits RLS : seul l'auteur ou le manager peut
         // modifier) REMONTENT à l'appelant — pas de faux succès.
         const p = await dbUpdatePoint(profile, realId, changes)
-        setPoints((prev) => prev.map((x) => (x.id === id || x.id === realId ? p : x)))
+        const apply = (prev: MapPoint[]) =>
+          prev.map((x) => (x.id === id || x.id === realId ? p : x))
+        bufferLocalRef.current(() => setPoints(apply))
+        setPoints(apply)
       } else {
         setPoints((prev) =>
           prev.map((x) =>
@@ -283,9 +307,10 @@ export function usePoints(profile: Profile | null) {
       if (online && profile && mapped !== 'pending') {
         await addPointNote(profile, realId, body) // les erreurs remontent
       }
-      setPoints((prev) =>
-        prev.map((x) => (x.id === id || x.id === realId ? { ...x, note: body } : x)),
-      )
+      const apply = (prev: MapPoint[]) =>
+        prev.map((x) => (x.id === id || x.id === realId ? { ...x, note: body } : x))
+      bufferLocalRef.current(() => setPoints(apply))
+      setPoints(apply)
     },
     [online, profile],
   )
@@ -308,7 +333,10 @@ export function usePoints(profile: Profile | null) {
         await dbDeletePoint(realId)
       }
       if (mapped) tempIdsRef.current.delete(id)
-      setPoints((prev) => prev.filter((x) => x.id !== id && x.id !== realId))
+      const apply = (prev: MapPoint[]) =>
+        prev.filter((x) => x.id !== id && x.id !== realId)
+      bufferLocalRef.current(() => setPoints(apply))
+      setPoints(apply)
     },
     [online],
   )
