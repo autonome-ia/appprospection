@@ -27,33 +27,110 @@ export interface AddPointResult {
  * La pose est OPTIMISTE : le point apparaît immédiatement (id temporaire), puis
  * est réconcilié avec l'id base — ou retiré (rollback) si l'insert échoue.
  */
+type PointChanges = {
+  status?: PointStatus
+  note?: string | null
+  client_name?: string | null
+  revisit_at?: string | null
+  mat_toit_confirme?: string | null
+}
+
 export function usePoints(profile: Profile | null) {
   const [points, setPoints] = useState<MapPoint[]>([])
 
   // id temporaire -> 'pending' (insert en cours) | 'cancelled' (annulé avant
   // confirmation) | id définitif (insert confirmé).
   const tempIdsRef = useRef(new Map<string, string>())
+  // Éditions faites PENDANT que l'insert d'un point est en vol : rejouées en
+  // base à la confirmation (avant : appliquées à l'écran seulement, puis
+  // écrasées par la réconciliation — statut/note perdus, audit).
+  const pendingEditsRef = useRef(new Map<string, { changes: PointChanges; notes: string[] }>())
 
   const online = supabase !== null && profile !== null
 
   useEffect(() => {
     if (!online) return
     let active = true
+    // Les événements realtime reçus PENDANT un (re)fetch sont bufferisés et
+    // rejoués après : le snapshot du fetch n'écrase plus un statut/une
+    // suppression arrivés entre-temps (audit).
+    let fetching = false
+    let buffer: Array<
+      { t: 'upsert'; p: MapPoint } | { t: 'delete'; id: string }
+    > = []
 
-    fetchPoints()
-      .then((ps) => {
-        if (active) setPoints(ps)
-      })
-      .catch((e) => console.error('Chargement des points :', e))
+    const applyInsert = (p: MapPoint) =>
+      setPoints((prev) => (prev.some((x) => x.id === p.id) ? prev : [...prev, p]))
+    const applyUpdate = (p: MapPoint) =>
+      setPoints((prev) => prev.map((x) => (x.id === p.id ? p : x)))
+    const applyDelete = (id: string) => setPoints((prev) => prev.filter((x) => x.id !== id))
 
-    const unsubscribe = subscribePoints({
-      onInsert: (p) => setPoints((prev) => (prev.some((x) => x.id === p.id) ? prev : [...prev, p])),
-      onUpdate: (p) => setPoints((prev) => prev.map((x) => (x.id === p.id ? p : x))),
-      onDelete: (id) => setPoints((prev) => prev.filter((x) => x.id !== id)),
-    })
+    const refetch = async () => {
+      fetching = true
+      buffer = []
+      try {
+        const ps = await fetchPoints()
+        if (!active) return
+        setPoints((prev) => {
+          // Fusion, pas remplacement : les points optimistes en vol survivent.
+          const temp = prev.filter((x) => x.id.startsWith('temp-'))
+          return [...ps, ...temp]
+        })
+        for (const ev of buffer) {
+          if (ev.t === 'delete') applyDelete(ev.id)
+          else {
+            applyDelete(ev.p.id) // upsert : remplace si présent…
+            applyInsert(ev.p) // …ajoute sinon
+          }
+        }
+      } catch (e) {
+        console.error('Chargement des points :', e)
+      } finally {
+        fetching = false
+        buffer = []
+      }
+    }
+    void refetch()
+
+    let subscribedOnce = false
+    const unsubscribe = subscribePoints(
+      {
+        onInsert: (p) => {
+          if (fetching) buffer.push({ t: 'upsert', p })
+          applyInsert(p)
+        },
+        onUpdate: (p) => {
+          if (fetching) buffer.push({ t: 'upsert', p })
+          applyUpdate(p)
+        },
+        onDelete: (id) => {
+          if (fetching) buffer.push({ t: 'delete', id })
+          applyDelete(id)
+        },
+      },
+      (status) => {
+        // Re-SUBSCRIBED après une coupure (veille iOS, zone blanche) : les
+        // événements émis pendant la coupure sont définitivement perdus par
+        // le canal — on resynchronise par un refetch fusionnant.
+        if (status !== 'SUBSCRIBED') return
+        if (!subscribedOnce) {
+          subscribedOnce = true // premier abonnement : le fetch initial couvre
+          return
+        }
+        void refetch()
+      },
+    )
+
+    // Retour au premier plan de la PWA : même resynchronisation (la websocket
+    // iOS meurt à chaque mise en poche, parfois sans re-SUBSCRIBED propre).
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refetch()
+    }
+    document.addEventListener('visibilitychange', onVisible)
 
     return () => {
       active = false
+      document.removeEventListener('visibilitychange', onVisible)
       unsubscribe()
     }
   }, [online])
@@ -102,13 +179,35 @@ export function usePoints(profile: Profile | null) {
             return null
           }
           tempIdsRef.current.set(temp.id, p.id)
+          // Rejoue en base les éditions faites pendant l'insert (statut
+          // corrigé, note dictée…) — elles n'étaient qu'à l'écran.
+          const pendingEdits = pendingEditsRef.current.get(temp.id)
+          pendingEditsRef.current.delete(temp.id)
+          let final = p
+          if (pendingEdits) {
+            try {
+              if (Object.keys(pendingEdits.changes).length) {
+                final = await dbUpdatePoint(profile, p.id, pendingEdits.changes)
+              }
+              for (const body of pendingEdits.notes) {
+                await addPointNote(profile, p.id, body)
+                final = { ...final, note: body }
+              }
+            } catch (e) {
+              console.error('Rejeu des éditions du point :', e)
+              toast.error('Certaines modifications n’ont pas pu être enregistrées')
+            }
+          }
+          const settled = final
           setPoints((prev) => {
             // Remplace le point temporaire par le définitif (sans doublon si le
             // temps réel l'a déjà inséré).
             const rest = prev.filter((x) => x.id !== temp.id)
-            return rest.some((x) => x.id === p.id) ? rest : [...rest, p]
+            return rest.some((x) => x.id === settled.id)
+              ? rest.map((x) => (x.id === settled.id ? settled : x))
+              : [...rest, settled]
           })
-          return p
+          return settled
         })
         .catch((e: unknown) => {
           console.error('Ajout du point :', e)
@@ -135,6 +234,13 @@ export function usePoints(profile: Profile | null) {
     ) => {
       const mapped = tempIdsRef.current.get(id)
       const realId = mapped && mapped !== 'pending' && mapped !== 'cancelled' ? mapped : id
+      if (online && profile && mapped === 'pending') {
+        // Insert encore en vol : mémorisé pour rejeu à la confirmation
+        // (l'affichage local est fait plus bas).
+        const q = pendingEditsRef.current.get(id) ?? { changes: {}, notes: [] }
+        q.changes = { ...q.changes, ...changes }
+        pendingEditsRef.current.set(id, q)
+      }
       if (online && profile && mapped !== 'pending') {
         // Les erreurs (réseau, droits RLS : seul l'auteur ou le manager peut
         // modifier) REMONTENT à l'appelant — pas de faux succès.
@@ -168,6 +274,12 @@ export function usePoints(profile: Profile | null) {
     async (id: string, body: string) => {
       const mapped = tempIdsRef.current.get(id)
       const realId = mapped && mapped !== 'pending' && mapped !== 'cancelled' ? mapped : id
+      if (online && profile && mapped === 'pending') {
+        // Insert en vol : la note sera rejouée à la confirmation.
+        const q = pendingEditsRef.current.get(id) ?? { changes: {}, notes: [] }
+        q.notes.push(body)
+        pendingEditsRef.current.set(id, q)
+      }
       if (online && profile && mapped !== 'pending') {
         await addPointNote(profile, realId, body) // les erreurs remontent
       }
@@ -189,14 +301,13 @@ export function usePoints(profile: Profile | null) {
         return
       }
       const realId = mapped && mapped !== 'cancelled' ? mapped : id
-      if (mapped) tempIdsRef.current.delete(id)
       if (online) {
-        try {
-          await dbDeletePoint(realId)
-        } catch (e) {
-          console.error('Suppression du point :', e)
-        }
+        // L'échec (réseau, RLS : point d'un collègue) REMONTE et le point
+        // reste affiché — avant : retiré localement + « supprimé » affiché,
+        // puis réapparition au prochain chargement (audit).
+        await dbDeletePoint(realId)
       }
+      if (mapped) tempIdsRef.current.delete(id)
       setPoints((prev) => prev.filter((x) => x.id !== id && x.id !== realId))
     },
     [online],

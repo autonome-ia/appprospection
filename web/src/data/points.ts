@@ -160,9 +160,10 @@ export async function insertPoint(
   await logEvent(profile, point.id, status, note)
   // Adresse + fiche maison (open data) en arrière-plan : la pose reste
   // instantanée, le temps réel propage les mises à jour à tous les clients.
-  void reverseGeocode(lng, lat).then((label) => {
+  void reverseGeocode(lng, lat).then(async (label) => {
     if (label && supabase) {
-      void supabase.from('points').update({ address: label }).eq('id', point.id)
+      const { error } = await supabase.from('points').update({ address: label }).eq('id', point.id)
+      if (error) console.error('Adresse du point :', error.message)
     }
   })
   // Import dynamique : le module d'enrichissement embarque proj4, inutile de
@@ -214,14 +215,24 @@ export async function updatePoint(
 /** Supprime un point (le journal lié est supprimé en cascade). */
 export async function deletePoint(id: string): Promise<void> {
   if (!supabase) return
-  const { error } = await supabase.from('points').delete().eq('id', id)
+  // .select() : un DELETE bloqué par la RLS (point d'un collègue) touche
+  // 0 ligne SANS erreur — sans cette lecture, l'app affichait « supprimé »
+  // alors que rien ne l'était (audit).
+  const { data, error } = await supabase.from('points').delete().eq('id', id).select('id')
   if (error) throw error
+  if (!data?.length) throw new Error('Suppression refusée (point d’un autre commercial)')
+}
+
+/** Clé jour LOCALE (YYYY-MM-DD) — toISOString() donne le jour UTC : entre
+    minuit et 2 h (heure française), « aujourd'hui » était encore hier. */
+export function localDayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 /** Points « à revoir » dont la date de relance est atteinte ou dépassée. */
 export async function fetchRelances(): Promise<MapPoint[]> {
   if (!supabase) return []
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDayKey(new Date())
   const { data, error } = await supabase
     .from('points')
     .select(COLS)
@@ -284,27 +295,44 @@ export async function addPointNote(profile: Profile, pointId: string, body: stri
     body,
   })
   if (error) throw error
-  // Peut échouer en silence si le point appartient à un autre commercial
-  // (RLS update = auteur/manager) : la note du journal, elle, est enregistrée.
-  await supabase.from('points').update({ notes: body }).eq('id', pointId)
+  // Peut échouer si le point appartient à un autre commercial (RLS update =
+  // auteur/manager) : la note du journal, elle, est enregistrée. Logué pour
+  // ne plus être totalement invisible (supabase-js ne rejette jamais).
+  const { error: e2 } = await supabase.from('points').update({ notes: body }).eq('id', pointId)
+  if (e2) console.error('Dernière note du point :', e2.message)
 }
 
 /** Synchronise le nom du client sur le point (depuis le formulaire RDV). */
 export async function setPointClientName(pointId: string, clientName: string | null): Promise<void> {
   if (!supabase) return
-  await supabase.from('points').update({ client_name: clientName }).eq('id', pointId)
+  // .select() : la RLS (point d'un collègue) filtre sans erreur — on remonte
+  // l'échec à l'appelant (qui logue : le nom reste porté par le RDV lui-même).
+  const { data, error } = await supabase
+    .from('points')
+    .update({ client_name: clientName })
+    .eq('id', pointId)
+    .select('id')
+  if (error) throw error
+  if (!data?.length) throw new Error('point d’un autre commercial (RLS)')
 }
 
 async function logEvent(profile: Profile, pointId: string, status: PointStatus, note?: string | null) {
   if (!supabase) return
-  const { error } = await supabase.from('point_events').insert({
-    organization_id: profile.organization_id,
-    point_id: pointId,
-    author_id: profile.id,
-    status,
-    note: note ?? null,
-  })
-  if (error) console.error('Journal (point_events) :', error.message)
+  // Le journal alimente les STATS : une visite non journalisée est comptée
+  // nulle part. Un retry couvre le flanchement réseau entre les deux
+  // requêtes (insert point puis insert event, non transactionnels).
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { error } = await supabase.from('point_events').insert({
+      organization_id: profile.organization_id,
+      point_id: pointId,
+      author_id: profile.id,
+      status,
+      note: note ?? null,
+    })
+    if (!error) return
+    console.error('Journal (point_events) :', error.message)
+    if (attempt === 0) await new Promise((res) => setTimeout(res, 1200))
+  }
 }
 
 interface RealtimeHandlers {
@@ -313,8 +341,16 @@ interface RealtimeHandlers {
   onDelete?: (id: string) => void
 }
 
-/** Abonnement temps réel aux points de l'équipe (INSERT / UPDATE / DELETE). */
-export function subscribePoints(handlers: RealtimeHandlers): () => void {
+/**
+ * Abonnement temps réel aux points de l'équipe (INSERT / UPDATE / DELETE).
+ * `onStatus` reçoit l'état du canal — crucial sur iOS : la websocket meurt à
+ * chaque mise en veille, les événements émis pendant la coupure sont PERDUS ;
+ * un refetch au re-SUBSCRIBED est la seule façon de resynchroniser.
+ */
+export function subscribePoints(
+  handlers: RealtimeHandlers,
+  onStatus?: (status: string) => void,
+): () => void {
   if (!supabase) return () => {}
   const channel = supabase
     .channel('points-changes')
@@ -335,7 +371,7 @@ export function subscribePoints(handlers: RealtimeHandlers): () => void {
       pansCache.delete(id)
       handlers.onDelete?.(id)
     })
-    .subscribe()
+    .subscribe((status) => onStatus?.(status))
   return () => {
     supabase?.removeChannel(channel)
   }

@@ -28,8 +28,48 @@ function previousNow(period: Period, now = new Date()): Date {
   const d = new Date(now)
   if (period === 'jour') d.setDate(d.getDate() - 1)
   else if (period === 'semaine') d.setDate(d.getDate() - 7)
-  else d.setMonth(d.getMonth() - 1)
+  else {
+    // setDate(1) D'ABORD : un 31 juillet, « 31 juin » déborde sur le
+    // 1er juillet et la « période précédente » redevenait le mois COURANT
+    // (évolutions à zéro les jours de bilan — audit).
+    d.setDate(1)
+    d.setMonth(d.getMonth() - 1)
+  }
   return d
+}
+
+/** Clé jour LOCALE — slice(0,10) sur l'ISO donnait le jour UTC : un événement
+    à 00 h 30 tombait sur la barre de la veille (bornes de période locales). */
+function localDayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Select paginé : Supabase tronque silencieusement à 1 000 lignes — une
+    équipe dépasse 1 000 point_events en une semaine, les stats du manager
+    étaient sous-comptées sans aucun signal (audit). */
+async function fetchAllRows(
+  table: 'point_events' | 'appointments',
+  cols: string,
+  timeCol: string,
+  startISO: string,
+  endISO: string,
+): Promise<Record<string, unknown>[]> {
+  if (!supabase) return []
+  const PAGE = 1000
+  const all: Record<string, unknown>[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from(table)
+      .select(cols)
+      .gte(timeCol, startISO)
+      .lt(timeCol, endISO)
+      .order(timeCol) // tri stable : pagination cohérente
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    const rows = (data ?? []) as unknown as Record<string, unknown>[]
+    all.push(...rows)
+    if (rows.length < PAGE) return all
+  }
 }
 
 /** Une action récente de l'équipe (feed d'activité de l'Accueil). */
@@ -95,20 +135,10 @@ async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
   const startISO = start.toISOString()
   const endISO = end.toISOString()
 
-  const [{ data: events, error: e1 }, { data: appts, error: e2 }] = await Promise.all([
-    supabase
-      .from('point_events')
-      .select('author_id, status, occurred_at')
-      .gte('occurred_at', startISO)
-      .lt('occurred_at', endISO),
-    supabase
-      .from('appointments')
-      .select('commercial_id, status, scheduled_at')
-      .gte('scheduled_at', startISO)
-      .lt('scheduled_at', endISO),
+  const [events, appts] = await Promise.all([
+    fetchAllRows('point_events', 'author_id, status, occurred_at', 'occurred_at', startISO, endISO),
+    fetchAllRows('appointments', 'commercial_id, status, scheduled_at', 'scheduled_at', startISO, endISO),
   ])
-  if (e1) throw e1
-  if (e2) throw e2
 
   const bump = (id: string | null, key: keyof CommercialStats, n = 1) => {
     if (!id) return
@@ -125,7 +155,7 @@ async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
     if (e.status === 'rdv_pris') bump(e.author_id, 'rdv_pris')
     if (e.status === 'vendu') bump(e.author_id, 'ventes')
 
-    const day = e.occurred_at.slice(0, 10)
+    const day = localDayKey(new Date(e.occurred_at))
     result.activityByDay[day] = (result.activityByDay[day] ?? 0) + 1
     if (e.author_id) {
       ;(result.activityByDayBy[e.author_id] ??= {})[day] =

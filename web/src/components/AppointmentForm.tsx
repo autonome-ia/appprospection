@@ -75,7 +75,18 @@ export function AppointmentForm({ open, onOpenChange, profile, existing, pointId
         notes: notes.trim() || null,
       }
       if (existing) {
-        await updateAppointment(existing.id, { scheduled_at, ...payload })
+        // N'envoyer QUE les champs modifiés : l'agenda est partagé temps réel,
+        // renvoyer tout l'instantané écrasait les modifications faites par un
+        // collègue pendant que le formulaire était ouvert (audit).
+        const changes: Partial<typeof payload & { scheduled_at: string }> = {}
+        if (new Date(existing.scheduled_at).getTime() !== new Date(scheduled_at).getTime()) {
+          changes.scheduled_at = scheduled_at
+        }
+        if (payload.client_name !== (existing.client_name ?? null)) changes.client_name = payload.client_name
+        if (payload.client_phone !== (existing.client_phone ?? null)) changes.client_phone = payload.client_phone
+        if (payload.address !== (existing.address ?? null)) changes.address = payload.address
+        if (payload.notes !== (existing.notes ?? null)) changes.notes = payload.notes
+        if (Object.keys(changes).length) await updateAppointment(existing.id, changes)
       } else {
         await createAppointment(profile, { point_id: pointId ?? null, scheduled_at, ...payload })
       }

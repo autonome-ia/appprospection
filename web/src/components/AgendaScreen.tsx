@@ -8,7 +8,7 @@ import {
   subscribeAppointments,
 } from '../data/appointments'
 import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
-import { fetchRevisits } from '../data/points'
+import { fetchRevisits, subscribePoints } from '../data/points'
 import { AppointmentForm } from './AppointmentForm'
 import { ClientSheet, wazeUrl } from './ClientSheet'
 import { APPOINTMENT_STATUS_META, APPOINTMENT_OUTCOMES, type Appointment } from '../domain/appointments'
@@ -38,6 +38,12 @@ interface CardProps {
 function AppointmentCard({ appt, who, profile, onChanged, onEdit, onShowOnMap, timeOnly }: CardProps) {
   const meta = APPOINTMENT_STATUS_META[appt.status]
   const color = who ? colorForCommercial(who.id, who.color) : '#98a2b3'
+  // Un appel en vol désactive les boutons : un double tap « Vendu » comptait
+  // la vente DEUX fois dans les stats (audit).
+  const [busy, setBusy] = useState(false)
+  // La RLS ne laisse supprimer que le titulaire ou un manager : proposer le
+  // bouton aux autres produisait un faux « RDV supprimé » (audit).
+  const canDelete = profile.role === 'manager' || appt.commercial_id === profile.id
 
   return (
     <div className="appt-card">
@@ -100,10 +106,25 @@ function AppointmentCard({ appt, who, profile, onChanged, onEdit, onShowOnMap, t
                 type="button"
                 className="outcome-btn"
                 style={{ color: m.color, borderColor: `${m.color}55` }}
+                disabled={busy}
                 onClick={async () => {
-                  await setAppointmentOutcome(profile, appt, o)
-                  onChanged()
-                  toast.success(`RDV marqué « ${m.label} »`)
+                  if (busy) return
+                  setBusy(true)
+                  try {
+                    const { pointSynced } = await setAppointmentOutcome(profile, appt, o)
+                    onChanged()
+                    toast.success(`RDV marqué « ${m.label} »`)
+                    if (o === 'vendu' && appt.point_id && !pointSynced) {
+                      toast.error(
+                        'La maison n’a pas pu passer en « vendu » sur la carte — rouvrez sa fiche pour corriger',
+                      )
+                    }
+                  } catch (e) {
+                    console.error('Issue du RDV :', e)
+                    toast.error('Issue non enregistrée — vérifiez le réseau')
+                  } finally {
+                    setBusy(false)
+                  }
                 }}
               >
                 {m.label}
@@ -130,18 +151,29 @@ function AppointmentCard({ appt, who, profile, onChanged, onEdit, onShowOnMap, t
         <button type="button" className="text-btn" onClick={() => onEdit(appt)}>
           <Pencil size={14} strokeWidth={1.8} /> Modifier
         </button>
-        <button
-          type="button"
-          className="text-btn danger"
-          onClick={async () => {
-            if (!window.confirm('Supprimer ce RDV ?')) return
-            await deleteAppointment(appt.id)
-            onChanged()
-            toast('RDV supprimé')
-          }}
-        >
-          <Trash2 size={14} strokeWidth={1.8} /> Supprimer
-        </button>
+        {canDelete && (
+          <button
+            type="button"
+            className="text-btn danger"
+            disabled={busy}
+            onClick={async () => {
+              if (!window.confirm('Supprimer ce RDV ?')) return
+              setBusy(true)
+              try {
+                await deleteAppointment(appt.id)
+                onChanged()
+                toast('RDV supprimé')
+              } catch (e) {
+                console.error('Suppression du RDV :', e)
+                toast.error('Suppression impossible — vérifiez le réseau')
+              } finally {
+                setBusy(false)
+              }
+            }}
+          >
+            <Trash2 size={14} strokeWidth={1.8} /> Supprimer
+          </button>
+        )}
       </div>
     </div>
   )
@@ -193,16 +225,61 @@ export function AgendaScreen({
   const [view, setView] = useState<'agenda' | 'clients'>('agenda')
   const [clientAppt, setClientAppt] = useState<Appointment | null>(null)
 
+  // Échec de chargement ≠ agenda vide : sans ce drapeau, une coupure réseau
+  // affichait « Aucun rendez-vous ce jour » — un commercial pouvait rater un
+  // RDV en croyant sa journée libre (audit).
+  const [loadError, setLoadError] = useState(false)
+
   const reload = useCallback(() => {
-    fetchAppointments().then(setAppts).catch((e) => console.error('Agenda :', e))
-    fetchRevisits().then(setRevisits).catch((e) => console.error('Relances :', e))
+    Promise.all([fetchAppointments(), fetchRevisits()])
+      .then(([a, r]) => {
+        setAppts(a)
+        setRevisits(r)
+        setLoadError(false)
+      })
+      .catch((e) => {
+        console.error('Agenda :', e)
+        setLoadError(true)
+      })
   }, [])
 
   useEffect(() => {
     reload()
     fetchOrgProfiles().then(setProfiles).catch((e) => console.error('Profils :', e))
-    const unsub = subscribeAppointments(reload)
-    return unsub
+    // Re-SUBSCRIBED après une coupure (veille iOS) = événements perdus →
+    // rechargement ; idem au retour au premier plan de la PWA.
+    let first = true
+    const unsubAppts = subscribeAppointments(reload, (s) => {
+      if (s !== 'SUBSCRIBED') return
+      if (first) {
+        first = false
+        return
+      }
+      reload()
+    })
+    // Les « à revoir » viennent de la table points, qui n'était PAS écoutée :
+    // une relance posée par un collègue n'apparaissait qu'au changement
+    // d'onglet (audit). Rechargement débouncé (rafales realtime).
+    let t: number | undefined
+    const debounced = () => {
+      window.clearTimeout(t)
+      t = window.setTimeout(reload, 400)
+    }
+    const unsubPoints = subscribePoints({
+      onInsert: debounced,
+      onUpdate: debounced,
+      onDelete: debounced,
+    })
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') reload()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.clearTimeout(t)
+      document.removeEventListener('visibilitychange', onVisible)
+      unsubAppts()
+      unsubPoints()
+    }
   }, [reload])
 
   const whoById = useMemo(() => {
@@ -284,6 +361,15 @@ export function AgendaScreen({
           <Plus size={16} strokeWidth={2.2} /> RDV
         </button>
       </header>
+
+      {loadError && (
+        <div className="load-error">
+          <span>Agenda impossible à charger — vérifiez le réseau.</span>
+          <button type="button" className="text-btn" onClick={reload}>
+            Réessayer
+          </button>
+        </div>
+      )}
 
       <div className="seg">
         {(

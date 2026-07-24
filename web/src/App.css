@@ -1592,6 +1592,20 @@
   font-family: var(--font-mono);
   fill: var(--ink-3);
 }
+/* Bandeau d'échec de chargement (agenda) : erreur ≠ vide. */
+.load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e5484d55;
+  border-radius: var(--r-md);
+  background: #e5484d10;
+  font-size: 13px;
+  color: var(--ink-2);
+}
 /* Fiche client (vue « Clients » de l'agenda) : lignes d'infos avec icônes. */
 .client-info {
   display: flex;

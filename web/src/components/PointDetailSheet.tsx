@@ -222,10 +222,16 @@ export function PointDetailSheet({
   async function remove() {
     if (!point) return
     setSaving(true)
-    await onDelete(point.id)
-    setSaving(false)
-    onOpenChange(false)
-    toast('Point supprimé')
+    try {
+      await onDelete(point.id)
+      onOpenChange(false)
+      toast('Point supprimé')
+    } catch (e) {
+      console.error('Suppression du point :', e)
+      toast.error('Suppression impossible — réseau, ou point d’un autre commercial')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const current = STATUS_BY_VALUE[point.status]

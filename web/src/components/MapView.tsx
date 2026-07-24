@@ -515,7 +515,14 @@ export function MapView({
   const poseAt = (lng: number, lat: number, status: PointStatus) => {
     const { point, saved } = addPoint(lng, lat, status)
     toast.success(`Point posé — ${STATUS_BY_VALUE[status].label}`, {
-      action: { label: 'Annuler', onClick: () => void removePoint(point.id) },
+      action: {
+        label: 'Annuler',
+        onClick: () =>
+          void removePoint(point.id).catch((e) => {
+            console.error('Annulation du point :', e)
+            toast.error('Annulation impossible — vérifiez le réseau')
+          }),
+      },
     })
     void saved.then((created) => {
       if (!created) return
