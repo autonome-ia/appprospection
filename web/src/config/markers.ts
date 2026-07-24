@@ -8,9 +8,15 @@ export const MARKER_PREFIX = 'marker-'
 export const NOTE_SUFFIX = '-note'
 const SIZE = 64 // px canvas (pixelRatio 2 => ~32px à l'écran)
 
-function drawGlyph(ctx: CanvasRenderingContext2D, status: PointStatus, cx: number, cy: number) {
-  ctx.strokeStyle = '#ffffff'
-  ctx.fillStyle = '#ffffff'
+function drawGlyph(
+  ctx: CanvasRenderingContext2D,
+  status: PointStatus,
+  cx: number,
+  cy: number,
+  ink = '#ffffff',
+) {
+  ctx.strokeStyle = ink
+  ctx.fillStyle = ink
   // Traits épais : le glyphe doit rester lisible en plein soleil (canvas 2x,
   // 5 ici = 2,5 px à l'écran).
   ctx.lineWidth = 5
@@ -73,25 +79,32 @@ function drawMarker(color: string, status: PointStatus, withNote = false): Image
   const cy = SIZE / 2
   const r = 21
 
-  // Disque coloré avec ombre douce.
+  // « Absent » inversé (audit UX A13) : deux disques gris quasi identiques se
+  // confondaient à l'échelle quartier — blanc = porte à RETENTER, sombre =
+  // éliminée, couleurs = opportunités.
+  const inverted = status === 'absent'
+  const disc = inverted ? '#ffffff' : color
+  const ring = inverted ? color : '#ffffff'
+
+  // Disque avec ombre douce.
   ctx.save()
   ctx.shadowColor = 'rgba(0, 0, 0, 0.35)'
   ctx.shadowBlur = 6
   ctx.shadowOffsetY = 2
   ctx.beginPath()
   ctx.arc(cx, cy, r, 0, Math.PI * 2)
-  ctx.fillStyle = color
+  ctx.fillStyle = disc
   ctx.fill()
   ctx.restore()
 
-  // Anneau blanc (épaissi : détache le marqueur des toits sombres de l'ortho).
+  // Anneau (épaissi : détache le marqueur des toits sombres de l'ortho).
   ctx.beginPath()
   ctx.arc(cx, cy, r, 0, Math.PI * 2)
   ctx.lineWidth = 4
-  ctx.strokeStyle = '#ffffff'
+  ctx.strokeStyle = ring
   ctx.stroke()
 
-  drawGlyph(ctx, status, cx, cy)
+  drawGlyph(ctx, status, cx, cy, inverted ? color : '#ffffff')
 
   // Pastille "a une note" : petit disque blanc + point accent, en haut à
   // droite du badge — signale un contexte terrain sans ouvrir la fiche.
