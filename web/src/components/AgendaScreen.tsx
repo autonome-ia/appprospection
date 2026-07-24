@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Phone, Pencil, Trash2, CalendarClock, ChevronLeft, ChevronRight, StickyNote, MapPin } from 'lucide-react'
+import { Plus, Phone, Pencil, Trash2, CalendarClock, ChevronLeft, ChevronRight, StickyNote, MapPin, Navigation, Search } from 'lucide-react'
 import {
   fetchAppointments,
   deleteAppointment,
@@ -25,6 +25,17 @@ function fmt(iso: string, timeOnly = false): string {
   ).format(new Date(iso))
 }
 
+/** Nom affichable d'un commercial : jamais l'email brut (audit UX A11). */
+function displayName(p: OrgProfile | undefined): string {
+  const raw = p?.full_name?.trim()
+  if (!raw) return 'Commercial'
+  const base = raw.includes('@') ? raw.split('@')[0].replace(/[._-]+/g, ' ') : raw
+  const parts = base.split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return 'Commercial'
+  const first = parts[0].charAt(0).toUpperCase() + parts[0].slice(1)
+  return parts.length > 1 ? `${first} ${parts[1].charAt(0).toUpperCase()}.` : first
+}
+
 interface CardProps {
   appt: Appointment
   who: OrgProfile | undefined
@@ -32,10 +43,21 @@ interface CardProps {
   onChanged: () => void
   onEdit: (a: Appointment) => void
   onShowOnMap?: (target: { pointId: string; lng: number; lat: number }) => void
+  /** Ouvre la fiche client complète (badges, 3D, rapport) — audit UX A6. */
+  onOpenClient?: (a: Appointment) => void
   timeOnly?: boolean
 }
 
-function AppointmentCard({ appt, who, profile, onChanged, onEdit, onShowOnMap, timeOnly }: CardProps) {
+function AppointmentCard({
+  appt,
+  who,
+  profile,
+  onChanged,
+  onEdit,
+  onShowOnMap,
+  onOpenClient,
+  timeOnly,
+}: CardProps) {
   const meta = APPOINTMENT_STATUS_META[appt.status]
   const color = who ? colorForCommercial(who.id, who.color) : '#98a2b3'
   // Un appel en vol désactive les boutons : un double tap « Vendu » comptait
@@ -54,18 +76,21 @@ function AppointmentCard({ appt, who, profile, onChanged, onEdit, onShowOnMap, t
         </span>
       </div>
 
-      {appt.client_name && <div className="appt-client">{appt.client_name}</div>}
-      {appt.address && (
-        <a
-          className="appt-address is-nav"
-          href={wazeUrl(appt.point, appt.address)!}
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Itinéraire en voiture (Waze)"
-        >
-          {appt.address}
-        </a>
+      {/* Nom tappable → fiche client complète (audit UX A6 : le même RDV
+          existait à deux endroits sans lien, la préparation vit dans la
+          fiche). Chevron = affordance. */}
+      {onOpenClient ? (
+        <button type="button" className="appt-open" onClick={() => onOpenClient(appt)}>
+          <span className="appt-client">{appt.client_name ?? appt.address ?? 'Fiche client'}</span>
+          <ChevronRight size={15} strokeWidth={1.9} className="row-chevron" />
+        </button>
+      ) : (
+        appt.client_name && <div className="appt-client">{appt.client_name}</div>
       )}
+      {/* Adresse LISIBLE (audit UX A17) : c'était un lien Waze sans
+          affordance — l'app de nav se lançait quand on voulait juste lire.
+          L'itinéraire devient un bouton explicite dans le pied de carte. */}
+      {appt.address && <div className="appt-address">{appt.address}</div>}
 
       {/* Les notes sont LE contexte du commercial : toujours visibles, quel
           que soit le statut du RDV. */}
@@ -87,8 +112,18 @@ function AppointmentCard({ appt, who, profile, onChanged, onEdit, onShowOnMap, t
       <div className="appt-foot">
         <span className="appt-who">
           <span className="status-dot" style={{ background: color }} />
-          {who?.full_name ?? 'Commercial'}
+          {displayName(who)}
         </span>
+        {wazeUrl(appt.point, appt.address) && (
+          <a
+            className="appt-call"
+            href={wazeUrl(appt.point, appt.address)!}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Navigation size={14} strokeWidth={1.9} /> Itinéraire
+          </a>
+        )}
         {appt.client_phone && (
           <a className="appt-call" href={`tel:${appt.client_phone}`}>
             <Phone size={14} strokeWidth={1.9} /> Appeler
@@ -96,7 +131,9 @@ function AppointmentCard({ appt, who, profile, onChanged, onEdit, onShowOnMap, t
         )}
       </div>
 
-      {appt.status === 'a_venir' && (
+      {/* Issues visibles seulement le jour venu (audit UX A11) : à J-15, un
+          tap de scroll raté écrivait des stats fausses. */}
+      {appt.status === 'a_venir' && Date.parse(appt.scheduled_at) <= endOfToday() && (
         <div className="appt-outcomes">
           {APPOINTMENT_OUTCOMES.map((o) => {
             const m = APPOINTMENT_STATUS_META[o]
@@ -182,6 +219,13 @@ function AppointmentCard({ appt, who, profile, onChanged, onEdit, onShowOnMap, t
 // --- Utilitaires de date (heure locale) ---
 const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 
+/** Fin de la journée courante — les issues de RDV ne sont tapables que le jour J. */
+function endOfToday(): number {
+  const d = new Date()
+  d.setHours(23, 59, 59, 999)
+  return d.getTime()
+}
+
 function dateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
@@ -224,6 +268,7 @@ export function AgendaScreen({
   // Vue « Clients » : une ligne par client (RDV pris), tap -> fiche complète.
   const [view, setView] = useState<'agenda' | 'clients'>('agenda')
   const [clientAppt, setClientAppt] = useState<Appointment | null>(null)
+  const [clientQuery, setClientQuery] = useState('')
 
   // Échec de chargement ≠ agenda vide : sans ce drapeau, une coupure réseau
   // affichait « Aucun rendez-vous ce jour » — un commercial pouvait rater un
@@ -343,8 +388,11 @@ export function AgendaScreen({
   const clients = useMemo(() => {
     const groups = new Map<string, Appointment[]>()
     for (const a of appts) {
-      const key =
-        a.client_name?.trim().toLowerCase() || a.address?.trim().toLowerCase() || a.id
+      // Nom ET adresse (audit UX A18) : deux « Le Gall » distincts
+      // fusionnaient en une seule ligne avec le nom seul.
+      const name = a.client_name?.trim().toLowerCase() ?? ''
+      const addr = a.address?.trim().toLowerCase() ?? ''
+      const key = name || addr ? `${name}|${addr}` : a.id
       const list = groups.get(key)
       if (list) list.push(a)
       else groups.set(key, [a])
@@ -358,13 +406,21 @@ export function AgendaScreen({
         upcoming[0] ?? [...list].sort((x, y) => y.scheduled_at.localeCompare(x.scheduled_at))[0]
       return { rep, count: list.length, upcoming: upcoming.length > 0 }
     })
-    return reps.sort((a, b) => {
+    const q = clientQuery.trim().toLowerCase()
+    const shown = q
+      ? reps.filter(
+          ({ rep }) =>
+            (rep.client_name ?? '').toLowerCase().includes(q) ||
+            (rep.address ?? '').toLowerCase().includes(q),
+        )
+      : reps
+    return shown.sort((a, b) => {
       if (a.upcoming !== b.upcoming) return a.upcoming ? -1 : 1
       return a.upcoming
         ? a.rep.scheduled_at.localeCompare(b.rep.scheduled_at)
         : b.rep.scheduled_at.localeCompare(a.rep.scheduled_at)
     })
-  }, [appts])
+  }, [appts, clientQuery])
 
   if (!profile) return <div className="placeholder">Connexion requise.</div>
 
@@ -422,13 +478,23 @@ export function AgendaScreen({
 
       {view === 'clients' && (
         <section className="appt-section">
+          <div className="clients-search">
+            <Search size={15} strokeWidth={1.9} />
+            <input
+              className="field-input"
+              type="search"
+              placeholder="Rechercher (nom, adresse)…"
+              value={clientQuery}
+              onChange={(e) => setClientQuery(e.target.value)}
+            />
+          </div>
           <p className="eyebrow section-title">
             {clients.length} client{clients.length > 1 ? 's' : ''}
           </p>
           {clients.length === 0 ? (
             <div className="empty-state">
               <CalendarClock size={26} strokeWidth={1.5} />
-              <p>Aucun rendez-vous pris pour l’instant.</p>
+              <p>{clientQuery.trim() ? 'Aucun client ne correspond.' : 'Aucun rendez-vous pris pour l’instant.'}</p>
             </div>
           ) : (
             clients.map(({ rep, count }) => {
@@ -466,6 +532,23 @@ export function AgendaScreen({
             <ChevronLeft size={18} />
           </button>
           <span className="cal-month">{monthLabel}</span>
+          {/* Retour 1 tap au jour courant (audit UX A16) : revenir coûtait
+              3-4 taps de chevrons devant le prospect. */}
+          {(!sameDay(selected, today) ||
+            monthDate.getMonth() !== today.getMonth() ||
+            monthDate.getFullYear() !== today.getFullYear()) && (
+            <button
+              type="button"
+              className="text-btn cal-today"
+              onClick={() => {
+                const now = new Date()
+                setSelected(now)
+                setMonthDate(startOfMonth(now))
+              }}
+            >
+              Aujourd’hui
+            </button>
+          )}
           <button type="button" className="icon-btn" onClick={() => shiftMonth(1)} aria-label="Mois suivant">
             <ChevronRight size={18} />
           </button>
@@ -547,6 +630,7 @@ export function AgendaScreen({
                 onChanged={reload}
                 onEdit={setEditing}
                 onShowOnMap={onShowOnMap}
+                onOpenClient={setClientAppt}
                 timeOnly
               />
             ))}

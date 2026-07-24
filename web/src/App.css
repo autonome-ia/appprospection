@@ -667,6 +667,33 @@
   color: var(--accent);
 }
 
+/* Nom tappable → fiche client (audit UX A6). */
+.appt-open {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+}
+/* Recherche de la vue Clients (audit UX A18). */
+.clients-search {
+  position: relative;
+  margin-bottom: 12px;
+}
+.clients-search svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-3);
+  pointer-events: none;
+}
+.clients-search .field-input {
+  padding-left: 36px;
+}
 .appt-foot {
   display: flex;
   align-items: center;
@@ -747,7 +774,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   padding: 0 2px 8px;
+}
+.cal-today {
+  margin-left: auto;
+  color: var(--accent);
+  font-weight: 600;
 }
 .cal-month {
   font-size: 15px;
