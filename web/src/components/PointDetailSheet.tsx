@@ -229,7 +229,20 @@ export function PointDetailSheet({
     }
     const becameRdv = changes.status === 'rdv_pris'
     try {
-      if (Object.keys(changes).length > 0) await onUpdate(point.id, changes)
+      if (Object.keys(changes).length > 0) {
+        await onUpdate(point.id, changes)
+        // Instantané rafraîchi DÈS que l'update a réussi : si l'ajout de la
+        // note échoue juste après (la sheet reste ouverte), un 2e
+        // « Enregistrer » ne doit pas rejouer le statut — il journalisait un
+        // DEUXIÈME point_events, porte comptée deux fois dans les stats
+        // (contre-audit, bug 7).
+        initialRef.current = {
+          status,
+          clientName,
+          matConfirme,
+          revisitAt: status === 'a_revoir' ? revisitAt : '',
+        }
+      }
       if (newNote.trim()) await onAddNote(point.id, newNote.trim())
       onOpenChange(false)
       toast.success('Point mis à jour')
