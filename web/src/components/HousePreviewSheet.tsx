@@ -71,6 +71,7 @@ export function HousePreviewSheet({
             </button>
           </div>
 
+          <div className="drawer-body" data-vaul-no-drag>
           {info === null ? (
             <p className="house-loading">Recherche des informations…</p>
           ) : hasInfo || lidar !== null ? (
@@ -126,6 +127,7 @@ export function HousePreviewSheet({
           </div>
 
           <p className="data-attribution">Données IGN (BD TOPO, LiDAR HD) · BDNB (CSTB)</p>
+          </div>
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>

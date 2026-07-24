@@ -296,6 +296,10 @@ export function PointDetailSheet({
             </div>
           )}
 
+          {/* data-vaul-no-drag : le geste vertical DANS le contenu fait
+              défiler la sheet au lieu de la tirer (vaul volait le scroll —
+              fermer reste possible par la poignée / l'en-tête). */}
+          <div className="drawer-body" data-vaul-no-drag>
           <p className="eyebrow field-label">Statut</p>
           <div className="chip-row">
             {STATUSES.map((s) => (
@@ -417,6 +421,7 @@ export function PointDetailSheet({
           {hasHouseInfo && (
             <p className="data-attribution">Données IGN BD TOPO · BDNB (CSTB)</p>
           )}
+          </div>
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>

@@ -121,6 +121,7 @@ export function AppointmentForm({ open, onOpenChange, profile, existing, pointId
             </button>
           </div>
 
+          <div className="drawer-body" data-vaul-no-drag>
           <div className="field-grid">
             <div>
               <p className="eyebrow field-label">Date</p>
@@ -205,6 +206,7 @@ export function AppointmentForm({ open, onOpenChange, profile, existing, pointId
             <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>
               {saving ? 'Enregistrement…' : 'Enregistrer'}
             </button>
+          </div>
           </div>
         </Drawer.Content>
       </Drawer.Portal>

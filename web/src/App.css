@@ -1267,6 +1267,12 @@
   box-shadow: var(--shadow-lg);
   outline: none;
 }
+/* Corps défilant des sheets : display:contents = zéro impact de mise en
+   page, l'élément ne sert qu'à porter data-vaul-no-drag (vaul remonte le
+   DOM depuis le doigt : trouvé -> il laisse le scroll natif au contenu). */
+.drawer-body {
+  display: contents;
+}
 /* Accueil : sections « À relancer » et « Activité récente » */
 .home-section {
   width: 100%;

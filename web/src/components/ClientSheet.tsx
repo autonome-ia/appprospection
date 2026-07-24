@@ -138,6 +138,7 @@ export function ClientSheet({ appt, onOpenChange, onEdit, onShowOnMap }: Props) 
             </button>
           </div>
 
+          <div className="drawer-body" data-vaul-no-drag>
           <div className="client-info">
             <div className="client-row">
               <CalendarClock size={15} strokeWidth={1.9} />
@@ -239,6 +240,7 @@ export function ClientSheet({ appt, onOpenChange, onEdit, onShowOnMap }: Props) 
             <button type="button" className="btn btn-primary" onClick={() => onEdit(appt)}>
               <Pencil size={15} strokeWidth={1.9} /> Modifier le RDV
             </button>
+          </div>
           </div>
         </Drawer.Content>
       </Drawer.Portal>
