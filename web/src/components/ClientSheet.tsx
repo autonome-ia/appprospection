@@ -128,7 +128,8 @@ export function ClientSheet({ appt, onOpenChange, onEdit, onShowOnMap }: Props) 
     // NON modale : un drawer modal vaul coupe les interactions hors de lui
     // (pointer-events) — le plein écran 3D et le rapport, portés dans <body>,
     // étaient totalement inertes (audit, bloquant).
-    <Drawer.Root open onOpenChange={onOpenChange} modal={false}>
+    // repositionInputs={false} : voir PointDetailSheet (bug visualViewport iOS).
+    <Drawer.Root open onOpenChange={onOpenChange} modal={false} repositionInputs={false}>
       <Drawer.Portal>
         <Drawer.Content className="drawer-content">
           <div className="drawer-grip" />

@@ -51,7 +51,8 @@ export function HousePreviewSheet({
 
   return (
     // Non modale : la carte reste visible (la maison est surlignée dessous).
-    <Drawer.Root open={open} onOpenChange={onOpenChange} modal={false}>
+    // repositionInputs={false} : voir PointDetailSheet (bug visualViewport iOS).
+    <Drawer.Root open={open} onOpenChange={onOpenChange} modal={false} repositionInputs={false}>
       <Drawer.Portal>
         <Drawer.Content className="drawer-content">
           <div className="drawer-grip" />

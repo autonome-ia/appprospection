@@ -119,7 +119,8 @@ export function AppointmentForm({ open, onOpenChange, profile, existing, pointId
   }
 
   return (
-    <Drawer.Root open={open} onOpenChange={onOpenChange}>
+    // repositionInputs={false} : voir PointDetailSheet (bug visualViewport iOS).
+    <Drawer.Root open={open} onOpenChange={onOpenChange} repositionInputs={false}>
       <Drawer.Portal>
         <Drawer.Overlay className="drawer-overlay" />
         <Drawer.Content className="drawer-content">

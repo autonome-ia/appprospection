@@ -290,7 +290,11 @@ export function PointDetailSheet({
   return (
     // Non modale : la carte reste visible et manipulable derrière (le point
     // sélectionné est recadré au-dessus de la sheet, voir MapView).
-    <Drawer.Root open={open} onOpenChange={onOpenChange} modal={false}>
+    // repositionInputs={false} : au focus d'un champ, vaul pose des styles
+    // inline height/bottom calculés sur visualViewport — faux en PWA iOS
+    // (sheet hors écran au clavier, hauteur rétrécie jamais restaurée après).
+    // Le clavier se superpose et iOS scrolle le champ dans .drawer-body.
+    <Drawer.Root open={open} onOpenChange={onOpenChange} modal={false} repositionInputs={false}>
       <Drawer.Portal>
         <Drawer.Content className="drawer-content">
           <div className="drawer-grip" />
