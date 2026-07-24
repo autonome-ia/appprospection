@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Plus, Phone, Pencil, Trash2, CalendarClock, ChevronLeft, ChevronRight, StickyNote, MapPin } from 'lucide-react'
 import {
@@ -230,15 +230,31 @@ export function AgendaScreen({
   // RDV en croyant sa journée libre (audit).
   const [loadError, setLoadError] = useState(false)
 
+  // « Aujourd'hui » du dernier recalage + miroir de la sélection : au réveil
+  // de la PWA on distingue la sélection par défaut restée sur l'ancien
+  // aujourd'hui (à recaler) d'un jour choisi à la main (à respecter).
+  const todayRef = useRef(new Date())
+  const selectedRef = useRef(selected)
+  selectedRef.current = selected
+
+  // Anti-course : plusieurs reload se croisent (visibilitychange + realtime +
+  // onChanged) et c'était le DERNIER à résoudre qui gagnait, pas le plus
+  // récent — un snapshot périmé pouvait ressusciter un RDV supprimé, et son
+  // échec tardif afficher le bandeau d'erreur sur des données correctes
+  // (contre-audit, bug 3). Seul le reload le plus récent applique son résultat.
+  const reloadSeq = useRef(0)
   const reload = useCallback(() => {
+    const seq = ++reloadSeq.current
     Promise.all([fetchAppointments(), fetchRevisits()])
       .then(([a, r]) => {
+        if (seq !== reloadSeq.current) return
         setAppts(a)
         setRevisits(r)
         setLoadError(false)
       })
       .catch((e) => {
         console.error('Agenda :', e)
+        if (seq !== reloadSeq.current) return
         setLoadError(true)
       })
   }, [])
@@ -248,8 +264,14 @@ export function AgendaScreen({
     fetchOrgProfiles().then(setProfiles).catch((e) => console.error('Profils :', e))
     // Re-SUBSCRIBED après une coupure (veille iOS) = événements perdus →
     // rechargement ; idem au retour au premier plan de la PWA.
+    // Rechargements realtime débouncés (rafales d'événements).
+    let t: number | undefined
+    const debounced = () => {
+      window.clearTimeout(t)
+      t = window.setTimeout(reload, 400)
+    }
     let first = true
-    const unsubAppts = subscribeAppointments(reload, (s) => {
+    const unsubAppts = subscribeAppointments(debounced, (s) => {
       if (s !== 'SUBSCRIBED') return
       if (first) {
         first = false
@@ -259,19 +281,27 @@ export function AgendaScreen({
     })
     // Les « à revoir » viennent de la table points, qui n'était PAS écoutée :
     // une relance posée par un collègue n'apparaissait qu'au changement
-    // d'onglet (audit). Rechargement débouncé (rafales realtime).
-    let t: number | undefined
-    const debounced = () => {
-      window.clearTimeout(t)
-      t = window.setTimeout(reload, 400)
-    }
+    // d'onglet (audit).
     const unsubPoints = subscribePoints({
       onInsert: debounced,
       onUpdate: debounced,
       onDelete: debounced,
     })
     const onVisible = () => {
-      if (document.visibilityState === 'visible') reload()
+      if (document.visibilityState !== 'visible') return
+      // Nuit (ou plus) en arrière-plan : iOS restaure la PWA sans recharger
+      // la page. Si la date a changé et que la sélection était restée sur
+      // l'ancien « aujourd'hui », on la recale sur le jour réel — sinon le
+      // planning du bas titrait encore LA VEILLE (contre-audit, bug 30).
+      const now = new Date()
+      if (!sameDay(now, todayRef.current)) {
+        if (sameDay(selectedRef.current, todayRef.current)) {
+          setSelected(now)
+          setMonthDate(startOfMonth(now))
+        }
+        todayRef.current = now
+      }
+      reload()
     }
     document.addEventListener('visibilitychange', onVisible)
     return () => {
