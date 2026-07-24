@@ -53,6 +53,25 @@ function formatDate(iso: string): string {
   }).format(new Date(iso))
 }
 
+/** Clé jour LOCALE à J+n (le champ date attend YYYY-MM-DD). */
+function dayPlus(n: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + n)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Presets 1-tap de la date de relance (audit UX A4) — évalués à l'affichage
+    (la sheet peut rester montée d'un jour à l'autre). */
+function REVISIT_PRESETS(): [string, string][] {
+  const nextSaturday = (6 - new Date().getDay() + 7) % 7 || 7
+  return [
+    ['Demain', dayPlus(1)],
+    ['+3 j', dayPlus(3)],
+    ['Samedi', dayPlus(nextSaturday)],
+    ['+2 sem', dayPlus(14)],
+  ]
+}
+
 export function PointDetailSheet({
   open,
   point,
@@ -339,9 +358,11 @@ export function PointDetailSheet({
                   <MapPin size={13} /> {point.address}
                 </span>
               )}
-              {detail && (
-                <span>
-                  <Clock size={13} /> {formatDate(detail.created_at)}
+              {/* Dernière VISITE, libellée (audit UX A30) : la date de pose
+                  brute trompait sur « je retente ou pas ? » d'un point revisité. */}
+              {(point.visited_at || detail) && (
+                <span title="Dernière visite commerciale">
+                  <Clock size={13} /> Vu le {formatDate(point.visited_at ?? detail!.created_at)}
                 </span>
               )}
               {detail?.author_name && (
@@ -364,40 +385,18 @@ export function PointDetailSheet({
                 type="button"
                 className={`chip ${status === s.value ? 'is-active' : ''}`}
                 style={{ ['--chip' as string]: s.color }}
-                onClick={() => setStatus(s.value)}
+                onClick={() => {
+                  setStatus(s.value)
+                  // « À revoir » sans date ne remonte JAMAIS dans les
+                  // relances : J+7 pré-rempli (modifiable) — audit UX A4.
+                  if (s.value === 'a_revoir' && !revisitAt) setRevisitAt(dayPlus(7))
+                }}
               >
                 <span className="chip-dot" style={{ background: s.color }} />
                 {s.label}
               </button>
             ))}
           </div>
-
-          <HouseBadges
-            annee={annee}
-            matCode={matCode}
-            matConfirme={point.mat_toit_confirme}
-            toitM2={toitM2}
-            lidarM2={lidarM2}
-            lidarMillesime={lidarMillesime}
-            lidarPending={lidarPending && lidarM2 == null}
-            dpe={dpe}
-            extra={extra}
-            lidarStatut={lidarStatut}
-            lidarDiag={liveLidar ? liveLidar.toit_lidar_diag : point.toit_lidar_diag}
-          />
-
-          {lidarPans && (
-            // Replié par défaut : à la porte, la 3D ne doit pas taxer la
-            // pose (statut, note, Enregistrer) — audit UX, B2.
-            <RoofModule
-              roof={lidarPans}
-              wastePct={suggestedWastePct(matCode, point.mat_toit_confirme, lidarPans.aretes)}
-              address={point.address}
-              maisonM2={lidarM2}
-              totalM2={liveLidar ? liveLidar.toit_lidar_m2 : point.toit_lidar_m2}
-              millesime={lidarMillesime}
-            />
-          )}
 
           {status === 'a_revoir' && (
             <>
@@ -408,32 +407,23 @@ export function PointDetailSheet({
                 value={revisitAt}
                 onChange={(e) => setRevisitAt(e.target.value)}
               />
+              <div className="chip-row revisit-presets">
+                {REVISIT_PRESETS().map(([label, value]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className={`chip ${revisitAt === value ? 'is-active' : ''}`}
+                    onClick={() => setRevisitAt(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </>
           )}
 
-          <p className="eyebrow field-label">Client</p>
-          <input
-            className="field-input"
-            type="text"
-            placeholder="Nom (facultatif)"
-            value={clientName}
-            onChange={(e) => setClientName(e.target.value)}
-          />
-
-          <p className="eyebrow field-label">Toiture constatée</p>
-          <select
-            className="field-input"
-            value={matConfirme}
-            onChange={(e) => setMatConfirme(e.target.value)}
-          >
-            <option value="">— non confirmée (donnée fiscale) —</option>
-            {CONFIRMED_MAT_OPTIONS.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-
+          {/* Notes juste sous le statut (audit UX A12) : saisies à CHAQUE
+              visite, elles vivaient sous la toiture (saisie 1 fois). */}
           <p className="eyebrow field-label">Notes</p>
           {shownNotes.length > 0 && (
             <ul className="note-history">
@@ -459,6 +449,63 @@ export function PointDetailSheet({
             onChange={(e) => setNewNote(e.target.value)}
             rows={2}
           />
+
+          {/* Sans objet pour un « Absent » / « Impossible » (audit UX A12). */}
+          {(status === 'a_revoir' || status === 'rdv_pris' || status === 'vendu') && (
+            <>
+              <p className="eyebrow field-label">Client</p>
+              <input
+                className="field-input"
+                type="text"
+                placeholder="Nom (facultatif)"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+              />
+            </>
+          )}
+
+          <HouseBadges
+            annee={annee}
+            matCode={matCode}
+            matConfirme={point.mat_toit_confirme}
+            toitM2={toitM2}
+            lidarM2={lidarM2}
+            lidarMillesime={lidarMillesime}
+            lidarPending={lidarPending && lidarM2 == null}
+            dpe={dpe}
+            extra={extra}
+            lidarStatut={lidarStatut}
+            lidarDiag={liveLidar ? liveLidar.toit_lidar_diag : point.toit_lidar_diag}
+          />
+
+          {/* « Toiture constatée » dans sa famille sémantique (audit UX A12) :
+              saisie 1 fois par maison, elle coupait le chemin statut → notes. */}
+          <p className="eyebrow field-label">Toiture constatée</p>
+          <select
+            className="field-input"
+            value={matConfirme}
+            onChange={(e) => setMatConfirme(e.target.value)}
+          >
+            <option value="">— non confirmée (donnée fiscale) —</option>
+            {CONFIRMED_MAT_OPTIONS.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+
+          {lidarPans && (
+            // Replié par défaut : à la porte, la 3D ne doit pas taxer la
+            // pose (statut, note, Enregistrer) — audit UX, B2.
+            <RoofModule
+              roof={lidarPans}
+              wastePct={suggestedWastePct(matCode, point.mat_toit_confirme, lidarPans.aretes)}
+              address={point.address}
+              maisonM2={lidarM2}
+              totalM2={liveLidar ? liveLidar.toit_lidar_m2 : point.toit_lidar_m2}
+              millesime={lidarMillesime}
+            />
+          )}
 
           {/* Destructif déclassé : plus de rangée à égalité avec Enregistrer,
               où le pouce arrivait lancé en fin de scroll (audit UX, A3).
