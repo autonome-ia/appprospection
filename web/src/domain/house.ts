@@ -106,8 +106,11 @@ export interface HouseEnrichment {
  *      lit sur les cellules bordant l'arête (le « milieu » était la jonction
  *      elle-même : arête classée extérieure et projetée sur la silhouette,
  *      contours en vrille — danton130). Banc : 22/23 propres.
+ * v17 : drapeau `maison` par pan (appartenance au corps principal) — nourrit
+ *      les pans COCHABLES de la maquette 3D (niveau 3 : le commercial exclut
+ *      du doigt un garage ou une extension, le total suit).
  */
-export const LIDAR_VERSION = 16
+export const LIDAR_VERSION = 17
 
 /** Un pan de toiture mesuré (stocké en jsonb sur le point). */
 export interface LidarPan {
@@ -122,6 +125,9 @@ export interface LidarPan {
   /** Altitude (m) de chaque sommet du contour, relative au point le plus bas
       du toit — pour la maquette 3D (absente sur les mesures < v6). */
   alts?: number[]
+  /** Pan du corps principal (« la maison », connectivité v10+) — présélection
+      des pans cochables de la maquette (absent sur les mesures < v17). */
+  maison?: boolean
 }
 
 /**

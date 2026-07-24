@@ -456,6 +456,24 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
   // plus bas dessiné) : petits nombres dans le jsonb, et la maquette pose ses
   // murs sous ce zéro.
   const zMin = Math.min(...shapes.flatMap((s) => s?.alts ?? []))
+  // « La MAISON » (donnée couvreur, badge de la fiche) : composante des pans
+  // reliés au plus grand pan incliné par des frontières SOUDÉES — un décroché
+  // de niveau (extension, annexe, garage, toit plat accolé) coupe la
+  // composante, même à pente égale. Repli : typage par pente (totalPrincipal).
+  let principal = m.totalPrincipal
+  let body: Set<number> | null = null
+  if (recon) {
+    const b = mainBodyPans(
+      m.pans.map((p) => p.realDedup),
+      m.pans.map((p) => p.type === 'plat'),
+      recon.welds,
+      recon.absorbed,
+    )
+    if (b.size) {
+      body = b
+      principal = m.pans.reduce((s, p, i) => (b.has(i) ? s + p.realDedup : s), 0)
+    }
+  }
   const pans: LidarPan[] = m.pans.map((p, i) => {
     const shape = shapes[i]
     return {
@@ -463,6 +481,8 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
       pente_deg: Math.round(p.slopeDeg),
       azimut_deg: Math.round(p.azimutDeg),
       m2: Math.round(p.realDedup),
+      // Appartenance au corps principal : présélection des pans cochables.
+      ...(body ? { maison: body.has(i) } : {}),
       ...(shape
         ? {
             contour: shape.contour,
@@ -472,22 +492,6 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
         : {}),
     }
   })
-  // « La MAISON » (donnée couvreur, badge de la fiche) : composante des pans
-  // reliés au plus grand pan incliné par des frontières SOUDÉES — un décroché
-  // de niveau (extension, annexe, garage, toit plat accolé) coupe la
-  // composante, même à pente égale. Repli : typage par pente (totalPrincipal).
-  let principal = m.totalPrincipal
-  if (recon) {
-    const body = mainBodyPans(
-      m.pans.map((p) => p.realDedup),
-      m.pans.map((p) => p.type === 'plat'),
-      recon.welds,
-      recon.absorbed,
-    )
-    if (body.size) {
-      principal = m.pans.reduce((s, p, i) => (body.has(i) ? s + p.realDedup : s), 0)
-    }
-  }
 
   // Hauteur de gouttière pour les murs de la maquette : hauteur BD TOPO
   // (faîtage − sol, la plus fiable) MOINS le comble MESURÉ au LiDAR. Repli :

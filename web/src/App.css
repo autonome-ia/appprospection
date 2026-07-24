@@ -1451,6 +1451,30 @@
 .roof3d-legend .pan-chip {
   box-shadow: none;
 }
+/* Niveau 3 : pans cochables. Les puces de légende sont des boutons, la
+   pastille 3D redevient tapable, l'état exclu est grisé-barré. */
+.roof3d-toggle {
+  pointer-events: auto;
+  cursor: pointer;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+}
+.roof3d-chip {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.pan-chip.is-off {
+  opacity: 0.45;
+  text-decoration: line-through;
+  border-color: var(--line) !important;
+}
+.roof3d-total {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
 .house-badge.dpe {
   color: #ffffff;
   border-color: transparent;

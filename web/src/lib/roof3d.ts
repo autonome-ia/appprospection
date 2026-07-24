@@ -30,6 +30,7 @@ import {
   PCFSoftShadowMap,
   PerspectiveCamera,
   PlaneGeometry,
+  Raycaster,
   Scene,
   ShadowMaterial,
   ShapeUtils,
@@ -43,6 +44,13 @@ import { PAN_COLORS } from '../domain/colors'
 
 export interface RoofSceneHandle {
   dispose(): void
+  /** Grise les pans exclus de la sélection (index dans roof.pans). */
+  setExcluded(excluded: ReadonlySet<number>): void
+}
+
+export interface RoofSceneOptions {
+  /** Tap sur un pan (ou sa pastille) : bascule sa sélection. */
+  onTogglePan?: (panIdx: number) => void
 }
 
 /** Pan dessinable : contour fermé + altitudes par sommet (mesure v6+). */
@@ -115,20 +123,38 @@ function fitPlane(pts: [number, number, number][]): [number, number, number] {
   ]
 }
 
-export function mountRoofScene(container: HTMLElement, roof: RoofData): RoofSceneHandle {
-  const drawable = roof.pans.filter(isPan3D)
+const OFF_COLOR = new Color(0xd8d5cd) // pan exclu de la sélection : gris pierre
+
+export function mountRoofScene(
+  container: HTMLElement,
+  roof: RoofData,
+  options?: RoofSceneOptions,
+): RoofSceneHandle {
+  // Chaque entrée garde son index D'ORIGINE dans roof.pans : c'est la clé de
+  // sélection partagée avec la légende React.
+  const drawable = roof.pans
+    .map((pan, idx) => ({ pan, idx }))
+    .filter(({ pan }) => isPan3D(pan))
   const wallM = roof.mur_m ?? DEFAULT_WALL_M
 
   const scene = new Scene()
   const disposables: { dispose(): void }[] = []
-  const chips: { el: HTMLDivElement; at: Vector3 }[] = []
+  const chips: { el: HTMLDivElement; at: Vector3; idx: number }[] = []
+  // Registre par pan : matériaux et mesh, pour griser/rétablir sans rebâtir.
+  const panRegistry: {
+    idx: number
+    mesh: Mesh
+    mat: MeshLambertMaterial
+    edgeMat: LineBasicMaterial
+    base: Color
+  }[] = []
 
   // Origine locale : centroïde de tous les sommets.
   let lng0 = 0
   let lat0 = 0
   let count = 0
-  for (const p of drawable) {
-    for (const [lng, lat] of p.contour!) {
+  for (const { pan } of drawable) {
+    for (const [lng, lat] of pan.contour!) {
       lng0 += lng
       lat0 += lat
       count++
@@ -140,12 +166,14 @@ export function mountRoofScene(container: HTMLElement, roof: RoofData): RoofScen
   // Pans en coordonnées locales (three : x = est, y = altitude, z = -nord).
   // Le sol est à y = 0, la gouttière la plus basse à y = wallM.
   interface LocalPan {
+    idx: number // index dans roof.pans (clé de sélection)
+    m2: number
     pts2d: Vector2[] // (est, nord)
     ys: number[] // altitude de chaque sommet
     plane: [number, number, number] // y = a·est + b·nord + c
     color: Color
   }
-  const locals: LocalPan[] = drawable.map((pan, i) => {
+  const locals: LocalPan[] = drawable.map(({ pan, idx }, i) => {
     const ring = pan.contour!.slice(0, -1)
     const alts = pan.alts!.slice(0, -1)
     const pts2d = ring.map(([lng, lat]) => {
@@ -154,6 +182,8 @@ export function mountRoofScene(container: HTMLElement, roof: RoofData): RoofScen
     })
     const ys = alts.map((a) => wallM + a)
     return {
+      idx,
+      m2: pan.m2,
       pts2d,
       ys,
       plane: fitPlane(pts2d.map((p, v) => [p.x, p.y, ys[v]])),
@@ -209,6 +239,7 @@ export function mountRoofScene(container: HTMLElement, roof: RoofData): RoofScen
     solid.add(mesh)
 
     const edgeMat = new LineBasicMaterial({ color: lp.color.clone().multiplyScalar(0.55) })
+    panRegistry.push({ idx: lp.idx, mesh, mat, edgeMat, base: lp.color.clone() })
     const edgeGeo = new BufferGeometry()
     const edgePos = new Float32Array(positions)
     for (let v = 0; v < n; v++) edgePos[v * 3 + 1] += 0.05
@@ -216,19 +247,24 @@ export function mountRoofScene(container: HTMLElement, roof: RoofData): RoofScen
     solid.add(new LineLoop(edgeGeo, edgeMat))
     disposables.push(geo, mat, edgeGeo, edgeMat)
 
-    // Pastille « XX m² » ancrée au centroïde du pan (projetée chaque frame).
-    // Seuls les pans significatifs en portent une : sur les toits à 6-7 pans,
-    // les petites pastilles se chevauchaient au centre (la légende sous le
-    // canvas, elle, liste tout).
-    const pan = drawable[locals.indexOf(lp)]
-    const rank = [...drawable].sort((a, b) => b.m2 - a.m2).indexOf(pan)
-    if (pan.m2 >= 20 || rank < 2) {
+    // Pastille « XX m² » ancrée au centroïde du pan (projetée chaque frame),
+    // TAPABLE : bascule l'inclusion du pan dans la sélection. Seuls les pans
+    // significatifs en portent une (la légende sous le canvas liste tout).
+    const rank = [...drawable]
+      .sort((a, b) => b.pan.m2 - a.pan.m2)
+      .findIndex((d) => d.idx === lp.idx)
+    if (lp.m2 >= 20 || rank < 2) {
       const el = document.createElement('div')
       el.className = 'pan-chip tnum roof3d-chip'
-      el.textContent = `${pan.m2} m²`
+      el.textContent = `${lp.m2} m²`
       el.style.borderColor = `#${lp.color.getHexString()}`
+      const idx = lp.idx
+      el.addEventListener('click', (ev) => {
+        ev.stopPropagation()
+        options?.onTogglePan?.(idx)
+      })
       container.appendChild(el)
-      chips.push({ el, at: centroid.clone().add(new Vector3(0, 0.4, 0)) })
+      chips.push({ el, at: centroid.clone().add(new Vector3(0, 0.4, 0)), idx })
     }
   }
 
@@ -405,6 +441,33 @@ export function mountRoofScene(container: HTMLElement, roof: RoofData): RoofScen
   const target = new Vector3(centre.x, Math.max((wallM + centre.y) * 0.45, 1.2), centre.z)
   const dist = span * 1.5
 
+  // TAP (pas drag) sur un pan : bascule sa sélection. Le drag reste à la
+  // caméra — on ne raycast que si le doigt n'a presque pas bougé.
+  let tapStart: { x: number; y: number; t: number } | null = null
+  const onPointerDown = (e: PointerEvent) => {
+    tapStart = { x: e.clientX, y: e.clientY, t: performance.now() }
+  }
+  const onPointerUp = (e: PointerEvent) => {
+    const start = tapStart
+    tapStart = null
+    if (!start || !options?.onTogglePan) return
+    if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 8) return
+    if (performance.now() - start.t > 400) return
+    const rect = renderer.domElement.getBoundingClientRect()
+    const ndc = new Vector2(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1,
+    )
+    const ray = new Raycaster()
+    ray.setFromCamera(ndc, camera)
+    const hits = ray.intersectObjects(panRegistry.map((r) => r.mesh), false)
+    if (!hits.length) return
+    const rec = panRegistry.find((r) => r.mesh === hits[0].object)
+    if (rec) options.onTogglePan(rec.idx)
+  }
+  renderer.domElement.addEventListener('pointerdown', onPointerDown)
+  renderer.domElement.addEventListener('pointerup', onPointerUp)
+
   const controls = new OrbitControls(camera, renderer.domElement)
   controls.target.copy(target)
   controls.enableDamping = true
@@ -485,12 +548,29 @@ export function mountRoofScene(container: HTMLElement, roof: RoofData): RoofScen
     dispose() {
       cancelAnimationFrame(raf)
       resize.disconnect()
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown)
+      renderer.domElement.removeEventListener('pointerup', onPointerUp)
       controls.dispose()
       for (const { el } of chips) el.remove()
       compass.remove()
       for (const d of disposables) d.dispose()
       renderer.dispose()
       renderer.domElement.remove()
+    },
+    setExcluded(excluded) {
+      for (const rec of panRegistry) {
+        const off = excluded.has(rec.idx)
+        rec.mat.color.copy(off ? OFF_COLOR : rec.base)
+        rec.mat.transparent = off
+        rec.mat.opacity = off ? 0.35 : 1
+        rec.mat.needsUpdate = true
+        rec.edgeMat.color.copy(
+          off ? OFF_COLOR.clone().multiplyScalar(0.8) : rec.base.clone().multiplyScalar(0.55),
+        )
+      }
+      for (const chip of chips) {
+        chip.el.classList.toggle('is-off', excluded.has(chip.idx))
+      }
     },
   }
 }
