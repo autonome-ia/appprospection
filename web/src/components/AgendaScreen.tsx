@@ -71,7 +71,7 @@ function AppointmentCard({
   const canDelete = profile.role === 'manager' || appt.commercial_id === profile.id
 
   return (
-    <div className="appt-card">
+    <div className="appt-card" style={{ ['--who' as string]: color }}>
       <div className="appt-row">
         <span className="appt-when tnum">{fmt(appt.scheduled_at, timeOnly)}</span>
         <span className="badge" style={{ color: meta.color, background: `${meta.color}1a` }}>
