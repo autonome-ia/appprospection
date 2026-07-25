@@ -53,7 +53,7 @@ Workflow type : coder → `npm run build` (vérifie) → commit → `git push` �
 - **Pas de vue rue / Street View** : testé puis abandonné (Mapillary trop juste en pavillonnaire ;
   3D photoréaliste Google bloquée pour les entités françaises).
 - **Carte** = MapLibre + IGN. Vue **« Toits » (ortho) par défaut**. La **3D carte (extrusion des bâtiments) a été RETIRÉE** (juillet 2026, décision briac) : prismes à toit plat sans valeur terrain — remplacée par la **maquette 3D du toit mesuré** dans la fiche maison (three.js, chunk séparé).
-- **Maquette 3D** : **WebGLRenderer conservé** — pas de migration WebGPURenderer (bundle plus lourd, zéro gain pour ~20 meshes) ; **MeshLambert + MSAA natif** délibérés (Standard/FXAA contre-productifs sur mobile sans post-processing). ~142 Ko gz = plancher du chunk three.
+- **Maquette 3D** : **WebGLRenderer conservé** — pas de migration WebGPURenderer (bundle plus lourd, zéro gain pour ~20 meshes) ; **MeshLambert + MSAA natif** délibérés (Standard/FXAA contre-productifs sur mobile sans post-processing). ~142 Ko gz = plancher du chunk three. **L'avant/après matériau (« Votre toit en… ») et le select « Toiture constatée » ont été RETIRÉS** (25/07/2026, décision briac : sans valeur terrain) — la 3D s'affiche toujours en mode mesure (une couleur par pan) ; `mat_toit_confirme` reste en base (anciens points).
 - **Géoplateforme** : **1 seule couche par appel WFS/WMS-V** (limite IGN au 15/06/2026 — ne jamais regrouper des TYPENAMES) ; la doc IGN vit sur **cartes.gouv.fr** (geoservices.ign.fr = redirections). `copc`/`laz-perf` figés en versions exactes ; toujours passer `{ lazPerf }` à `Copc.loadPointDataView` (sinon un 2e wasm s'instancie).
 
 ## Direction artistique (IMPORTANT)

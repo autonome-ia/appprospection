@@ -122,7 +122,7 @@
   - **B14 squelettes** : Stats (KPI/tunnel/classement — finis les faux zéros commentés en réunion) et Accueil (premier chargement seulement).
 - [x] **Lot Argumentaire (25/07)** — 2 commits :
   - **B3 sélection Σ → plan + rapport** : l'état `excluded` remonté dans RoofModule (Roof3D contrôlé) — plan coté avec pans exclus grisés (contour pointillé), rapport avec « Σ N m² · surface retenue avec vous » (masquée si égale au badge maison), chutes basées sur la sélection, lignes exclues barrées, partage mentionnant la surface retenue.
-  - **B13 badge matériau tappable** : tap → focus du select « Toiture constatée » (picker iOS dans le geste) + recentrage ; badge confirmé et chutes ajustées dès le choix (état local, avant enregistrement).
+  - ~~B13 badge matériau tappable~~ **ANNULÉ après test terrain (25/07, décision briac)** : le select « Toiture constatée » est SUPPRIMÉ de la fiche (il n'ajoutait rien), et l'avant/après matériau 3D (« Votre toit en… ») est SUPPRIMÉ aussi — la maquette s'affiche toujours en mode mesure (une couleur par pan). Le badge matériau redevient informatif (toast) ; `mat_toit_confirme` reste en base pour les anciens points.
 - [ ] ⬜ **Lots B restants et C** (ordre proposé : Agenda/Client B11+B12+C1 → Accueil B4 → C2) : B11 ClientSheet (actions en tête + historique), B12 BAN sur l'adresse RDV, C1 agenda « jour d'abord », B4 refonte Accueil, C2 rapport PDF partageable.
 - [ ] ⬜ **Équipe/invitations + écran de connexion** : volontairement EN DERNIER (décision briac 25/07) — l'interface commerciale doit être parfaite avant de lancer le test réel à plusieurs.
 

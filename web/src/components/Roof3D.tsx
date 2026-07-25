@@ -4,7 +4,7 @@ import { Box, Maximize2, X } from 'lucide-react'
 import type { LidarPan, RoofData } from '../domain/house'
 import { PAN_COLORS } from '../domain/colors'
 import { panLetters } from './RoofDiagram'
-import type { RoofMatKind, RoofSceneHandle } from '../lib/roof3d'
+import type { RoofSceneHandle } from '../lib/roof3d'
 
 interface Props {
   /** Toit mesuré (statut ok). La maquette exige les altitudes (v6+). */
@@ -81,8 +81,6 @@ export function Roof3D({ roof, wastePct, embedded = false, excluded, onTogglePan
   const [failed, setFailed] = useState(false)
   // Remontage forcé quand le contexte WebGL est perdu sans retour (iOS).
   const [retry, setRetry] = useState(0)
-  // Avant/après : matériau proposé projeté sur les pans sélectionnés.
-  const [matKind, setMatKind] = useState<RoofMatKind>('couleurs')
   const holderRef = useRef<HTMLDivElement>(null)
   const handleRef = useRef<RoofSceneHandle | null>(null)
   // Le toggle est lu par la scène via une ref : pas de re-montage à chaque tap.
@@ -97,7 +95,6 @@ export function Roof3D({ roof, wastePct, embedded = false, excluded, onTogglePan
     let disposed = false
     let handle: RoofSceneHandle | null = null
     const excludedAtMount = excluded
-    const matAtMount = matKind
     import('../lib/roof3d')
       .then((m) => {
         if (disposed || !holder.isConnected) return
@@ -105,7 +102,6 @@ export function Roof3D({ roof, wastePct, embedded = false, excluded, onTogglePan
           onTogglePan: (idx) => toggleRef.current(idx),
         })
         handle.setExcluded(excludedAtMount)
-        if (matAtMount !== 'couleurs') handle.setMaterial(matAtMount)
         handleRef.current = handle
       })
       .catch((e) => {
@@ -141,10 +137,6 @@ export function Roof3D({ roof, wastePct, embedded = false, excluded, onTogglePan
     handleRef.current?.setExcluded(excluded)
   }, [excluded])
 
-  useEffect(() => {
-    handleRef.current?.setMaterial(matKind)
-  }, [matKind])
-
   if (drawable.length === 0 || failed) return null
 
   if (!open) {
@@ -172,33 +164,9 @@ export function Roof3D({ roof, wastePct, embedded = false, excluded, onTogglePan
 
   const legend = (
     <>
-      {/* L'avant/après matériau — l'outil le plus vendeur — remonté sous le
-          canvas, titré, et « Couleurs » renommé « Mesure » (audit UX A8). */}
-      <p className="eyebrow roof3d-mats-title">Votre toit en…</p>
-      <div className="roof3d-mats" role="group" aria-label="Matériau proposé">
-        {(
-          [
-            ['couleurs', 'Mesure'],
-            ['ardoise', 'Ardoise'],
-            ['tuile', 'Tuile'],
-            ['zinc', 'Zinc'],
-          ] as [RoofMatKind, string][]
-        ).map(([kind, label]) => (
-          <button
-            key={kind}
-            type="button"
-            className={`roof3d-mat ${matKind === kind ? 'is-active' : ''}`}
-            onClick={() => setMatKind(kind)}
-            title={
-              kind === 'couleurs'
-                ? 'Pans colorés par identification (mesure)'
-                : `Voir le toit du client en ${label.toLowerCase()} (avant/après)`
-            }
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* L'avant/après matériau (« Votre toit en… ardoise/tuile/zinc ») a été
+          RETIRÉ (décision briac 25/07) : sans valeur terrain — la maquette
+          s'affiche toujours en mode mesure, un pan = une couleur. */}
       <div className="roof3d-legend">
         <span className="pan-chip tnum roof3d-total" title="Somme des pans sélectionnés">
           Σ {selectionM2} m²

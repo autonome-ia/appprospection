@@ -13,7 +13,6 @@ import {
 import { fetchPointAppointments } from '../data/appointments'
 import { APPOINTMENT_STATUS_META, type Appointment } from '../domain/appointments'
 import {
-  CONFIRMED_MAT_OPTIONS,
   lidarNeedsMeasure,
   suggestedWastePct,
   type HouseEnrichment,
@@ -111,7 +110,6 @@ export function PointDetailSheet({
   const [clientName, setClientName] = useState('')
   const [clientPhone, setClientPhone] = useState('')
   const [revisitAt, setRevisitAt] = useState('')
-  const [matConfirme, setMatConfirme] = useState('')
   const [saving, setSaving] = useState(false)
   // Fiche maison récupérée à la volée (backfill des points posés avant le
   // chantier, ou point d'un autre commercial dont le cache RLS a échoué).
@@ -129,15 +127,6 @@ export function PointDetailSheet({
   // RDV liés au point (bloc « Rendez-vous », audit UX B1) — null = pas encore
   // chargés : le bandeau « Aucun RDV planifié » n'accuse pas pendant le fetch.
   const [appts, setAppts] = useState<Appointment[] | null>(null)
-  // Tap sur le badge matériau → le select « Toiture constatée » (audit UX
-  // B13) : focus DANS le geste (iOS ouvre le picker) + recentrage.
-  const matSelectRef = useRef<HTMLSelectElement>(null)
-  const confirmMatFromBadge = () => {
-    const el = matSelectRef.current
-    if (!el) return
-    el.focus()
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }
 
   // Instantané des valeurs INITIALES du formulaire : la sauvegarde n'envoie
   // que ce que l'utilisateur a touché DANS CETTE SESSION — comparer à `point`
@@ -148,7 +137,6 @@ export function PointDetailSheet({
     clientName: '',
     clientPhone: '',
     revisitAt: '',
-    matConfirme: '',
   })
 
   useEffect(() => {
@@ -158,13 +146,11 @@ export function PointDetailSheet({
       clientName: point.client_name ?? '',
       clientPhone: point.client_phone ?? '',
       revisitAt: point.revisit_at ?? '',
-      matConfirme: point.mat_toit_confirme ?? '',
     }
     setStatus(point.status)
     setClientName(point.client_name ?? '')
     setClientPhone(point.client_phone ?? '')
     setRevisitAt(point.revisit_at ?? '')
-    setMatConfirme(point.mat_toit_confirme ?? '')
     setNewNote('')
     setConfirmDelete(false)
     setDetail(null)
@@ -280,7 +266,6 @@ export function PointDetailSheet({
     status !== init.status ||
     clientName !== init.clientName ||
     clientPhone !== init.clientPhone ||
-    matConfirme !== init.matConfirme ||
     (status === 'a_revoir' && revisitAt !== init.revisitAt) ||
     newNote.trim().length > 0
 
@@ -306,7 +291,6 @@ export function PointDetailSheet({
       client_name?: string | null
       client_phone?: string | null
       revisit_at?: string | null
-      mat_toit_confirme?: string | null
     } = {}
     // Diff contre l'instantané INITIAL (pas contre `point`, mis à jour par le
     // realtime) : seuls les champs touchés par l'utilisateur partent en base.
@@ -316,7 +300,6 @@ export function PointDetailSheet({
       changes.client_name = clientName.trim() ? clientName.trim() : null
     if (clientPhone !== init.clientPhone)
       changes.client_phone = clientPhone.trim() ? clientPhone.trim() : null
-    if (matConfirme !== init.matConfirme) changes.mat_toit_confirme = matConfirme || null
     // Date de relance : suivie seulement pour « à revoir », effacée sinon.
     if (status === 'a_revoir') {
       if (revisitAt !== init.revisitAt) changes.revisit_at = revisitAt || null
@@ -336,7 +319,6 @@ export function PointDetailSheet({
           status,
           clientName,
           clientPhone,
-          matConfirme,
           revisitAt: status === 'a_revoir' ? revisitAt : '',
         }
       }
@@ -618,9 +600,7 @@ export function PointDetailSheet({
           <HouseBadges
             annee={annee}
             matCode={matCode}
-            // État LOCAL : le badge passe en « confirmé » dès le choix dans
-            // le select, sans attendre l'enregistrement (audit UX B13).
-            matConfirme={matConfirme || point.mat_toit_confirme}
+            matConfirme={point.mat_toit_confirme}
             toitM2={toitM2}
             lidarM2={lidarM2}
             lidarMillesime={lidarMillesime}
@@ -629,34 +609,14 @@ export function PointDetailSheet({
             extra={extra}
             lidarStatut={lidarStatut}
             lidarDiag={liveLidar ? liveLidar.toit_lidar_diag : point.toit_lidar_diag}
-            onConfirmMat={confirmMatFromBadge}
           />
-
-          {/* « Toiture constatée » dans sa famille sémantique (audit UX A12) :
-              saisie 1 fois par maison, elle coupait le chemin statut → notes. */}
-          <p className="eyebrow field-label">Toiture constatée</p>
-          <select
-            ref={matSelectRef}
-            className="field-input"
-            value={matConfirme}
-            onChange={(e) => setMatConfirme(e.target.value)}
-          >
-            <option value="">— non confirmée (donnée fiscale) —</option>
-            {CONFIRMED_MAT_OPTIONS.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
 
           {lidarPans && (
             // Replié par défaut : à la porte, la 3D ne doit pas taxer la
             // pose (statut, note, Enregistrer) — audit UX, B2.
             <RoofModule
               roof={lidarPans}
-              // matConfirme LOCAL : confirmer « Ardoise » via le badge ajuste
-              // les chutes suggérées sans attendre l'enregistrement (B13).
-              wastePct={suggestedWastePct(matCode, matConfirme || point.mat_toit_confirme, lidarPans.aretes)}
+              wastePct={suggestedWastePct(matCode, point.mat_toit_confirme, lidarPans.aretes)}
               address={point.address}
               maisonM2={lidarM2}
               totalM2={liveLidar ? liveLidar.toit_lidar_m2 : point.toit_lidar_m2}

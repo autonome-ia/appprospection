@@ -23,21 +23,6 @@ export function matToitLabel(code: string | null): string | null {
   return main
 }
 
-/** Liste métier des matériaux confirmables sur le terrain (à affiner avec le chef des ventes). */
-export const CONFIRMED_MAT_OPTIONS = [
-  'Tuile mécanique',
-  'Tuile canal',
-  'Tuile plate',
-  'Ardoise naturelle',
-  'Ardoise fibrociment',
-  'Fibrociment',
-  'Bac acier',
-  'Zinc',
-  'Chaume',
-  'Toit plat / étanchéité',
-  'Autre',
-]
-
 /** Années suspectes : valeurs de reprise/défaut connues des Fichiers fonciers. */
 export const SUSPECT_YEARS = new Set([1900, 1970, 2002, 2003])
 
