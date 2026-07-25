@@ -128,7 +128,7 @@
   - **B11 fiche client** : issues du RDV du jour (règle jour J + anti-double-tap, statut reflété localement), section « Historique » (tous les RDV du point + journal de notes), module toiture replié.
   - **C1 agenda « jour d'abord »** : mois replié par défaut en bandeau semaine (pastilles par commercial, ambre = relance), tap sur le mois = grille complète, chevrons semaine/mois selon le mode.
 - [x] **B4 refonte Accueil (25/07)** : en-tête compact (avatar + Bonjour + rôle), profil/déconnexion dans une sheet derrière l'avatar, carte « Aujourd'hui » (portes/RDV du jour/à relancer + barre d'objectif hebdo, équipe pour le manager), section « Mes RDV aujourd'hui » (heure mono, tap → fiche client, RDV modifiable depuis l'Accueil), état vide explicite.
-- [ ] ⬜ **Restant audit UX : C2 rapport PDF partageable** (session dédiée — SVG→canvas→`navigator.share({files})`, terrain miné PWA iOS ; B3 ✅ le rapport reflète déjà la sélection Σ).
+- [x] **C2 rapport partageable en document (25/07)** : rendu image côté client (Canvas 2D sans dépendance, chunk à la demande `lib/report-image`) — en-tête brandé, chiffres clés (Σ retenue en accent), plan coté redessiné depuis `buildDiagram` (exclus grisés), tableaux, export 2× ; `navigator.share({files})` avec `rapport-toiture-<adresse>.png` + texte d'accompagnement ; replis texte / téléchargement desktop. **→ L'AUDIT UX/UI EST SOLDÉ** (Lot A, B, C — hors constats écartés et B13 annulé).
 - [ ] ⬜ **Équipe/invitations + écran de connexion** : volontairement EN DERNIER (décision briac 25/07) — l'interface commerciale doit être parfaite avant de lancer le test réel à plusieurs.
 
 ## Prochains chantiers (à choisir avec briac)
