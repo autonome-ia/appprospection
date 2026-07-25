@@ -85,6 +85,7 @@ export function HousePreviewSheet({
               extra={info.maison_extra}
               lidarStatut={lidar?.toit_lidar_statut}
               lidarDiag={lidar?.toit_lidar_diag}
+              hideMeasured={Boolean(lidarOk && lidar.toit_lidar_pans)}
             />
           ) : (
             <p className="house-loading">Pas d’informations pour ce bâtiment.</p>

@@ -95,7 +95,6 @@ export function MapView({
   active,
   focus,
   onFocusHandled,
-  onShowAgenda,
   whoFocus,
   onWhoFocusHandled,
 }: {
@@ -103,8 +102,6 @@ export function MapView({
   active: boolean
   focus?: MapFocus | null
   onFocusHandled?: () => void
-  /** Bascule sur l'onglet Agenda, calé sur un jour (bloc RDV de la fiche). */
-  onShowAgenda?: (day: string) => void
   /** Pont Stats→Carte (audit UX B5) : id du commercial dont le drill-down
       demande « Voir ses points » — pré-applique le filtre « Qui ». */
   whoFocus?: string | null
@@ -1254,7 +1251,6 @@ export function MapView({
         onAddNote={addNote}
         onDelete={removePoint}
         onRdvNeeded={(p) => isSupabaseConfigured && setRdvPoint(p)}
-        onShowAgenda={onShowAgenda}
         apptsVersion={apptSeq}
       />
 

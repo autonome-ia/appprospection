@@ -20,13 +20,6 @@ function AppInner() {
     setMapFocus(target)
     setTab('carte')
   }
-  // Cible « Voir dans l'agenda » (bloc RDV de la fiche point, audit UX B1) :
-  // jour YYYY-MM-DD consommé par AgendaScreen.
-  const [agendaFocus, setAgendaFocus] = useState<string | null>(null)
-  const showOnAgenda = (day: string) => {
-    setAgendaFocus(day)
-    setTab('agenda')
-  }
   // Pont Stats→Carte (audit UX B5) : le drill-down d'un commercial bascule
   // sur la carte avec le filtre « Qui » pré-appliqué.
   const [mapWho, setMapWho] = useState<string | null>(null)
@@ -65,7 +58,6 @@ function AppInner() {
               active={tab === 'carte'}
               focus={mapFocus}
               onFocusHandled={() => setMapFocus(null)}
-              onShowAgenda={showOnAgenda}
               whoFocus={mapWho}
               onWhoFocusHandled={() => setMapWho(null)}
             />
@@ -78,12 +70,7 @@ function AppInner() {
         ) : null}
         {tab === 'agenda' ? (
           <ScreenBoundary>
-            <AgendaScreen
-              profile={profile}
-              onShowOnMap={showOnMap}
-              focusDay={agendaFocus}
-              onFocusDayHandled={() => setAgendaFocus(null)}
-            />
+            <AgendaScreen profile={profile} onShowOnMap={showOnMap} />
           </ScreenBoundary>
         ) : null}
         {tab === 'stats' ? (

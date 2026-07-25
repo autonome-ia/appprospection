@@ -2425,15 +2425,22 @@
 }
 /* --- Bloc « Rendez-vous » en tête de fiche point (audit UX B1) --- */
 .rdv-block {
+  /* Colonne alignée à gauche (retour briac 25/07) : la ligne d'actions
+     partait à droite, décrochée de la date. */
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
   margin: 12px 0 2px;
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   background: var(--accent-weak);
+}
+.rdv-block-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 .rdv-when {
   display: inline-flex;
@@ -2454,8 +2461,7 @@
 .rdv-actions {
   display: inline-flex;
   align-items: center;
-  gap: 16px;
-  margin-left: auto;
+  gap: 18px;
 }
 a.text-btn {
   text-decoration: none;

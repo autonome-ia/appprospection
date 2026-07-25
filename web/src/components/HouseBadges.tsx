@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Scan } from 'lucide-react'
 import {
-  MAT_MURS_LABELS,
   matToitLabel,
   SUSPECT_YEARS,
   type HouseExtra,
@@ -51,6 +50,10 @@ interface Props {
   /** Statut de la mesure LiDAR (pour expliquer un échec) + diagnostic. */
   lidarStatut?: string | null
   lidarDiag?: LidarDiag | null
+  /** Masque la pastille « N m² · laser » quand le module « Toiture mesurée »
+      est affiché juste dessous : son en-tête porte déjà le chiffre (doublon,
+      retour briac 25/07). Les états mesure en cours / estimé / excuse restent. */
+  hideMeasured?: boolean
 }
 
 /** Explication d'une mesure LiDAR absente (verdicts parlants, v18). */
@@ -102,6 +105,7 @@ export function HouseBadges({
   extra,
   lidarStatut,
   lidarDiag,
+  hideMeasured,
 }: Props) {
   const matToit = matToitLabel(matCode)
   const excuse = lidarExcuse(lidarStatut, lidarDiag)
@@ -114,7 +118,6 @@ export function HouseBadges({
   // Repli : l'année d'apparition BD TOPO quand la BDNB est muette (fréquent).
   const anneeShown = annee ?? extra?.annee_apparition ?? null
   const anneeFallback = annee === null && anneeShown !== null
-  const murs = extra?.mat_murs ? MAT_MURS_LABELS[extra.mat_murs.charAt(0)] : null
   const enConstruction = extra?.etat != null && extra.etat !== 'En service'
   if (
     anneeShown === null &&
@@ -124,9 +127,7 @@ export function HouseBadges({
     lidarM2 == null &&
     !lidarPending &&
     !dpe &&
-    !murs &&
     !enConstruction &&
-    (extra?.etages ?? 0) < 2 &&
     (extra?.logements ?? 0) < 2
   )
     return null
@@ -169,14 +170,16 @@ export function HouseBadges({
         </Badge>
       ) : null}
       {lidarM2 != null ? (
-        <Badge
-          className="is-measured tnum"
-          info={`Toit de la maison, hors annexes et extensions — mesuré au laser (nuage de points LiDAR HD IGN${
-            lidarMillesime ? `, survol ${lidarMillesime.slice(0, 4)}` : ''
-          })`}
-        >
-          <Scan size={11} strokeWidth={2} /> {lidarM2} m² · laser
-        </Badge>
+        hideMeasured ? null : (
+          <Badge
+            className="is-measured tnum"
+            info={`Toit de la maison, hors annexes et extensions — mesuré au laser (nuage de points LiDAR HD IGN${
+              lidarMillesime ? `, survol ${lidarMillesime.slice(0, 4)}` : ''
+            })`}
+          >
+            <Scan size={11} strokeWidth={2} /> {lidarM2} m² · laser
+          </Badge>
+        )
       ) : lidarPending ? (
         <Badge className="is-pending" info="Mesure de la toiture au laser en cours">
           mesure du toit…
@@ -200,16 +203,8 @@ export function HouseBadges({
           végétation surplombante
         </Badge>
       )}
-      {murs && (
-        <Badge className="is-muted" info="Matériau des murs (donnée fiscale, BD TOPO)">
-          Murs {murs}
-        </Badge>
-      )}
-      {(extra?.etages ?? 0) >= 2 && (
-        <Badge className="is-muted tnum" info="Nombre d’étages (BD TOPO)">
-          {extra!.etages} étages
-        </Badge>
-      )}
+      {/* « Murs … » et « N étages » RETIRÉS (décision briac 25/07) : aucune
+          valeur terrain. « N logements » reste : alerte bâtiment collectif. */}
       {(extra?.logements ?? 0) >= 2 && (
         <Badge
           className="is-muted tnum"

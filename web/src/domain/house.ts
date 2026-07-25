@@ -26,17 +26,6 @@ export function matToitLabel(code: string | null): string | null {
 /** Années suspectes : valeurs de reprise/défaut connues des Fichiers fonciers. */
 export const SUSPECT_YEARS = new Set([1900, 1970, 2002, 2003])
 
-/** Libellé du matériau des murs (code fiscal dmatgm, BD TOPO materiaux_des_murs). */
-export const MAT_MURS_LABELS: Record<string, string> = {
-  '1': 'pierre',
-  '2': 'meulière',
-  '3': 'béton',
-  '4': 'briques',
-  '5': 'aggloméré',
-  '6': 'bois',
-  '9': 'autres',
-}
-
 /**
  * Attributs BD TOPO du bâtiment déjà présents dans les réponses WFS que l'on
  * télécharge — longtemps ignorés (audit + veille juillet 2026). Stockés en
@@ -55,7 +44,8 @@ export interface HouseExtra {
   etat: string | null
   /** construction_legere (abri, véranda, serre). */
   legere: boolean | null
-  /** Code fiscal dmatgm (voir MAT_MURS_LABELS). */
+  /** Code fiscal dmatgm (matériau des murs) — stocké, plus affiché
+      (badge « Murs … » retiré, décision briac 25/07). */
   mat_murs: string | null
   /** Précision planimétrique du polygone (m) — au-delà de ~3 m, la
       silhouette BD TOPO « source de vérité » du dessin est douteuse. */

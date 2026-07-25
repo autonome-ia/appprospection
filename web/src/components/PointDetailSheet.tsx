@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
-import { X, Trash2, Clock, User, MapPin, CalendarClock, Phone, CalendarPlus } from 'lucide-react'
+import { X, Trash2, Clock, User, MapPin, CalendarClock, Phone, CalendarPlus, Navigation } from 'lucide-react'
 import {
   getPointDetail,
   fetchPointNotes,
   fetchPointPans,
-  localDayKey,
   type PointDetail,
   type PointNote,
 } from '../data/points'
 import { fetchPointAppointments } from '../data/appointments'
+import { wazeUrl } from './ClientSheet'
 import { APPOINTMENT_STATUS_META, type Appointment } from '../domain/appointments'
 import {
   lidarNeedsMeasure,
@@ -45,8 +45,6 @@ interface Props {
   onAddNote: (id: string, body: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onRdvNeeded?: (point: MapPoint) => void
-  /** Bascule sur l'onglet Agenda, calé sur ce jour (YYYY-MM-DD). */
-  onShowAgenda?: (day: string) => void
   /** Incrémenté quand un RDV vient d'être enregistré (formulaire par-dessus
       la fiche) : le bloc « Rendez-vous » se rafraîchit sans rouvrir. */
   apptsVersion?: number
@@ -101,7 +99,6 @@ export function PointDetailSheet({
   onAddNote,
   onDelete,
   onRdvNeeded,
-  onShowAgenda,
   apptsVersion,
 }: Props) {
   const { profile: me } = useSession()
@@ -457,33 +454,36 @@ export function PointDetailSheet({
               l'agenda pour savoir quand on est attendu. */}
           {shownRdv && (
             <div className="rdv-block">
-              <span className="rdv-when">
-                <CalendarClock size={15} strokeWidth={2} />
-                {formatRdvWhen(shownRdv.scheduled_at)}
-              </span>
-              {shownRdv.status !== 'a_venir' && (
-                <span
-                  className="rdv-outcome"
-                  style={{ color: APPOINTMENT_STATUS_META[shownRdv.status].color }}
-                >
-                  {APPOINTMENT_STATUS_META[shownRdv.status].label}
+              <span className="rdv-block-head">
+                <span className="rdv-when">
+                  <CalendarClock size={15} strokeWidth={2} />
+                  {formatRdvWhen(shownRdv.scheduled_at)}
                 </span>
-              )}
+                {shownRdv.status !== 'a_venir' && (
+                  <span
+                    className="rdv-outcome"
+                    style={{ color: APPOINTMENT_STATUS_META[shownRdv.status].color }}
+                  >
+                    {APPOINTMENT_STATUS_META[shownRdv.status].label}
+                  </span>
+                )}
+              </span>
               <span className="rdv-actions">
                 {(shownRdv.client_phone ?? point.client_phone) && (
                   <a className="text-btn" href={`tel:${shownRdv.client_phone ?? point.client_phone}`}>
                     <Phone size={14} /> Appeler
                   </a>
                 )}
-                {onShowAgenda && (
-                  <button
-                    type="button"
-                    className="text-btn"
-                    onClick={() => onShowAgenda(localDayKey(new Date(shownRdv.scheduled_at)))}
-                  >
-                    Voir dans l’agenda
-                  </button>
-                )}
+                {/* « Y aller » (Waze, coordonnées du point) — remplace « Voir
+                    dans l'agenda » (décision briac 25/07). */}
+                <a
+                  className="text-btn"
+                  href={wazeUrl(point, point.address)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Navigation size={14} /> Y aller
+                </a>
               </span>
             </div>
           )}
@@ -547,6 +547,7 @@ export function PointDetailSheet({
             extra={extra}
             lidarStatut={lidarStatut}
             lidarDiag={liveLidar ? liveLidar.toit_lidar_diag : point.toit_lidar_diag}
+            hideMeasured={lidarPans !== null}
           />
 
           {lidarPans && (

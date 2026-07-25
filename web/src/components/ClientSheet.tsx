@@ -342,6 +342,7 @@ export function ClientSheet({ appt, profile, onOpenChange, onEdit, onShowOnMap, 
                 extra={point.maison_extra}
                 lidarStatut={lidarStatut}
                 lidarDiag={liveLidar ? liveLidar.toit_lidar_diag : point.toit_lidar_diag}
+                hideMeasured={roof !== null}
               />
               {roof && (
                 // Repliée (audit UX B11) : les actions et l'historique
