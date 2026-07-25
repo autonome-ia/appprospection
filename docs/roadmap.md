@@ -127,7 +127,8 @@
   - **B12 autocomplétion BAN** sur l'adresse du RDV (helper `searchAddresses` partagé, liste en flux dans la sheet, label normalisé au tap, recherche active seulement au focus). *Reliquat non fait : stocker lng/lat + proposer de lier/poser le point (migration + UX à part).*
   - **B11 fiche client** : issues du RDV du jour (règle jour J + anti-double-tap, statut reflété localement), section « Historique » (tous les RDV du point + journal de notes), module toiture replié.
   - **C1 agenda « jour d'abord »** : mois replié par défaut en bandeau semaine (pastilles par commercial, ambre = relance), tap sur le mois = grille complète, chevrons semaine/mois selon le mode.
-- [ ] ⬜ **Restants audit UX** : B4 refonte de l'en-tête Accueil, C2 rapport PDF partageable (session dédiée, après B3 ✅).
+- [x] **B4 refonte Accueil (25/07)** : en-tête compact (avatar + Bonjour + rôle), profil/déconnexion dans une sheet derrière l'avatar, carte « Aujourd'hui » (portes/RDV du jour/à relancer + barre d'objectif hebdo, équipe pour le manager), section « Mes RDV aujourd'hui » (heure mono, tap → fiche client, RDV modifiable depuis l'Accueil), état vide explicite.
+- [ ] ⬜ **Restant audit UX : C2 rapport PDF partageable** (session dédiée — SVG→canvas→`navigator.share({files})`, terrain miné PWA iOS ; B3 ✅ le rapport reflète déjà la sélection Σ).
 - [ ] ⬜ **Équipe/invitations + écran de connexion** : volontairement EN DERNIER (décision briac 25/07) — l'interface commerciale doit être parfaite avant de lancer le test réel à plusieurs.
 
 ## Prochains chantiers (à choisir avec briac)
