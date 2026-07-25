@@ -149,10 +149,10 @@ export function MapView({
   // « Poser ici » grisé tant que le zoom ne permet pas de viser une maison.
   const [placeZoomOk, setPlaceZoomOk] = useState(true)
   // Déplacement d'un point mal posé (demande briac 25/07) : appui long sur
-  // SON marqueur → mode réticule « Déplacer ici ».
-  const [movingPoint, setMovingPoint] = useState<MapPoint | null>(null)
-  const movingRef = useRef(movingPoint)
-  movingRef.current = movingPoint
+  // SON marqueur → le point se soulève et SUIT LE DOIGT, on le lâche sur la
+  // bonne maison (vrai drag, pas de réticule).
+  const [dragId, setDragId] = useState<string | null>(null)
+  const dragRef = useRef<{ point: MapPoint; marker: maplibregl.Marker } | null>(null)
   const profileRef = useRef(profile)
   profileRef.current = profile
   // Fiche maison AVANT prospection : maison tapée (sans marqueur) + ses infos.
@@ -181,7 +181,6 @@ export function MapView({
       setSelectedId(null)
       setRdvPoint(null)
       setPlacing(false)
-      setMovingPoint(null)
       setHousePreview(null)
     }
   }, [active])
@@ -493,8 +492,8 @@ export function MapView({
     // sinon ouvre la FICHE MAISON (infos avant prospection) au zoom maison.
     // Le zoom sur une bulle est géré par le donut lui-même (élément DOM).
     map.on('click', (e) => {
-      // En mode visée ou déplacement, le tap ne sert qu'à naviguer.
-      if (placingRef.current || movingRef.current) return
+      // En mode visée ou en plein drag, le tap ne sert qu'à naviguer.
+      if (placingRef.current || dragRef.current) return
 
       // 2e tap rapproché = double-tap (zoom) : annule la fiche en attente.
       const wasPending = cancelPendingPreview()
@@ -598,19 +597,74 @@ export function MapView({
     })
   }
 
-  // Appui long (~550 ms) sur un de SES marqueurs → mode déplacement. Le
-  // timer est annulé au moindre mouvement (pan/zoom/relâche) : un appui long
-  // immobile seulement.
+  // Appui long (~550 ms, doigt quasi immobile) sur un de SES marqueurs →
+  // drag : le pan de la carte est suspendu, un fantôme du point suit le
+  // doigt, le relâcher écrit la nouvelle position (avec « Annuler »).
   useEffect(() => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
     let timer: number | undefined
+    let start: { x: number; y: number } | null = null
+    let candidate: MapPoint | null = null
     const clear = () => {
       window.clearTimeout(timer)
       timer = undefined
+      start = null
+      candidate = null
     }
+
+    const beginDrag = () => {
+      const pt = candidate
+      timer = undefined
+      if (!pt) return
+      navigator.vibrate?.(30)
+      map.dragPan.disable() // le doigt déplace le POINT, plus la carte
+      const el = document.createElement('div')
+      el.className = 'drag-ghost'
+      el.style.background = STATUS_BY_VALUE[pt.status].color
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([pt.lng, pt.lat])
+        .addTo(map)
+      dragRef.current = { point: pt, marker }
+      setSelectedId(null)
+      setHousePreview(null)
+      setDragId(pt.id) // masque l'original pendant le drag
+    }
+
+    const finishDrag = () => {
+      const d = dragRef.current
+      if (!d) return
+      dragRef.current = null
+      map.dragPan.enable()
+      const dropped = d.marker.getLngLat()
+      d.marker.remove()
+      setDragId(null)
+      // Lâché quasi sur place : simple appui long raté, pas d'écriture.
+      const from = map.project([d.point.lng, d.point.lat])
+      const to = map.project(dropped)
+      if (Math.hypot(to.x - from.x, to.y - from.y) < 10) return
+      const prev = { lng: d.point.lng, lat: d.point.lat }
+      updatePoint(d.point.id, { lng: dropped.lng, lat: dropped.lat })
+        .then(() =>
+          toast.success('Point déplacé', {
+            action: {
+              label: 'Annuler',
+              onClick: () =>
+                void updatePoint(d.point.id, prev).catch((e) => {
+                  console.error('Retour du point :', e)
+                  toast.error('Impossible de revenir en arrière — vérifiez le réseau')
+                }),
+            },
+          }),
+        )
+        .catch((e) => {
+          console.error('Déplacement du point :', e)
+          toast.error('Déplacement impossible — réseau, ou point d’un autre commercial')
+        })
+    }
+
     const onDown = (e: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent) => {
-      if (placingRef.current || movingRef.current) return
+      if (placingRef.current || dragRef.current) return
       if (!map.getLayer(MARKERS_LAYER)) return
       const bbox: [[number, number], [number, number]] = [
         [e.point.x - HIT_TOLERANCE, e.point.y - HIT_TOLERANCE],
@@ -625,48 +679,49 @@ export function MapView({
       if (!prof || (prof.role !== 'manager' && pt.created_by !== null && pt.created_by !== prof.id))
         return
       clear()
-      timer = window.setTimeout(() => {
-        timer = undefined
-        navigator.vibrate?.(30)
-        setSelectedId(null)
-        setHousePreview(null)
-        setMovingPoint(pt)
-        map.easeTo({ center: [pt.lng, pt.lat], duration: 250 })
-      }, 550)
+      candidate = pt
+      start = { x: e.point.x, y: e.point.y }
+      timer = window.setTimeout(beginDrag, 550)
     }
-    const cancel = () => clear()
+    const onMove = (e: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent) => {
+      const d = dragRef.current
+      if (d) {
+        d.marker.setLngLat(e.lngLat)
+        return
+      }
+      // Tolérance de tremblement AVANT le déclenchement : > 8 px = pan voulu.
+      if (timer !== undefined && start && Math.hypot(e.point.x - start.x, e.point.y - start.y) > 8) {
+        clear()
+      }
+    }
+    const onUp = () => {
+      if (dragRef.current) finishDrag()
+      else clear()
+    }
     map.on('touchstart', onDown)
     map.on('mousedown', onDown)
-    map.on('touchend', cancel)
-    map.on('touchcancel', cancel)
-    map.on('touchmove', cancel)
-    map.on('mouseup', cancel)
-    map.on('move', cancel)
+    map.on('touchmove', onMove)
+    map.on('mousemove', onMove)
+    map.on('touchend', onUp)
+    map.on('touchcancel', onUp)
+    map.on('mouseup', onUp)
     return () => {
       clear()
+      // Démontage en plein drag : on nettoie sans écrire.
+      if (dragRef.current) {
+        dragRef.current.marker.remove()
+        dragRef.current = null
+        map.dragPan.enable()
+      }
       map.off('touchstart', onDown)
       map.off('mousedown', onDown)
-      map.off('touchend', cancel)
-      map.off('touchcancel', cancel)
-      map.off('touchmove', cancel)
-      map.off('mouseup', cancel)
-      map.off('move', cancel)
+      map.off('touchmove', onMove)
+      map.off('mousemove', onMove)
+      map.off('touchend', onUp)
+      map.off('touchcancel', onUp)
+      map.off('mouseup', onUp)
     }
-  }, [mapLoaded])
-
-  const confirmMove = async () => {
-    const map = mapRef.current
-    if (!map || !movingPoint) return
-    const { lng, lat } = map.getCenter()
-    try {
-      await updatePoint(movingPoint.id, { lng, lat })
-      toast.success('Point déplacé')
-    } catch (e) {
-      console.error('Déplacement du point :', e)
-      toast.error('Déplacement impossible — réseau, ou point d’un autre commercial')
-    }
-    setMovingPoint(null)
-  }
+  }, [mapLoaded, updatePoint])
 
   // Suit le zoom pendant la visée : grise « Poser ici » sous le seuil.
   useEffect(() => {
@@ -863,6 +918,7 @@ export function MapView({
         // Carte privée : le commercial ne voit que SES points (les temp-
         // locaux, created_by null, sont forcément à lui) ; le manager voit
         // tout, filtrable par commercial.
+        p.id !== dragId && // l'original est masqué pendant le drag (fantôme au doigt)
         (isManager
           ? whoFilter.size === 0 || p.created_by === null || whoFilter.has(p.created_by)
           : p.created_by === null || p.created_by === profile?.id) &&
@@ -870,7 +926,7 @@ export function MapView({
         (cutoff === null || (p.visited_at !== null && Date.parse(p.visited_at) < cutoff)),
     )
     source?.setData(toFeatureCollection(visible))
-  }, [points, mapLoaded, statusFilter, ageFilter, whoFilter, isManager, profile?.id])
+  }, [points, mapLoaded, statusFilter, ageFilter, whoFilter, isManager, profile?.id, dragId])
 
   // Surbrillance du point sélectionné.
   useEffect(() => {
@@ -1001,7 +1057,7 @@ export function MapView({
         </button>
       </div>
 
-      {!placing && !movingPoint && (
+      {!placing && (
         <>
           {filtersOpen && (
           <div className="map-filterbar">
@@ -1136,35 +1192,6 @@ export function MapView({
         </>
       )}
 
-      {movingPoint && (
-        <>
-          {/* Mode déplacement (appui long sur son marqueur) : même réticule
-              que la pose — on vise la BONNE maison, puis « Déplacer ici ». */}
-          <div className="map-crosshair" aria-hidden="true">
-            <svg width="52" height="52" viewBox="0 0 52 52">
-              <circle cx="26" cy="26" r="15" fill="none" stroke="var(--accent)" strokeWidth="2" />
-              <circle cx="26" cy="26" r="3" fill="var(--accent)" />
-              <line x1="26" y1="3" x2="26" y2="9" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
-              <line x1="26" y1="43" x2="26" y2="49" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
-              <line x1="3" y1="26" x2="9" y2="26" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
-              <line x1="43" y1="26" x2="49" y2="26" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </div>
-          <div className="place-bar">
-            <p className="eyebrow place-hint">
-              Déplacer « {STATUS_BY_VALUE[movingPoint.status].label} » — visez la bonne maison
-            </p>
-            <div className="place-actions">
-              <button type="button" className="btn btn-ghost" onClick={() => setMovingPoint(null)}>
-                Annuler
-              </button>
-              <button type="button" className="btn btn-primary" onClick={confirmMove}>
-                Déplacer ici
-              </button>
-            </div>
-          </div>
-        </>
-      )}
 
       {housePreview && (
         <HousePreviewSheet
