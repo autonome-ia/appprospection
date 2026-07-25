@@ -80,18 +80,6 @@ function formatRdvWhen(iso: string): string {
   return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time}`
 }
 
-/** Presets 1-tap de la date de relance (audit UX A4) — évalués à l'affichage
-    (la sheet peut rester montée d'un jour à l'autre). */
-function REVISIT_PRESETS(): [string, string][] {
-  const nextSaturday = (6 - new Date().getDay() + 7) % 7 || 7
-  return [
-    ['Demain', dayPlus(1)],
-    ['+3 j', dayPlus(3)],
-    ['Samedi', dayPlus(nextSaturday)],
-    ['+2 sem', dayPlus(14)],
-  ]
-}
-
 export function PointDetailSheet({
   open,
   point,
@@ -543,6 +531,19 @@ export function PointDetailSheet({
                   onChange={(e) => setClientPhone(e.target.value)}
                 />
               </div>
+              {/* Date de relance DANS la section client (retour briac 25/07),
+                  sans presets — le champ date natif suffit. */}
+              {status === 'a_revoir' && (
+                <>
+                  <p className="eyebrow field-label">Revoir le</p>
+                  <input
+                    className="field-input"
+                    type="date"
+                    value={revisitAt}
+                    onChange={(e) => setRevisitAt(e.target.value)}
+                  />
+                </>
+              )}
             </>
           )}
 
@@ -637,31 +638,6 @@ export function PointDetailSheet({
             </>
           )}
 
-          {/* La date de relance reste visible même statut replié : sur un
-              « à revoir », la décaler est l'édition la plus fréquente. */}
-          {status === 'a_revoir' && (
-            <>
-              <p className="eyebrow field-label">Revoir le</p>
-              <input
-                className="field-input"
-                type="date"
-                value={revisitAt}
-                onChange={(e) => setRevisitAt(e.target.value)}
-              />
-              <div className="chip-row revisit-presets">
-                {REVISIT_PRESETS().map(([label, value]) => (
-                  <button
-                    key={label}
-                    type="button"
-                    className={`chip ${revisitAt === value ? 'is-active' : ''}`}
-                    onClick={() => setRevisitAt(value)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
 
           {/* Destructif déclassé : plus de rangée à égalité avec Enregistrer,
               où le pouce arrivait lancé en fin de scroll (audit UX, A3).
