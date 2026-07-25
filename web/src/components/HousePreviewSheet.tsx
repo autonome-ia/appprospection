@@ -97,8 +97,9 @@ export function HousePreviewSheet({
           <StatusPicker active={activeStatus} onChange={onStatusChange} />
 
           {lidarOk && lidar.toit_lidar_pans && (
-            // Ouvert d'emblée : la fiche AVANT prospection est un moment
-            // d'argumentaire (audit UX, B2).
+            // REPLIÉ comme partout (décision briac 25/07) : quand la mesure
+            // tombe, seule la ligne « Toiture mesurée · N m² » apparaît — la
+            // 3D ne surgit plus toute seule, c'est le commercial qui déplie.
             <RoofModule
               roof={lidar.toit_lidar_pans}
               wastePct={suggestedWastePct(
@@ -110,7 +111,6 @@ export function HousePreviewSheet({
               maisonM2={lidar.toit_lidar_principal_m2 || lidar.toit_lidar_m2}
               totalM2={lidar.toit_lidar_m2}
               millesime={lidar.toit_lidar_millesime}
-              defaultOpen
             />
           )}
 

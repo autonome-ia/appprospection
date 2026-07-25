@@ -13,9 +13,6 @@ interface Props {
   maisonM2: number | null
   totalM2: number | null
   millesime: string | null
-  /** Ouvert d'emblée dans les fiches d'argumentaire (maison, client),
-      replié dans la fiche point (la pose ne doit pas être taxée). */
-  defaultOpen?: boolean
 }
 
 /**
@@ -24,16 +21,10 @@ interface Props {
  * trois blocs empilés s'intercalaient entre le statut et les notes de la
  * fiche point (audit UX, B2).
  */
-export function RoofModule({
-  roof,
-  wastePct,
-  address,
-  maisonM2,
-  totalM2,
-  millesime,
-  defaultOpen = false,
-}: Props) {
-  const [open, setOpen] = useState(defaultOpen)
+export function RoofModule({ roof, wastePct, address, maisonM2, totalM2, millesime }: Props) {
+  // TOUJOURS replié à l'ouverture (décision briac 25/07) : dans les trois
+  // fiches, c'est le commercial qui déplie — la 3D ne surgit jamais seule.
+  const [open, setOpen] = useState(false)
   const [view, setView] = useState<'3d' | 'plan'>('3d')
   // Le rapport est un overlay plein écran : le segment « Rapport » l'ouvre
   // directement (1 tap) sans changer la vue courante.
