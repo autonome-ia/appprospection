@@ -9,7 +9,7 @@ import {
   ORTHO_SOURCE_ID,
   getOrthoSource,
 } from '../config/map'
-import { generateMarkerImages, MARKER_PREFIX, NOTE_SUFFIX } from '../config/markers'
+import { generateMarkerImages, MARKER_PREFIX, MARKER_PIXEL_RATIO, NOTE_SUFFIX } from '../config/markers'
 import { createClusterBadge, type ClusterProps } from '../config/clusters'
 import { PAN_COLORS } from '../domain/colors'
 import { toast } from 'sonner'
@@ -341,7 +341,7 @@ export function MapView({
       const images = generateMarkerImages()
       for (const key of Object.keys(images)) {
         const name = `${MARKER_PREFIX}${key}`
-        if (!map.hasImage(name)) map.addImage(name, images[key], { pixelRatio: 2 })
+        if (!map.hasImage(name)) map.addImage(name, images[key], { pixelRatio: MARKER_PIXEL_RATIO })
       }
 
       // Surbrillance de la maison consultée (fiche maison) : contour + voile
