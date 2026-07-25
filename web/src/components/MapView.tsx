@@ -17,7 +17,7 @@ import { STATUSES, STATUS_BY_VALUE, statusColorExpression, type PointStatus } fr
 import { StatusPicker } from './StatusPicker'
 import { PointDetailSheet } from './PointDetailSheet'
 import { HousePreviewSheet } from './HousePreviewSheet'
-import { fetchPointPans, reverseGeocode } from '../data/points'
+import { fetchPointPans, localDayKey, reverseGeocode } from '../data/points'
 import type { HouseInfo } from '../data/enrich'
 import type { LidarResult } from '../data/lidar'
 import type { LidarPan, RoofData } from '../domain/house'
@@ -25,7 +25,7 @@ import { AddressSearch } from './AddressSearch'
 import { AppointmentForm } from './AppointmentForm'
 import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
 import { colorForCommercial } from '../domain/colors'
-import { Layers, Plus, SlidersHorizontal } from 'lucide-react'
+import { BellRing, Layers, Plus, SlidersHorizontal } from 'lucide-react'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { usePoints } from '../hooks/usePoints'
 import type { MapPoint, Profile } from '../domain/types'
@@ -133,6 +133,10 @@ export function MapView({
   // combiné en ET avec le statut — ex. « Absent » + « > 1 mois » = les portes
   // à retenter en priorité.
   const [ageFilter, setAgeFilter] = useState<number | null>(null)
+  // Filtre « À relancer » (audit UX B6) : les « à revoir » dont la date de
+  // relance est atteinte — les relances dues, visibles là où on en a besoin
+  // (dans le quartier). Chip seule, pas de pastille marqueur (véto designer).
+  const [dueOnly, setDueOnly] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
   // Filtre « Qui » (manager seulement) : voir les points d'un ou plusieurs
   // commerciaux. Le commercial, lui, ne voit QUE ses points (décision chef
@@ -145,7 +149,8 @@ export function MapView({
     fetchOrgProfiles().then(setOrgProfiles).catch((e) => console.error('Profils :', e))
   }, [isManager])
   // Badge du bouton filtres (nb de critères actifs).
-  const nFilters = statusFilter.size + (ageFilter !== null ? 1 : 0) + (whoFilter.size > 0 ? 1 : 0)
+  const nFilters =
+    statusFilter.size + (ageFilter !== null ? 1 : 0) + (whoFilter.size > 0 ? 1 : 0) + (dueOnly ? 1 : 0)
   // « Poser ici » grisé tant que le zoom ne permet pas de viser une maison.
   const [placeZoomOk, setPlaceZoomOk] = useState(true)
   // Déplacement d'un point mal posé (demande briac 25/07) : appui long sur
@@ -562,6 +567,7 @@ export function MapView({
     // double pose (audit) : on l'assouplit. Le filtre d'ancienneté exclut par
     // construction un point qu'on vient de visiter.
     if (ageFilter !== null) setAgeFilter(null)
+    if (dueOnly) setDueOnly(false) // un point tout juste posé n'a pas de relance due
     if (statusFilter.size > 0 && !statusFilter.has(status)) setStatusFilter(new Set())
     const { point, saved } = addPoint(lng, lat, status)
     // La fiche ne s'ouvre PLUS après chaque pose (audit UX A1 : 3 taps pour
@@ -913,6 +919,7 @@ export function MapView({
     if (!map || !mapLoaded) return
     const source = map.getSource(POINTS_SOURCE) as maplibregl.GeoJSONSource | undefined
     const cutoff = ageFilter !== null ? Date.now() - ageFilter * 86_400_000 : null
+    const today = localDayKey(new Date()) // relances dues = revisit_at ≤ aujourd'hui
     const visible = points.filter(
       (p) =>
         // Carte privée : le commercial ne voit que SES points (les temp-
@@ -923,10 +930,11 @@ export function MapView({
           ? whoFilter.size === 0 || p.created_by === null || whoFilter.has(p.created_by)
           : p.created_by === null || p.created_by === profile?.id) &&
         (statusFilter.size === 0 || statusFilter.has(p.status)) &&
-        (cutoff === null || (p.visited_at !== null && Date.parse(p.visited_at) < cutoff)),
+        (cutoff === null || (p.visited_at !== null && Date.parse(p.visited_at) < cutoff)) &&
+        (!dueOnly || (p.status === 'a_revoir' && p.revisit_at !== null && p.revisit_at <= today)),
     )
     source?.setData(toFeatureCollection(visible))
-  }, [points, mapLoaded, statusFilter, ageFilter, whoFilter, isManager, profile?.id, dragId])
+  }, [points, mapLoaded, statusFilter, ageFilter, whoFilter, dueOnly, isManager, profile?.id, dragId])
 
   // Surbrillance du point sélectionné.
   useEffect(() => {
@@ -1110,6 +1118,15 @@ export function MapView({
               </div>
             )}
             <div className="map-filterrow">
+              {/* Relances dues (revisit_at atteint) — audit UX B6. */}
+              <button
+                type="button"
+                className={`chip ${dueOnly ? 'is-active' : ''}`}
+                onClick={() => setDueOnly((v) => !v)}
+                title="Points « à revoir » dont la date de relance est atteinte"
+              >
+                <BellRing size={13} strokeWidth={2} /> À relancer
+              </button>
               {(
                 [
                   [14, '> 2 sem'],

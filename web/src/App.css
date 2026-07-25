@@ -402,6 +402,9 @@
   display: none;
 }
 .chip {
+  /* Couleur d'activation par défaut (chips sans statut : ancienneté, presets,
+     « À relancer ») — les chips de statut la surchargent en style inline. */
+  --chip: var(--accent);
   position: relative;
   display: inline-flex;
   align-items: center;
