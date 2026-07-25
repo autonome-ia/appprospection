@@ -952,6 +952,40 @@
 }
 
 /* --- Stats : plage, focus, drill --- */
+/* Barre ‹ plage › : navigation vers les périodes passées (audit UX B8). */
+.stats-rangebar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: -6px 0 12px;
+}
+.stats-rangebar .stats-range {
+  margin: 0 4px;
+}
+.range-nav {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: none;
+  border-radius: var(--r-full);
+  color: var(--ink-2);
+}
+/* Cible tactile ~44 px, visuel discret inchangé. */
+.range-nav::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+}
+.range-nav:disabled {
+  color: var(--line-strong);
+}
+.range-today {
+  margin-left: auto;
+  color: var(--accent);
+}
 .stats-range {
   font-family: var(--font-mono);
   font-size: 12px;

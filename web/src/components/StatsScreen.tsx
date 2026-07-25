@@ -4,7 +4,9 @@ import { motion } from 'motion/react'
 import { ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Minus, Pencil, Plus } from 'lucide-react'
 import {
   fetchStatsComparison,
+  periodRange,
   ratio,
+  shiftNow,
   type Period,
   type CommercialStats,
   type StatsResult,
@@ -161,6 +163,9 @@ function Chart({ daily, days }: { daily: Record<string, number>; days: string[] 
 
 export function StatsScreen({ profile }: { profile: Profile | null }) {
   const [period, setPeriod] = useState<Period>('semaine')
+  // Décalage de période (≤ 0) : le bilan du lundi matin porte sur la semaine
+  // ÉCOULÉE, pas sur la semaine en cours (audit UX B8).
+  const [offset, setOffset] = useState(0)
   const [data, setData] = useState<{ current: StatsResult; previous: StatsResult; range: { start: Date; end: Date } } | null>(null)
   const [profiles, setProfiles] = useState<OrgProfile[]>([])
   const [drillId, setDrillId] = useState<string | null>(null)
@@ -189,7 +194,7 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
   const statsSeq = useRef(0)
   const loadStats = useCallback(() => {
     const seq = ++statsSeq.current
-    fetchStatsComparison(period)
+    fetchStatsComparison(period, offset)
       .then((d) => {
         if (seq !== statsSeq.current) return
         setData(d)
@@ -200,7 +205,7 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
         if (seq !== statsSeq.current) return
         setLoadError(true)
       })
-  }, [period])
+  }, [period, offset])
 
   // Changer de commercial ferme l'éditeur d'objectif.
   useEffect(() => setTargetEdit(null), [drillId])
@@ -246,9 +251,15 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
     return sb - sa || rb - ra
   })
 
-  const rangeLabel = data
-    ? `${new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(data.range.start)} – ${new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(new Date(data.range.end.getTime() - 86400000))}`
-    : ''
+  // Plage AFFICHÉE calculée côté client (pas depuis la réponse) : le libellé
+  // suit le tap sur ‹ › immédiatement, sans attendre le fetch.
+  const shownRange = periodRange(period, shiftNow(period, offset))
+  const fmtDay = (d: Date) =>
+    new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(d)
+  const rangeLabel =
+    period === 'jour'
+      ? fmtDay(shownRange.start)
+      : `${fmtDay(shownRange.start)} – ${fmtDay(new Date(shownRange.end.getTime() - 86400000))}`
 
   const showChart = period !== 'jour' && data
   // Objectif hebdo : par commercial en drill-down/vue perso, AGRÉGÉ en vue
@@ -286,7 +297,10 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
             key={p.value}
             type="button"
             className={`seg-btn ${period === p.value ? 'is-active' : ''}`}
-            onClick={() => setPeriod(p.value)}
+            onClick={() => {
+              setPeriod(p.value)
+              setOffset(0) // « semaine -2 » n'a pas de sens transposé en jours
+            }}
           >
             {period === p.value && (
               <motion.span layoutId="seg-indicator" className="seg-ind" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />
@@ -295,7 +309,32 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
           </button>
         ))}
       </div>
-      {rangeLabel && <p className="stats-range">{rangeLabel}</p>}
+      {/* Navigation vers les périodes passées (audit UX B8). */}
+      <div className="stats-rangebar">
+        <button
+          type="button"
+          className="range-nav"
+          onClick={() => setOffset((o) => o - 1)}
+          aria-label="Période précédente"
+        >
+          <ChevronLeft size={16} strokeWidth={2} />
+        </button>
+        <p className="stats-range">{rangeLabel}</p>
+        <button
+          type="button"
+          className="range-nav"
+          onClick={() => setOffset((o) => Math.min(0, o + 1))}
+          disabled={offset === 0}
+          aria-label="Période suivante"
+        >
+          <ChevronRight size={16} strokeWidth={2} />
+        </button>
+        {offset < 0 && (
+          <button type="button" className="text-btn range-today" onClick={() => setOffset(0)}>
+            Aujourd’hui
+          </button>
+        )}
+      </div>
 
       {loadError && (
         <div className="load-error">
