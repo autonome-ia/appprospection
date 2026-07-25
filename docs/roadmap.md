@@ -115,7 +115,7 @@
 - [x] **Lot B « terrain » (25/07, arbitrage briac : zéro prospect perdu)** — 3 commits :
   - **B1 bloc « Rendez-vous »** en tête de fiche point : prochain RDV à venir (sinon le dernier + son issue), « Appeler », « Voir dans l'agenda » (bascule d'onglet calée sur le jour du RDV) ; **bandeau ambre « Aucun RDV planifié » + Planifier** sur un point `rdv_pris` orphelin (le trou silencieux) ; « + RDV » à côté du label Client ; le bloc se rafraîchit quand un RDV est posé par-dessus la fiche.
   - **B6 chip « À relancer »** dans les filtres carte (`revisit_at` atteint), combinée en ET, assouplie à la pose. Au passage : défaut `--chip: var(--accent)` (l'état actif des chips sans couleur inline reposait sur une variable indéfinie).
-  - **B10 téléphone client sur le point** (migration `db/0014` — **à exécuter AVANT le déploiement**, la colonne est dans le SELECT des points) : champ dans la fiche, `tel:` dans l'en-tête, bouton d'appel sur les relances de l'Accueil, synchro RDV bidirectionnelle (pré-rempli à la création, réécrit seulement si modifié).
+  - **B10 téléphone client sur le point** (migration `db/0014` **exécutée** le 25/07) : champ dans la fiche, `tel:` dans l'en-tête, bouton d'appel sur les relances de l'Accueil, synchro RDV bidirectionnelle (pré-rempli à la création, réécrit seulement si modifié).
 - [ ] ⬜ **Lots B restants et C** : B3 sélection Σ→rapport, B4 refonte Accueil, pont Stats→Carte (reliquat de B5), B8 chevrons de périodes passées, B11 ClientSheet (actions en tête + historique), B12 BAN sur l'adresse RDV, B13 badge matériau tappable, B14 squelettes ; C1 agenda « jour d'abord », C2 rapport PDF partageable.
 
 ## Prochains chantiers (à choisir avec briac)
