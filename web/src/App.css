@@ -360,6 +360,13 @@
   opacity: 0.45;
   cursor: default;
 }
+/* Bascule photo standard ↔ HD (WMS 512 px). */
+.map-tool-hd {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
 
 /* Contrôles MapLibre (géolocalisation, attribution) alignés sur la DA :
    fond/bordure/ombre des tokens, cibles tactiles 44 px, marges cohérentes. */

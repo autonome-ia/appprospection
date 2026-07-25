@@ -7,7 +7,10 @@ import {
   FRANCE_ZOOM,
   ORTHO_LAYER_ID,
   ORTHO_SOURCE_ID,
-  getOrthoSource,
+  ORTHO2X_LAYER_ID,
+  ORTHO2X_SOURCE_ID,
+  orthoWmtsSource,
+  orthoWms2xSource,
 } from '../config/map'
 import {
   generateMarkerImages,
@@ -31,7 +34,7 @@ import { AddressSearch } from './AddressSearch'
 import { AppointmentForm } from './AppointmentForm'
 import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
 import { colorForCommercial } from '../domain/colors'
-import { BellRing, Layers, Plus, SlidersHorizontal } from 'lucide-react'
+import { BellRing, Plus, SlidersHorizontal } from 'lucide-react'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { usePoints } from '../hooks/usePoints'
 import type { MapPoint, Profile } from '../domain/types'
@@ -115,21 +118,12 @@ export function MapView({
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
-  // Couches de bâtiments du fond Plan IGN (à masquer en mode Toits).
-  const baseBatiLayersRef = useRef<string[]>([])
-  // Couches NON-texte du Plan IGN dessinées AU-DESSUS de l'ortho (routes en
-  // rubans blancs/jaunes, plans d'eau aplats, voile papier…) : masquées en mode
-  // Toits pour que la photo soit pure (les routes restent visibles… en photo),
-  // restaurées à leur visibilité d'origine en mode plan.
-  const basePlanOverlayLayersRef = useRef<Map<string, 'visible' | 'none'>>(new Map())
-  // Couches de labels du fond (noms de rues…) : halo blanc ajouté en mode
-  // Toits (illisibles sinon sur la photo), valeurs d'origine restaurées en plan.
-  const baseLabelLayersRef = useRef<string[]>([])
-  const labelHaloBackupRef = useRef(new Map<string, { color: unknown; width: unknown }>())
 
   const { points, addPoint, updatePoint, addNote, removePoint } = usePoints(profile)
   const [activeStatus, setActiveStatus] = useState<PointStatus>('absent')
-  const [orthoOn, setOrthoOn] = useState(true) // vue Toits par défaut
+  // La vue Plan a été RETIRÉE (25/07, décision briac) : la photo est
+  // permanente, le bouton bascule sur la variante « HD » (WMS 512 px).
+  const [sharpOn, setSharpOn] = useState(false)
   const [mapLoaded, setMapLoaded] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   // Point pour lequel on saisit un RDV (après avoir posé/marqué "RDV pris").
@@ -245,100 +239,62 @@ export function MapView({
     map.addControl(geolocate, 'top-right')
 
     map.on('load', () => {
-      // Repère : premier calque de texte (labels) + sa police, pour insérer le
-      // voile juste en dessous (labels préservés) et réutiliser une police valide.
+      // Repère : premier calque de texte (labels) — l'ortho s'insère juste en
+      // dessous (les noms de rues restent lisibles par-dessus la photo).
       const layers = map.getStyle().layers ?? []
       const firstSymbol = layers.find((l) => l.type === 'symbol')
       const beforeLabels = firstSymbol?.id
 
-      // Couches de bâtiments du Plan IGN (fills) : à masquer en mode Toits pour
-      // laisser voir la photo des toits en dessous.
-      baseBatiLayersRef.current = layers
-        .filter((l) => {
-          const sl = (l as { 'source-layer'?: string })['source-layer']
-          return l.type === 'fill' && typeof sl === 'string' && sl.includes('bati')
-        })
-        .map((l) => l.id)
-      // Labels du fond IGN (capturés AVANT l'ajout de nos propres couches symbol).
-      baseLabelLayersRef.current = layers.filter((l) => l.type === 'symbol').map((l) => l.id)
-
-      // Le style Plan IGN entremêle textes et tracés : ~370 couches non-texte
-      // (routes, hydro, aplats bâti…) sont rendues APRÈS le premier symbol,
-      // donc PAR-DESSUS l'ortho (insérée sous les labels). En mode Toits elles
-      // recouvraient la photo (rubans de routes opaques, lacs aplats). On les
-      // recense ici avec leur visibilité d'origine pour pouvoir les masquer.
+      // La vue Plan a été retirée (25/07) : la photo est PERMANENTE. Le style
+      // Plan IGN entremêle textes et tracés — ~370 couches non-texte rendues
+      // APRÈS le premier symbol passeraient par-dessus l'ortho (rubans de
+      // routes opaques, lacs aplats) : masquées définitivement, ainsi que les
+      // bâtiments. Les labels reçoivent un halo blanc (illisibles sinon sur
+      // la photo). Plus de restauration : il n'y a plus de mode plan.
       const firstSymbolIndex = firstSymbol ? layers.indexOf(firstSymbol) : layers.length
-      basePlanOverlayLayersRef.current = new Map(
-        layers
-          .slice(firstSymbolIndex)
-          .filter((l) => l.type !== 'symbol')
-          .map((l) => [
-            l.id,
-            (l.layout?.visibility === 'none' ? 'none' : 'visible') as 'visible' | 'none',
-          ]),
-      )
-
-      // Voile chaud : teinte le sol (ton papier) pour que les routes blanches
-      // ressortent. Inséré SOUS les routes si on les trouve (elles restent
-      // blanches et nettes), sinon sous les labels.
-      const firstRoad = layers.find((l) => {
-        const sl = (l as { 'source-layer'?: string })['source-layer']
-        return l.type === 'line' && typeof sl === 'string' && sl.includes('routier')
-      })
-      const washBefore = firstRoad?.id ?? beforeLabels
-      if (washBefore) {
-        map.addLayer(
-          {
-            id: 'base-wash',
-            type: 'background',
-            paint: { 'background-color': '#efe8da', 'background-opacity': 0.5 },
-          },
-          washBefore,
-        )
+      for (const l of layers.slice(firstSymbolIndex)) {
+        if (l.type !== 'symbol') map.setLayoutProperty(l.id, 'visibility', 'none')
       }
-
-      // Palette : eau bleu doux, végétation verte -> touches de couleur.
-      for (const layer of map.getStyle().layers ?? []) {
-        const sl = (layer as { 'source-layer'?: string })['source-layer']
-        if (!sl) continue
-        const s = sl.toLowerCase()
-        try {
-          if (layer.type === 'fill') {
-            // Teintes un peu appuyées : le voile chaud (au-dessus) les adoucit.
-            if (s.includes('hydro') || s.includes('eau') || s.includes('water')) {
-              map.setPaintProperty(layer.id, 'fill-color', '#aecfee')
-            } else if (s.includes('veget') || s.includes('foret')) {
-              map.setPaintProperty(layer.id, 'fill-color', '#cfe3b5')
-            }
-          } else if (layer.type === 'line') {
-            if (s.includes('hydro') || s.includes('eau') || s.includes('water')) {
-              map.setPaintProperty(layer.id, 'line-color', '#a8cee9')
-            }
+      for (const l of layers) {
+        const sl = (l as { 'source-layer'?: string })['source-layer']
+        if (l.type === 'fill' && typeof sl === 'string' && sl.includes('bati')) {
+          map.setLayoutProperty(l.id, 'visibility', 'none')
+        }
+        if (l.type === 'symbol') {
+          try {
+            map.setPaintProperty(l.id, 'text-halo-color', 'rgba(255, 255, 255, 0.9)')
+            map.setPaintProperty(l.id, 'text-halo-width', 1.2)
+          } catch {
+            /* couche non modifiable : on ignore */
           }
-        } catch {
-          /* couche non modifiable : on ignore */
         }
       }
 
-      // Ortho-photo (mode "Toits") : insérée SOUS les libellés pour que les noms
-      // de rues restent visibles PAR-DESSUS la photo (vue hybride). Masquée par défaut.
-      map.addSource(ORTHO_SOURCE_ID, getOrthoSource())
+      // Correction douce, dégressive avec le zoom : la mosaïque IGN est
+      // voilée aux zooms moyens mais la photo 20 cm est propre au zoom
+      // maison — la sur-corriger la rendait artificielle.
+      const orthoPaint = {
+        'raster-saturation': ['interpolate', ['linear'], ['zoom'], 13, 0.25, 17, 0.15, 19, 0.08],
+        'raster-contrast': ['interpolate', ['linear'], ['zoom'], 13, 0.12, 17, 0.07, 19, 0.03],
+        'raster-brightness-max': ['interpolate', ['linear'], ['zoom'], 13, 0.95, 19, 0.99],
+      } as maplibregl.RasterLayerSpecification['paint']
+
+      // Deux couches ortho : WMTS standard (visible) + « HD » WMS 512 px
+      // (masquée, bascule au bouton). Les tuiles d'une couche masquée ne sont
+      // pas téléchargées : pas de double trafic.
+      map.addSource(ORTHO_SOURCE_ID, orthoWmtsSource)
+      map.addLayer(
+        { id: ORTHO_LAYER_ID, type: 'raster', source: ORTHO_SOURCE_ID, paint: orthoPaint },
+        beforeLabels,
+      )
+      map.addSource(ORTHO2X_SOURCE_ID, orthoWms2xSource)
       map.addLayer(
         {
-          id: ORTHO_LAYER_ID,
+          id: ORTHO2X_LAYER_ID,
           type: 'raster',
-          source: ORTHO_SOURCE_ID,
+          source: ORTHO2X_SOURCE_ID,
           layout: { visibility: 'none' },
-          // Correction douce, dégressive avec le zoom : la mosaïque IGN est
-          // voilée aux zooms moyens mais la photo 20 cm est propre au zoom
-          // maison — la sur-corriger la rendait artificielle. (Le gros du
-          // « voile laiteux » venait en fait de base-wash, désormais masqué
-          // en mode Toits.)
-          paint: {
-            'raster-saturation': ['interpolate', ['linear'], ['zoom'], 13, 0.25, 17, 0.15, 19, 0.08],
-            'raster-contrast': ['interpolate', ['linear'], ['zoom'], 13, 0.12, 17, 0.07, 19, 0.03],
-            'raster-brightness-max': ['interpolate', ['linear'], ['zoom'], 13, 0.95, 19, 0.99],
-          },
+          paint: orthoPaint,
         },
         beforeLabels,
       )
@@ -1015,55 +971,18 @@ export function MapView({
     onFocusHandled?.()
   }, [focus, mapLoaded, onFocusHandled])
 
-  // Bascule de la couche ortho-photo (voir les toits). S'applique aussi au
-  // chargement (mapLoaded) pour honorer la vue Toits par défaut.
+  // Bascule photo standard ↔ « HD » (WMS 512 px) : une seule des deux couches
+  // est visible — les tuiles de l'autre ne sont pas téléchargées.
   useEffect(() => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
     if (map.getLayer(ORTHO_LAYER_ID)) {
-      map.setLayoutProperty(ORTHO_LAYER_ID, 'visibility', orthoOn ? 'visible' : 'none')
+      map.setLayoutProperty(ORTHO_LAYER_ID, 'visibility', sharpOn ? 'none' : 'visible')
     }
-    // Bâtiments blancs du Plan IGN : masqués en mode Toits (sinon ils cachent les toits).
-    for (const id of baseBatiLayersRef.current) {
-      if (map.getLayer(id)) {
-        map.setLayoutProperty(id, 'visibility', orthoOn ? 'none' : 'visible')
-      }
+    if (map.getLayer(ORTHO2X_LAYER_ID)) {
+      map.setLayoutProperty(ORTHO2X_LAYER_ID, 'visibility', sharpOn ? 'visible' : 'none')
     }
-    // Tracés du plan rendus au-dessus de la photo (routes en rubans, hydro…) :
-    // masqués en mode Toits — les routes redeviennent de vraies routes photo,
-    // seuls les noms de rues restent. Restaurés à l'identique en mode plan.
-    for (const [id, originalVisibility] of basePlanOverlayLayersRef.current) {
-      if (map.getLayer(id)) {
-        map.setLayoutProperty(id, 'visibility', orthoOn ? 'none' : originalVisibility)
-      }
-    }
-    // Voile papier (contraste du mode plan) : lui aussi dessiné au-dessus de
-    // l'ortho — il laiteusait toute la photo, on le coupe en mode Toits.
-    if (map.getLayer('base-wash')) {
-      map.setLayoutProperty('base-wash', 'visibility', orthoOn ? 'none' : 'visible')
-    }
-    // Halo blanc sous les labels (noms de rues) : indispensable sur la photo
-    // (toits sombres, végétation) ; en plan, on restaure le style IGN d'origine.
-    for (const id of baseLabelLayersRef.current) {
-      if (!map.getLayer(id)) continue
-      if (orthoOn) {
-        if (!labelHaloBackupRef.current.has(id)) {
-          labelHaloBackupRef.current.set(id, {
-            color: map.getPaintProperty(id, 'text-halo-color'),
-            width: map.getPaintProperty(id, 'text-halo-width'),
-          })
-        }
-        map.setPaintProperty(id, 'text-halo-color', 'rgba(255, 255, 255, 0.9)')
-        map.setPaintProperty(id, 'text-halo-width', 1.2)
-      } else {
-        const orig = labelHaloBackupRef.current.get(id)
-        if (orig) {
-          map.setPaintProperty(id, 'text-halo-color', orig.color)
-          map.setPaintProperty(id, 'text-halo-width', orig.width)
-        }
-      }
-    }
-  }, [orthoOn, mapLoaded])
+  }, [sharpOn, mapLoaded])
 
   const selectedPoint = points.find((p) => p.id === selectedId) ?? null
   // Conserve le dernier point sélectionné le temps de l'animation de fermeture.
@@ -1079,13 +998,17 @@ export function MapView({
       />
 
       <div className="map-toolbar">
+        {/* La vue Plan a été retirée (25/07) : ce bouton bascule la photo en
+            « HD » (WMS 512 px — plus net sur Retina, teinte parfois
+            différente selon les zones : même donnée, autre étage IGN). */}
         <button
           type="button"
-          className={`map-tool ${orthoOn ? 'is-on' : ''}`}
-          onClick={() => setOrthoOn((v) => !v)}
-          title={orthoOn ? 'Vue plan' : 'Vue toits (satellite)'}
+          className={`map-tool ${sharpOn ? 'is-on' : ''}`}
+          onClick={() => setSharpOn((v) => !v)}
+          title={sharpOn ? 'Photo standard' : 'Photo haute netteté (HD)'}
+          aria-pressed={sharpOn}
         >
-          <Layers size={20} strokeWidth={1.8} />
+          <span className="map-tool-hd">HD</span>
         </button>
       </div>
 

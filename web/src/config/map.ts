@@ -33,9 +33,13 @@ function ignTiles(layer: string, format: 'image/png' | 'image/jpeg'): string {
   return `${IGN_WMTS}?${params.toString()}`.replace(/%7B/g, '{').replace(/%7D/g, '}')
 }
 
-// Couche ortho-photo (ajoutée par-dessus le fond vectoriel, masquée par défaut).
+// Couche ortho-photo (par-dessus le fond vectoriel, TOUJOURS visible — la vue
+// Plan a été retirée le 25/07/2026, décision briac : personne ne s'en servait).
 export const ORTHO_SOURCE_ID = 'ortho-ign'
 export const ORTHO_LAYER_ID = 'ortho-ign'
+// Variante « HD » (WMS 512 px) : bascule via le bouton de la barre d'outils.
+export const ORTHO2X_SOURCE_ID = 'ortho-ign-2x'
+export const ORTHO2X_LAYER_ID = 'ortho-ign-2x'
 
 // ⚠️ Zoom natif max de l'ortho IGN = 19 depuis mars 2025 (la THR 5 cm a été
 // retirée du flux, TileMatrixSet passé de PM_0_21 à PM_0_19 — vérifié dans le
@@ -43,7 +47,7 @@ export const ORTHO_LAYER_ID = 'ortho-ign'
 // plus haut ferait demander des tuiles inexistantes. Réf. docs/etude-imagerie-satellite.md
 const ORTHO_NATIVE_MAXZOOM = 19
 
-const orthoWmtsSource: RasterSourceSpecification = {
+export const orthoWmtsSource: RasterSourceSpecification = {
   type: 'raster',
   tiles: [ignTiles('ORTHOIMAGERY.ORTHOPHOTOS', 'image/jpeg')],
   tileSize: 256,
@@ -51,10 +55,12 @@ const orthoWmtsSource: RasterSourceSpecification = {
   maxzoom: ORTHO_NATIVE_MAXZOOM,
 }
 
-// Variante « retina » : mêmes données via le WMS-Raster, images 512 px sur une
+// Variante « HD » : mêmes données via le WMS-Raster, images 512 px sur une
 // emprise de tuile 256 → 2 px d'image par px CSS, net sur mobile (le WMTS ne
-// sait pas servir de @2x). En test A/B : activer avec ?ortho=wms2x dans l'URL.
-const orthoWms2xSource: RasterSourceSpecification = {
+// sait pas servir de @2x). ⚠️ Le WMS pioche parfois dans un étage de pyramide
+// à la teinte/millésime différents (rendu plus pâle par zones) — d'où la
+// bascule utilisateur plutôt qu'un remplacement aveugle.
+export const orthoWms2xSource: RasterSourceSpecification = {
   type: 'raster',
   tiles: [
     'https://data.geopf.fr/wms-r/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap' +
@@ -64,12 +70,6 @@ const orthoWms2xSource: RasterSourceSpecification = {
   tileSize: 256,
   attribution: IGN_ATTRIBUTION,
   maxzoom: ORTHO_NATIVE_MAXZOOM,
-}
-
-/** Source ortho active : WMTS par défaut, WMS 512 px si `?ortho=wms2x` (test A/B). */
-export function getOrthoSource(): RasterSourceSpecification {
-  const variant = new URLSearchParams(window.location.search).get('ortho')
-  return variant === 'wms2x' ? orthoWms2xSource : orthoWmtsSource
 }
 
 /** Vue initiale : France métropolitaine. */
