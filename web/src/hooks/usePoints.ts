@@ -157,6 +157,7 @@ export function usePoints(profile: Profile | null) {
         lng,
         lat,
         status,
+        created_by: profile?.id ?? null,
         note: note ?? null,
         client_name: null,
         address: null,

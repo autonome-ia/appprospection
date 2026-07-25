@@ -15,6 +15,9 @@ export interface MapPoint {
   lng: number
   lat: number
   status: PointStatus
+  /** Auteur de la pose — la carte du commercial ne montre que SES points
+      (décision chef des ventes, 25/07) ; null pour un point optimiste local. */
+  created_by: string | null
   /** Note terrain (contexte de la maison) — aussi source de la pastille "a une note". */
   note: string | null
   /** Nom du client / occupant (mini-CRM). */

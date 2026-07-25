@@ -23,6 +23,8 @@ import type { LidarResult } from '../data/lidar'
 import type { LidarPan, RoofData } from '../domain/house'
 import { AddressSearch } from './AddressSearch'
 import { AppointmentForm } from './AppointmentForm'
+import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
+import { colorForCommercial } from '../domain/colors'
 import { Layers, Plus, SlidersHorizontal } from 'lucide-react'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { usePoints } from '../hooks/usePoints'
@@ -132,8 +134,18 @@ export function MapView({
   // à retenter en priorité.
   const [ageFilter, setAgeFilter] = useState<number | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  // Filtre « Qui » (manager seulement) : voir les points d'un ou plusieurs
+  // commerciaux. Le commercial, lui, ne voit QUE ses points (décision chef
+  // des ventes, 25/07).
+  const [whoFilter, setWhoFilter] = useState<ReadonlySet<string>>(new Set())
+  const [orgProfiles, setOrgProfiles] = useState<OrgProfile[]>([])
+  const isManager = profile?.role === 'manager'
+  useEffect(() => {
+    if (!isManager) return
+    fetchOrgProfiles().then(setOrgProfiles).catch((e) => console.error('Profils :', e))
+  }, [isManager])
   // Badge du bouton filtres (nb de critères actifs).
-  const nFilters = statusFilter.size + (ageFilter !== null ? 1 : 0)
+  const nFilters = statusFilter.size + (ageFilter !== null ? 1 : 0) + (whoFilter.size > 0 ? 1 : 0)
   // « Poser ici » grisé tant que le zoom ne permet pas de viser une maison.
   const [placeZoomOk, setPlaceZoomOk] = useState(true)
   // Fiche maison AVANT prospection : maison tapée (sans marqueur) + ses infos.
@@ -770,11 +782,17 @@ export function MapView({
     const cutoff = ageFilter !== null ? Date.now() - ageFilter * 86_400_000 : null
     const visible = points.filter(
       (p) =>
+        // Carte privée : le commercial ne voit que SES points (les temp-
+        // locaux, created_by null, sont forcément à lui) ; le manager voit
+        // tout, filtrable par commercial.
+        (isManager
+          ? whoFilter.size === 0 || p.created_by === null || whoFilter.has(p.created_by)
+          : p.created_by === null || p.created_by === profile?.id) &&
         (statusFilter.size === 0 || statusFilter.has(p.status)) &&
         (cutoff === null || (p.visited_at !== null && Date.parse(p.visited_at) < cutoff)),
     )
     source?.setData(toFeatureCollection(visible))
-  }, [points, mapLoaded, statusFilter, ageFilter])
+  }, [points, mapLoaded, statusFilter, ageFilter, whoFilter, isManager, profile?.id])
 
   // Surbrillance du point sélectionné.
   useEffect(() => {
@@ -930,6 +948,33 @@ export function MapView({
                 </button>
               ))}
             </div>
+            {/* Manager : filtre par commercial (décision chef des ventes). */}
+            {isManager && orgProfiles.length > 1 && (
+              <div className="map-filterrow">
+                {orgProfiles.map((op) => (
+                  <button
+                    key={op.id}
+                    type="button"
+                    className={`chip ${whoFilter.has(op.id) ? 'is-active' : ''}`}
+                    style={{ ['--chip' as string]: colorForCommercial(op.id, op.color) }}
+                    onClick={() =>
+                      setWhoFilter((prev) => {
+                        const next = new Set(prev)
+                        if (next.has(op.id)) next.delete(op.id)
+                        else next.add(op.id)
+                        return next
+                      })
+                    }
+                  >
+                    <span
+                      className="chip-dot"
+                      style={{ background: colorForCommercial(op.id, op.color) }}
+                    />
+                    {(op.full_name ?? 'Commercial').split(/\s/)[0]}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="map-filterrow">
               {(
                 [

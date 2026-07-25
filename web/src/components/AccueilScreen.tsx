@@ -58,7 +58,12 @@ export function AccueilScreen({
   const load = useCallback(() => {
     Promise.all([fetchRelances(), fetchRecentActivity()])
       .then(([r, a]) => {
-        setRelances(r)
+        // Carte privée (décision chef des ventes, 25/07) : le commercial ne
+        // relance que SES portes — une relance d'un collègue ouvrirait une
+        // carte où le point est invisible pour lui.
+        setRelances(
+          profile?.role === 'manager' ? r : r.filter((p) => p.created_by === profile?.id),
+        )
         setActivity(a)
         setLoadError(false)
       })
@@ -66,7 +71,7 @@ export function AccueilScreen({
         console.error('Accueil :', e)
         setLoadError(true)
       })
-  }, [])
+  }, [profile?.role, profile?.id])
   useEffect(() => {
     load()
     // iOS restaure la PWA sans recharger : relances et feed restaient figés.

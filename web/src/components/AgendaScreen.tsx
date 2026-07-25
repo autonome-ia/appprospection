@@ -301,7 +301,11 @@ export function AgendaScreen({
       .then(([a, r]) => {
         if (seq !== reloadSeq.current) return
         setAppts(a)
-        setRevisits(r)
+        // Les « à revoir » suivent la carte privée : ceux du commercial
+        // seulement (le manager voit tout).
+        setRevisits(
+          profile?.role === 'manager' ? r : r.filter((p) => p.created_by === profile?.id),
+        )
         setLoadError(false)
       })
       .catch((e) => {
@@ -309,7 +313,7 @@ export function AgendaScreen({
         if (seq !== reloadSeq.current) return
         setLoadError(true)
       })
-  }, [])
+  }, [profile?.role, profile?.id])
 
   useEffect(() => {
     reload()
