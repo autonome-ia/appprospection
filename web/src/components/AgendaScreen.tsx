@@ -276,6 +276,9 @@ export function AgendaScreen({
   const [view, setView] = useState<'agenda' | 'clients'>('agenda')
   const [clientAppt, setClientAppt] = useState<Appointment | null>(null)
   const [clientQuery, setClientQuery] = useState('')
+  // Agenda PARTAGÉ par défaut (décision chef des ventes, 25/07) : chip
+  // « Mes RDV » pour ne voir que les siens.
+  const [onlyMine, setOnlyMine] = useState(false)
 
   // Échec de chargement ≠ agenda vide : sans ce drapeau, une coupure réseau
   // affichait « Aucun rendez-vous ce jour » — un commercial pouvait rater un
@@ -374,15 +377,21 @@ export function AgendaScreen({
     return m
   }, [profiles])
 
+  // RDV affichés : tous (agenda partagé) ou les miens (chip « Mes RDV »).
+  const shownAppts = useMemo(
+    () => (onlyMine && profile ? appts.filter((a) => a.commercial_id === profile.id) : appts),
+    [appts, onlyMine, profile],
+  )
+
   // Regroupe les RDV par jour.
   const byDay = useMemo(() => {
     const m: Record<string, Appointment[]> = {}
-    for (const a of appts) {
+    for (const a of shownAppts) {
       const k = dateKey(new Date(a.scheduled_at))
       ;(m[k] ??= []).push(a)
     }
     return m
-  }, [appts])
+  }, [shownAppts])
 
   // Regroupe les « à revoir » datés par jour de relance (clé YYYY-MM-DD).
   const revisitsByDay = useMemo(() => {
@@ -537,6 +546,15 @@ export function AgendaScreen({
 
       {view === 'agenda' && (
       <>
+      <div className="chip-row agenda-mine">
+        <button
+          type="button"
+          className={`chip ${onlyMine ? 'is-active' : ''}`}
+          onClick={() => setOnlyMine((v) => !v)}
+        >
+          Mes RDV
+        </button>
+      </div>
       <div className="cal">
         <div className="cal-nav">
           <button type="button" className="icon-btn" onClick={() => shiftMonth(-1)} aria-label="Mois précédent">
@@ -581,9 +599,14 @@ export function AgendaScreen({
             // du client lisible sur tout le mois — couleur = statut du RDV,
             // ambre = maison à revoir. Débordement en « +n ».
             const items = [
+              // Couleur = COMMERCIAL (décision chef des ventes, 25/07) : sur
+              // un agenda partagé, « qui a ce RDV » prime — le statut se lit
+              // dans le planning du jour. Ambre = maison à revoir.
               ...dayAppts.map((a) => ({
                 label: a.client_name ?? a.address ?? 'RDV',
-                color: APPOINTMENT_STATUS_META[a.status].color,
+                color: a.commercial_id
+                  ? colorForCommercial(a.commercial_id, whoById[a.commercial_id]?.color)
+                  : '#98a2b3',
               })),
               ...dayRevisits.map((p) => ({
                 label: p.client_name ?? p.address ?? 'À revoir',

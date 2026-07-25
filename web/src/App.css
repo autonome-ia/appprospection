@@ -777,6 +777,9 @@
   gap: 10px;
   padding: 0 2px 8px;
 }
+.agenda-mine {
+  margin: 0 0 10px;
+}
 .cal-today {
   margin-left: auto;
   color: var(--accent);
