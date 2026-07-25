@@ -29,7 +29,8 @@
   /* Statuts (palette raffinée) — doit rester aligné avec domain/status.ts */
   --st-absent: #7d8898;
   --st-revoir: #d97706;
-  --st-impossible: #344054;
+  --st-impossible: #344054; /* libellé « Refus » */
+  --st-hors-cible: #6d4fa1;
   --st-rdv: #2f6bff;
   --st-vendu: #17b26a;
 

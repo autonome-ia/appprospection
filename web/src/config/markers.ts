@@ -42,6 +42,16 @@ function drawGlyph(
       ctx.lineTo(cx + 9, cy)
       ctx.stroke()
       break
+    case 'hors_cible': { // cercle barré ⊘ (pas notre cible)
+      ctx.lineWidth = 3.5
+      ctx.arc(cx, cy, 9, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(cx - 6.5, cy + 6.5)
+      ctx.lineTo(cx + 6.5, cy - 6.5)
+      ctx.stroke()
+      break
+    }
     case 'a_revoir': { // horloge (repasser plus tard)
       ctx.lineWidth = 3.5
       ctx.arc(cx, cy, 9, 0, Math.PI * 2)

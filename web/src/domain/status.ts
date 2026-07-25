@@ -1,10 +1,14 @@
-// Statuts d'un point de prospection — liste FIGÉE (voir docs/SPEC.md §5).
-// Les valeurs correspondent exactement au type SQL `point_status` (db/schema.sql).
+// Statuts d'un point de prospection (voir docs/SPEC.md §5).
+// Les valeurs correspondent exactement au type SQL `point_status`
+// (db/schema.sql + migration db/0013 pour hors_cible).
+// « Refus » est le LIBELLÉ de la valeur SQL `impossible` (renommage métier
+// 25/07/2026 — la valeur en base ne change pas, historique intact).
 
 export type PointStatus =
   | 'absent'
   | 'a_revoir'
   | 'impossible'
+  | 'hors_cible'
   | 'rdv_pris'
   | 'vendu'
 
@@ -22,7 +26,8 @@ export interface StatusMeta {
 export const STATUSES: StatusMeta[] = [
   { value: 'absent', label: 'Absent', color: '#7d8898', description: 'Personne / pas d’ouverture' },
   { value: 'a_revoir', label: 'À revoir', color: '#d97706', description: 'Repasser plus tard' },
-  { value: 'impossible', label: 'Impossible', color: '#344054', description: 'Inutile d’y retourner' },
+  { value: 'impossible', label: 'Refus', color: '#344054', description: 'A refusé — inutile d’y retourner' },
+  { value: 'hors_cible', label: 'Hors cible', color: '#6d4fa1', description: 'Pas notre cible (locataire…)' },
   { value: 'rdv_pris', label: 'RDV pris', color: '#2f6bff', description: 'Rendez-vous obtenu' },
   { value: 'vendu', label: 'Vendu', color: '#17b26a', description: 'Vente conclue' },
 ]
