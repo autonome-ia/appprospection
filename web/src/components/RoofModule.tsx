@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Box, ChevronDown } from 'lucide-react'
 import type { RoofData } from '../domain/house'
-import { Roof3D } from './Roof3D'
+import { Roof3D, defaultExcluded } from './Roof3D'
 import { RoofDiagram } from './RoofDiagram'
 import { RoofReport } from './RoofReport'
 
@@ -38,6 +38,23 @@ export function RoofModule({
   // Le rapport est un overlay plein écran : le segment « Rapport » l'ouvre
   // directement (1 tap) sans changer la vue courante.
   const [reportOpen, setReportOpen] = useState(false)
+  // Sélection de pans (Σ) : détenue ICI, pas dans la 3D (audit UX B3) — ce
+  // qu'on coche avec le client alimente aussi le plan (pans grisés) et le
+  // rapport (surface retenue, chutes sur la sélection).
+  const [excluded, setExcluded] = useState<ReadonlySet<number>>(() => defaultExcluded(roof.pans))
+  // `roof` change d'identité quand une NOUVELLE mesure arrive (backfill,
+  // montée de version) : les index d'exclusion pointeraient sur les anciens
+  // pans — on repart de la présélection « maison » du nouveau toit.
+  useEffect(() => {
+    setExcluded(defaultExcluded(roof.pans))
+  }, [roof])
+  const togglePan = (idx: number) =>
+    setExcluded((prev) => {
+      const next = new Set(prev)
+      if (next.has(idx)) next.delete(idx)
+      else next.add(idx)
+      return next
+    })
   const m2 = maisonM2 ?? totalM2
 
   return (
@@ -83,9 +100,15 @@ export function RoofModule({
           {/* Les deux vues restent montées : la scène 3D (WebGL) n'est pas
               reconstruite à chaque aller-retour 3D ↔ Plan. */}
           <div style={{ display: view === '3d' ? undefined : 'none' }}>
-            <Roof3D roof={roof} wastePct={wastePct} embedded />
+            <Roof3D
+              roof={roof}
+              wastePct={wastePct}
+              embedded
+              excluded={excluded}
+              onTogglePan={togglePan}
+            />
           </div>
-          {view === 'plan' && <RoofDiagram roof={roof} embedded />}
+          {view === 'plan' && <RoofDiagram roof={roof} embedded excluded={excluded} />}
         </>
       )}
 
@@ -97,6 +120,7 @@ export function RoofModule({
           totalM2={totalM2}
           millesime={millesime}
           wastePct={wastePct}
+          excluded={excluded}
           embedded
           onClose={() => setReportOpen(false)}
         />

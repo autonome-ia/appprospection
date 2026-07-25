@@ -12,6 +12,9 @@ import { PAN_COLORS } from '../domain/colors'
 
 interface Props {
   roof: RoofData
+  /** Pans exclus de la sélection Σ (audit UX B3) : grisés sur le plan et le
+      rapport — le document montre CE QU'ON A RETENU avec le client. */
+  excluded?: ReadonlySet<number>
 }
 
 const toLocal = (
@@ -137,12 +140,13 @@ export function panLetters(roof: RoofData): Map<number, string> {
 }
 
 /** Le SVG seul (réutilisé par le rapport client). */
-export function RoofDiagramSvg({ roof }: Props) {
+export function RoofDiagramSvg({ roof, excluded }: Props) {
   const d = useMemo(() => buildDiagram(roof), [roof])
   if (!d) return null
   const span = Math.max(d.w, d.h)
   const fs = span * 0.045 // tailles en unités « mètres » du viewBox
   const fsSmall = span * 0.034
+  const isOff = (idx: number) => excluded?.has(idx) ?? false
   return (
     <svg
         viewBox={`${d.minx} ${d.miny} ${d.w} ${d.h}`}
@@ -153,10 +157,11 @@ export function RoofDiagramSvg({ roof }: Props) {
           <polygon
             key={p.idx}
             points={p.pts.map(([x, y]) => `${x},${y}`).join(' ')}
-            fill={p.color}
-            fillOpacity={0.55}
-            stroke={p.color}
+            fill={isOff(p.idx) ? '#9a9aa2' : p.color}
+            fillOpacity={isOff(p.idx) ? 0.14 : 0.55}
+            stroke={isOff(p.idx) ? '#9a9aa2' : p.color}
             strokeWidth={span * 0.006}
+            strokeDasharray={isOff(p.idx) ? `${span * 0.014} ${span * 0.01}` : undefined}
             strokeLinejoin="round"
           />
         ))}
@@ -182,6 +187,7 @@ export function RoofDiagramSvg({ roof }: Props) {
             textAnchor="middle"
             className="roof-diagram-pan"
             fontSize={fs}
+            opacity={isOff(p.idx) ? 0.45 : undefined}
           >
             <tspan fontWeight={700}>{p.letter}</tspan>
             <tspan x={p.centre[0]} dy={fs * 1.1} fontSize={fsSmall}>
@@ -209,7 +215,11 @@ export function RoofDiagramSvg({ roof }: Props) {
 
 /** Plan coté du toit mesuré — bouton discret sous la maquette 3D, ou rendu
     direct (embedded) dans le module « Toiture mesurée ». */
-export function RoofDiagram({ roof, embedded = false }: Props & { embedded?: boolean }) {
+export function RoofDiagram({
+  roof,
+  excluded,
+  embedded = false,
+}: Props & { embedded?: boolean }) {
   const [open, setOpen] = useState(false)
   const has = useMemo(() => buildDiagram(roof) !== null, [roof])
   if (!has) return null
@@ -217,7 +227,7 @@ export function RoofDiagram({ roof, embedded = false }: Props & { embedded?: boo
   if (embedded) {
     return (
       <div className="roof-diagram">
-        <RoofDiagramSvg roof={roof} />
+        <RoofDiagramSvg roof={roof} excluded={excluded} />
       </div>
     )
   }

@@ -23,6 +23,10 @@ interface Props {
   millesime: string | null
   /** % de chutes suggéré (mis en avant dans le tableau). */
   wastePct: number
+  /** Pans exclus de la sélection Σ (audit UX B3) : le rapport reflète ce
+      qu'on vient de cocher AVEC le client — surface retenue, chutes sur la
+      sélection, pans exclus grisés. */
+  excluded?: ReadonlySet<number>
   /** Piloté par le module « Toiture mesurée » : ouvre l'overlay directement
       (pas de bouton déclencheur) et rend la fermeture au parent. */
   embedded?: boolean
@@ -48,6 +52,7 @@ export function RoofReport({
   totalM2,
   millesime,
   wastePct,
+  excluded,
   embedded = false,
   onClose,
 }: Props) {
@@ -73,7 +78,16 @@ export function RoofReport({
     )
   }
 
-  const base = maisonM2 ?? totalM2 ?? 0
+  // Surface RETENUE avec le client (Σ des pans cochés en 3D) : c'est elle
+  // qui pilote la surface de commande — le rapport ne contredit plus la
+  // sélection faite une minute plus tôt (audit UX B3).
+  const selectionM2 = excluded
+    ? Math.round(roof.pans.reduce((s, p, i) => (excluded.has(i) ? s : s + p.m2), 0))
+    : null
+  // Affichée seulement si elle diffère du badge « maison » (sinon doublon).
+  const showSelection =
+    selectionM2 !== null && selectionM2 > 0 && (maisonM2 === null || Math.abs(selectionM2 - maisonM2) >= 1)
+  const base = selectionM2 !== null && selectionM2 > 0 ? selectionM2 : (maisonM2 ?? totalM2 ?? 0)
   const wasteRows = [...new Set([0, 10, wastePct, 20])].sort((a, b) => a - b)
   const survol = millesime ? millesime.slice(0, 4) : null
   // PWA iOS INSTALLÉE : window.print() est un no-op (pas de moteur
@@ -87,6 +101,7 @@ export function RoofReport({
       `Rapport de toiture${address ? ` — ${address}` : ''}`,
       maisonM2 != null ? `Toit de la maison : ${maisonM2} m² (mesure laser IGN LiDAR HD)` : null,
       totalM2 != null && totalM2 !== maisonM2 ? `Total avec annexes : ${totalM2} m²` : null,
+      showSelection ? `Surface retenue ensemble : ${selectionM2} m²` : null,
       `Surface de commande conseillée (+${wastePct} % de chutes) : ${Math.round(base * (1 + wastePct / 100))} m²`,
       survol ? `Survol laser IGN ${survol} · précision ±5 %` : null,
       identLine,
@@ -141,9 +156,15 @@ export function RoofReport({
               <span className="roof-report-caption">avec annexes et extensions</span>
             </div>
           )}
+          {showSelection && (
+            <div className="roof-report-selection">
+              <span className="roof-report-figure">Σ {selectionM2} m²</span>
+              <span className="roof-report-caption">surface retenue avec vous</span>
+            </div>
+          )}
         </div>
 
-        <RoofDiagramSvg roof={roof} />
+        <RoofDiagramSvg roof={roof} excluded={excluded} />
 
         <table className="roof-report-table tnum">
           <thead>
@@ -159,9 +180,10 @@ export function RoofReport({
               .sort((a, b) => a[1].localeCompare(b[1]))
               .map(([idx, letter]) => {
                 const pan = roof.pans[idx]
+                const off = excluded?.has(idx) ?? false
                 return (
-                  <tr key={idx}>
-                    <td>{letter}</td>
+                  <tr key={idx} className={off ? 'is-excluded' : ''}>
+                    <td>{letter}{off ? ' · exclu' : ''}</td>
                     <td>{pan.m2} m²</td>
                     <td>{pan.pente_deg}°</td>
                     <td>{pan.type === 'plat' ? '—' : exposition(pan.azimut_deg)}</td>
@@ -194,7 +216,7 @@ export function RoofReport({
           <table className="roof-report-table tnum">
             <thead>
               <tr>
-                <th>Chutes de coupe</th>
+                <th>{showSelection ? 'Chutes (sur Σ retenue)' : 'Chutes de coupe'}</th>
                 {wasteRows.map((w) => (
                   <th key={w} className={w === wastePct ? 'is-suggested' : ''}>
                     {w} %

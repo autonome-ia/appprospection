@@ -14,6 +14,12 @@ interface Props {
   /** Rendu DANS le module « Toiture mesurée » (RoofModule) : pas de bouton
       déclencheur ni de fermeture inline — le module gère le repli. */
   embedded?: boolean
+  /** Sélection de pans CONTRÔLÉE par le parent (RoofModule) : elle doit
+      survivre à la 3D pour alimenter plan et rapport (audit UX B3) — avant,
+      le rapport affichait 204 m² quand on venait de cocher 175 m² avec le
+      client, au moment exact de la confiance. */
+  excluded: ReadonlySet<number>
+  onTogglePan: (idx: number) => void
 }
 
 /** Ligne des longueurs d'arêtes (v19) — seules les non nulles. */
@@ -53,7 +59,8 @@ function pans3d(pans: LidarPan[]): { pan: LidarPan; idx: number }[] {
 }
 
 // Présélection = « la maison » (drapeau v17) ; à défaut : tout sauf les plats.
-function defaultExcluded(pans: LidarPan[]): Set<number> {
+// Exportée : RoofModule (propriétaire de la sélection depuis B3) s'en sert.
+export function defaultExcluded(pans: LidarPan[]): Set<number> {
   const hasFlags = pans.some((p) => p.maison !== undefined)
   const out = new Set<number>()
   for (const [i, p] of pans.entries()) {
@@ -68,32 +75,19 @@ function defaultExcluded(pans: LidarPan[]): Set<number> {
  * « sélection » suit en direct. Présélection : le corps principal (« la
  * maison », hors annexes/extensions) ; le commercial ajuste devant le client.
  */
-export function Roof3D({ roof, wastePct, embedded = false }: Props) {
+export function Roof3D({ roof, wastePct, embedded = false, excluded, onTogglePan }: Props) {
   const [open, setOpen] = useState(embedded)
   const [full, setFull] = useState(false)
   const [failed, setFailed] = useState(false)
   // Remontage forcé quand le contexte WebGL est perdu sans retour (iOS).
   const [retry, setRetry] = useState(0)
-  const [excluded, setExcluded] = useState<ReadonlySet<number>>(() => defaultExcluded(roof.pans))
   // Avant/après : matériau proposé projeté sur les pans sélectionnés.
   const [matKind, setMatKind] = useState<RoofMatKind>('couleurs')
-  // `roof` change d'identité quand une NOUVELLE mesure arrive (backfill,
-  // montée de version) : les index d'exclusion pointeraient sur les anciens
-  // pans — on repart de la présélection « maison » du nouveau toit.
-  useEffect(() => {
-    setExcluded(defaultExcluded(roof.pans))
-  }, [roof])
   const holderRef = useRef<HTMLDivElement>(null)
   const handleRef = useRef<RoofSceneHandle | null>(null)
   // Le toggle est lu par la scène via une ref : pas de re-montage à chaque tap.
   const toggleRef = useRef<(idx: number) => void>(() => {})
-  toggleRef.current = (idx) =>
-    setExcluded((prev) => {
-      const next = new Set(prev)
-      if (next.has(idx)) next.delete(idx)
-      else next.add(idx)
-      return next
-    })
+  toggleRef.current = onTogglePan
   const drawable = pans3d(roof.pans)
 
   useEffect(() => {

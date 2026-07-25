@@ -2123,6 +2123,16 @@
   color: var(--accent);
   font-weight: 650;
 }
+/* Pan exclu de la sélection Σ (audit UX B3) : présent mais grisé. */
+.roof-report-table tr.is-excluded td {
+  color: var(--ink-3);
+  text-decoration: line-through;
+  text-decoration-color: var(--line-strong);
+}
+/* Surface retenue avec le client : LE chiffre du closing, en accent. */
+.roof-report-selection .roof-report-figure {
+  color: var(--accent);
+}
 @media print {
   /* Seul le rapport s'imprime : l'app (racine React) est masquée. */
   body:has(.roof-report-overlay) #root {
