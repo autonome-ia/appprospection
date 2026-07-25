@@ -120,7 +120,10 @@
   - **B8 chevrons ‹ ›** sur les Stats : navigation vers les périodes passées (offset ≤ 0 dans `fetchStatsComparison`/`shiftNow`), delta comparé à la période précédant celle affichée, libellé de plage côté client (réactif au tap), « Aujourd'hui » pour revenir, offset remis à zéro au changement de période.
   - **Pont Stats→Carte** (reliquat B5) : « Voir ses points sur la carte » dans le drill-down manager — bascule Carte avec le filtre « Qui » pré-appliqué et la barre de filtres dépliée.
   - **B14 squelettes** : Stats (KPI/tunnel/classement — finis les faux zéros commentés en réunion) et Accueil (premier chargement seulement).
-- [ ] ⬜ **Lots B restants et C** (ordre proposé : Argumentaire B3+B13 → Agenda/Client B11+B12+C1 → Accueil B4 → C2) : B3 sélection Σ→rapport, B13 badge matériau tappable, B11 ClientSheet (actions en tête + historique), B12 BAN sur l'adresse RDV, C1 agenda « jour d'abord », B4 refonte Accueil, C2 rapport PDF partageable.
+- [x] **Lot Argumentaire (25/07)** — 2 commits :
+  - **B3 sélection Σ → plan + rapport** : l'état `excluded` remonté dans RoofModule (Roof3D contrôlé) — plan coté avec pans exclus grisés (contour pointillé), rapport avec « Σ N m² · surface retenue avec vous » (masquée si égale au badge maison), chutes basées sur la sélection, lignes exclues barrées, partage mentionnant la surface retenue.
+  - **B13 badge matériau tappable** : tap → focus du select « Toiture constatée » (picker iOS dans le geste) + recentrage ; badge confirmé et chutes ajustées dès le choix (état local, avant enregistrement).
+- [ ] ⬜ **Lots B restants et C** (ordre proposé : Agenda/Client B11+B12+C1 → Accueil B4 → C2) : B11 ClientSheet (actions en tête + historique), B12 BAN sur l'adresse RDV, C1 agenda « jour d'abord », B4 refonte Accueil, C2 rapport PDF partageable.
 - [ ] ⬜ **Équipe/invitations + écran de connexion** : volontairement EN DERNIER (décision briac 25/07) — l'interface commerciale doit être parfaite avant de lancer le test réel à plusieurs.
 
 ## Prochains chantiers (à choisir avec briac)
