@@ -1472,17 +1472,69 @@
   font-size: 14px;
   letter-spacing: -0.01em;
 }
-.accueil-hello {
+/* En-tête compact « la journée, pas le profil » (audit UX B4). */
+.accueil-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 14px;
+}
+.avatar-btn {
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.accueil-head-texts {
   display: flex;
   flex-direction: column;
-  margin: 4px 0 2px;
-  font-size: 30px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.12;
+  gap: 1px;
 }
-.accueil-name {
-  color: var(--ink);
+.accueil-hello {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.accueil-role {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+/* Carte « Aujourd'hui » : les chiffres du jour + l'objectif hebdo. */
+.today-card .obj-bar-bg {
+  margin-top: 12px;
+}
+.today-figures {
+  display: flex;
+  gap: 26px;
+  margin-top: 4px;
+}
+.today-figure {
+  display: flex;
+  flex-direction: column;
+}
+.today-num {
+  font-family: var(--font-mono);
+  font-size: 23px;
+  font-weight: 650;
+}
+.today-cap {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.today-obj {
+  display: block;
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+/* Heure du RDV dans les lignes « Mes RDV aujourd'hui ». */
+.rdv-row-time {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  font-weight: 600;
+  margin-top: 1px;
 }
 .user-card {
   display: flex;
