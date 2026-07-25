@@ -58,7 +58,8 @@ Workflow type : coder → `npm run build` (vérifie) → commit → `git push` �
 
 ## Direction artistique (IMPORTANT)
 Design premium **« Clair & précis »** (réf. **Linear / Vercel / Emil Kowalski**).
-- Police **Geist** (UI) + **Geist Mono** (chiffres, heures, stats).
+- Police **Geist** (UI) + **Geist Mono** (chiffres, heures, stats). **Jamais de mono sur du texte courant**
+  (adresses, noms, métas) — le mono est l'exception chiffrée, pas un style décoratif (retour briac 25/07).
 - Icônes **Lucide** — **JAMAIS d'emojis** comme icônes.
 - **Vaul** (bottom sheets / drawers), **Sonner** (toasts), **Motion** (animations).
 - Tokens CSS (couleurs, ombres, rayons, mouvement) dans `web/src/index.css`.
