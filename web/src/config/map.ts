@@ -35,13 +35,13 @@ function ignTiles(layer: string, format: 'image/png' | 'image/jpeg'): string {
 
 // Couche ortho-photo (par-dessus le fond vectoriel, TOUJOURS visible — la vue
 // Plan a été retirée le 25/07/2026, décision briac : personne ne s'en servait).
+// AFFICHAGE UNIQUE : les alternatives testées le 25/07 ont toutes été
+// écartées — « HD » WMS 512 px (aucune différence perçue) puis Esri/Maxar
+// (donnée 30-50 cm, trop floue au zoom maison face à la BD ORTHO 20 cm).
+// L'ortho IGN est LA plus nette gratuite en France ; ne re-proposer une
+// 2e imagerie que payante/à clé (Google Map Tiles, Mapbox — voir étude).
 export const ORTHO_SOURCE_ID = 'ortho-ign'
 export const ORTHO_LAYER_ID = 'ortho-ign'
-// Imagerie ALTERNATIVE (Esri World Imagery) : un autre rendu complet —
-// couleurs, millésimes et traitement différents de l'IGN. Bascule via le
-// bouton de la barre d'outils (demande briac 25/07 : « deux visuels »).
-export const ESRI_SOURCE_ID = 'sat-esri'
-export const ESRI_LAYER_ID = 'sat-esri'
 
 // ⚠️ Zoom natif max de l'ortho IGN = 19 depuis mars 2025 (la THR 5 cm a été
 // retirée du flux, TileMatrixSet passé de PM_0_21 à PM_0_19 — vérifié dans le
@@ -54,27 +54,6 @@ export const orthoWmtsSource: RasterSourceSpecification = {
   tiles: [ignTiles('ORTHOIMAGERY.ORTHOPHOTOS', 'image/jpeg')],
   tileSize: 256,
   attribution: IGN_ATTRIBUTION,
-  maxzoom: ORTHO_NATIVE_MAXZOOM,
-}
-
-// Esri World Imagery (Maxar) — gratuit jusqu'à 2 M tuiles/mois, attribution
-// obligatoire. Rendu plus chaud/contrasté que l'IGN ; en rural breton la
-// résolution native plafonne vers z19 et peut être plus floue que la BD ORTHO
-// 20 cm au zoom maison (mesuré, docs/etude-imagerie-satellite.md) — c'est un
-// LOOK alternatif, pas un gain de netteté. (La variante « HD » WMS 512 px a
-// été retirée le 25/07 : aucune différence perçue sur le terrain.)
-export const esriSatelliteSource: RasterSourceSpecification = {
-  type: 'raster',
-  tiles: [
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  ],
-  // Astuce « retina » (Esri ne sert que du 256 px) : tileSize 128 fait
-  // charger les tuiles du zoom SUPÉRIEUR affichées à demi-taille → 2 px
-  // d'image par px CSS, nettement plus piqué sur mobile. Coût : 4× plus de
-  // tuiles par vue — négligeable sous le palier gratuit (2 M/mois).
-  tileSize: 128,
-  attribution:
-    '© <a href="https://www.esri.com/">Esri</a>, Maxar, Earthstar Geographics, GIS User Community',
   maxzoom: ORTHO_NATIVE_MAXZOOM,
 }
 

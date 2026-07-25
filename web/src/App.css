@@ -325,49 +325,8 @@
 }
 
 /* Barre d'outils carte (vue plan/toits + 2D/3D) */
-.map-toolbar {
-  position: absolute;
-  top: 68px;
-  right: max(12px, env(safe-area-inset-right));
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  box-shadow: var(--shadow-md);
-  overflow: hidden;
-}
-.map-tool {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border: none;
-  background: transparent;
-  color: var(--ink-2);
-  transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out);
-}
-.map-tool + .map-tool {
-  border-top: 1px solid var(--line);
-}
-.map-tool.is-on {
-  color: var(--accent);
-  background: var(--accent-weak);
-}
-.map-tool:disabled {
-  color: var(--ink-3);
-  opacity: 0.45;
-  cursor: default;
-}
-/* Bascule d'imagerie (SAT 1 = IGN, SAT 2 = Esri). */
-.map-tool-hd {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
+/* (Barre d'outils carte supprimée le 25/07 : affichage unique — l'ortho IGN,
+   la plus nette gratuite en France ; alternatives HD/Esri testées, écartées.) */
 
 /* Contrôles MapLibre (géolocalisation, attribution) alignés sur la DA :
    fond/bordure/ombre des tokens, cibles tactiles 44 px, marges cohérentes. */
