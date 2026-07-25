@@ -201,8 +201,34 @@ export async function updatePoint(
   if (!supabase) throw new Error('Supabase non configuré')
 
   const patch: Record<string, unknown> = {}
+  const moved = changes.lng !== undefined || changes.lat !== undefined
   if (changes.lng !== undefined) patch.lng = changes.lng
   if (changes.lat !== undefined) patch.lat = changes.lat
+  // Un point DÉPLACÉ change de maison : les données dérivées des coordonnées
+  // (adresse, fiche maison open data, mesure LiDAR) décrivent l'ANCIENNE —
+  // sans cette remise à zéro, la fiche gardait pour toujours l'adresse et le
+  // toit du voisin (retour briac 25/07). Recalcul en arrière-plan ci-dessous,
+  // même pipeline qu'à la pose. Les données HUMAINES (statut, notes, client,
+  // matériau constaté) restent : on corrige un pointeur mal posé, le
+  // commercial, lui, était bien devant la bonne maison.
+  if (moved) {
+    Object.assign(patch, {
+      address: null,
+      annee_construction: null,
+      mat_toit: null,
+      toit_surface_m2: null,
+      dpe_classe: null,
+      maison_extra: null,
+      enriched_at: null,
+      toit_lidar_m2: null,
+      toit_lidar_principal_m2: null,
+      toit_lidar_statut: null,
+      toit_lidar_millesime: null,
+      toit_lidar_version: null,
+      toit_lidar_diag: null,
+      toit_lidar_pans: null,
+    })
+  }
   // Un statut (re)posé = une visite : le filtre « ancienneté » de la carte
   // repart de zéro (les écritures techniques, elles, n'y touchent pas).
   if (changes.status !== undefined) {
@@ -219,7 +245,27 @@ export async function updatePoint(
   if (error) throw error
 
   if (changes.status !== undefined) await logEvent(profile, id, changes.status, changes.note)
-  return rowToPoint(data as Record<string, unknown>)
+  const updated = rowToPoint(data as Record<string, unknown>)
+
+  // Recalcul des données de la NOUVELLE maison, en arrière-plan (le temps
+  // réel propage à tous les appareils) — mêmes briques qu'insertPoint. Les
+  // caches par coordonnées rendent l'« Annuler » du toast quasi instantané.
+  if (moved) {
+    pansCache.delete(id)
+    void reverseGeocode(updated.lng, updated.lat).then(async (label) => {
+      if (label && supabase) {
+        const { error: e } = await supabase.from('points').update({ address: label }).eq('id', id)
+        if (e) console.error('Adresse du point déplacé :', e.message)
+      }
+    })
+    void import('./enrich')
+      .then((m) => m.enrichPoint(id, updated.lng, updated.lat))
+      .catch((e) => console.error('Enrichissement (déplacement) :', e))
+    void import('./lidar')
+      .then((m) => m.measurePointRoof(id, updated.lng, updated.lat))
+      .catch((e) => console.error('Mesure LiDAR (déplacement) :', e))
+  }
+  return updated
 }
 
 /** Supprime un point (le journal lié est supprimé en cascade). */
