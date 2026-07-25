@@ -44,21 +44,6 @@ for (let h = 7; h <= 21; h++) {
   if (h < 21) TIME_SLOTS.push(`${pad(h)}:30`)
 }
 
-/** Presets de date 1 tap (audit UX A15) — évalués à l'affichage. */
-function DATE_PRESETS(): [string, string][] {
-  const at = (n: number) => {
-    const d = new Date()
-    d.setDate(d.getDate() + n)
-    return toDateInput(d)
-  }
-  const nextSaturday = (6 - new Date().getDay() + 7) % 7 || 7
-  return [
-    ['Demain', at(1)],
-    ['Après-demain', at(2)],
-    ['Samedi', at(nextSaturday)],
-  ]
-}
-
 export function AppointmentForm({
   open,
   onOpenChange,
@@ -215,20 +200,9 @@ export function AppointmentForm({
           </div>
 
           <div className="drawer-body" data-vaul-no-drag>
-          {/* Dates 1 tap (audit UX A15) : la roue iOS reste dispo en dessous
-              pour les autres dates — devant le prospect, 3 cas sur 4 sont là. */}
-          <div className="chip-row date-presets">
-            {DATE_PRESETS().map(([label, value]) => (
-              <button
-                key={label}
-                type="button"
-                className={`chip ${dateStr === value ? 'is-active' : ''}`}
-                onClick={() => setDateStr(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {/* Les presets « Demain / Après-demain / Samedi » (A15) ont été
+              RETIRÉS (décision briac 25/07) : de la place pour rien — la
+              roue iOS suffit. */}
           <div className="field-grid">
             <div>
               <p className="eyebrow field-label">Date</p>

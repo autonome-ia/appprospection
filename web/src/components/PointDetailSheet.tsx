@@ -22,6 +22,7 @@ import type { LidarResult } from '../data/lidar'
 import { HouseBadges } from './HouseBadges'
 import { RoofModule } from './RoofModule'
 import { isSupabaseConfigured } from '../lib/supabase'
+import { useSession } from '../lib/session'
 import { STATUSES, STATUS_BY_VALUE, type PointStatus } from '../domain/status'
 import type { MapPoint } from '../domain/types'
 
@@ -103,8 +104,12 @@ export function PointDetailSheet({
   onShowAgenda,
   apptsVersion,
 }: Props) {
+  const { profile: me } = useSession()
   const [detail, setDetail] = useState<PointDetail | null>(null)
   const [status, setStatus] = useState<PointStatus>('absent')
+  // Chips de statut repliées derrière « Modifier » (réorganisation briac
+  // 25/07) : le statut est posé à la pose, il change rarement ensuite.
+  const [statusOpen, setStatusOpen] = useState(false)
   const [history, setHistory] = useState<PointNote[]>([])
   const [newNote, setNewNote] = useState('')
   const [clientName, setClientName] = useState('')
@@ -153,6 +158,7 @@ export function PointDetailSheet({
     setRevisitAt(point.revisit_at ?? '')
     setNewNote('')
     setConfirmDelete(false)
+    setStatusOpen(false)
     setDetail(null)
     setHistory([])
     setLiveEnrich(null)
@@ -424,13 +430,17 @@ export function PointDetailSheet({
                   <Clock size={13} /> Vu le {formatDate(point.visited_at ?? detail!.created_at)}
                 </span>
               )}
-              {detail?.author_name && (
+              {/* Auteur affiché SEULEMENT si ce n'est pas soi (décision briac
+                  25/07) : utile au manager sur le point d'un autre commercial,
+                  bruit pour le commercial qui ne voit que ses points. */}
+              {detail?.author_name && detail.created_by !== me?.id && (
                 <span>
                   <User size={13} /> {detail.author_name}
                 </span>
               )}
-              {/* Appel direct depuis l'en-tête (audit UX B10). */}
-              {point.client_phone && (
+              {/* Appel direct depuis l'en-tête (audit UX B10) — masqué quand
+                  le bloc RDV affiche déjà « Appeler » (doublon, briac 25/07). */}
+              {point.client_phone && !shownRdv && (
                 <a href={`tel:${point.client_phone}`}>
                   <Phone size={13} /> {point.client_phone}
                 </a>
@@ -491,80 +501,8 @@ export function PointDetailSheet({
                 )}
               </div>
             )}
-          <p className="eyebrow field-label">Statut</p>
-          <div className="chip-row">
-            {STATUSES.map((s) => (
-              <button
-                key={s.value}
-                type="button"
-                className={`chip ${status === s.value ? 'is-active' : ''}`}
-                style={{ ['--chip' as string]: s.color }}
-                onClick={() => {
-                  setStatus(s.value)
-                  // « À revoir » sans date ne remonte JAMAIS dans les
-                  // relances : J+7 pré-rempli (modifiable) — audit UX A4.
-                  if (s.value === 'a_revoir' && !revisitAt) setRevisitAt(dayPlus(7))
-                }}
-              >
-                <span className="chip-dot" style={{ background: s.color }} />
-                {s.label}
-              </button>
-            ))}
-          </div>
-
-          {status === 'a_revoir' && (
-            <>
-              <p className="eyebrow field-label">Revoir le</p>
-              <input
-                className="field-input"
-                type="date"
-                value={revisitAt}
-                onChange={(e) => setRevisitAt(e.target.value)}
-              />
-              <div className="chip-row revisit-presets">
-                {REVISIT_PRESETS().map(([label, value]) => (
-                  <button
-                    key={label}
-                    type="button"
-                    className={`chip ${revisitAt === value ? 'is-active' : ''}`}
-                    onClick={() => setRevisitAt(value)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* Notes juste sous le statut (audit UX A12) : saisies à CHAQUE
-              visite, elles vivaient sous la toiture (saisie 1 fois). */}
-          <p className="eyebrow field-label">Notes</p>
-          {shownNotes.length > 0 && (
-            <ul className="note-history">
-              {shownNotes.map((n) => (
-                <li key={n.id} className="note-entry">
-                  <span className="note-meta">
-                    {n.author_name ?? 'Note'}
-                    {n.created_at ? ` · ${formatDate(n.created_at)}` : ''}
-                  </span>
-                  <span className="note-body">{n.body}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <textarea
-            className="field-input"
-            placeholder={
-              shownNotes.length
-                ? 'Ajouter une note (la précédente est conservée)…'
-                : 'Ex : repasser en soirée, portail bleu…'
-            }
-            value={newNote}
-            onChange={(e) => setNewNote(e.target.value)}
-            rows={2}
-          />
-
-          {/* Sans objet pour un « Absent » / « Impossible » (audit UX A12). */}
+          {/* Client d'abord (réorganisation briac 25/07) : le contexte —
+              client puis maison — avant les actions d'édition. */}
           {(status === 'a_revoir' || status === 'rdv_pris' || status === 'vendu') && (
             <>
               <div className="field-label-row">
@@ -622,6 +560,98 @@ export function PointDetailSheet({
               totalM2={liveLidar ? liveLidar.toit_lidar_m2 : point.toit_lidar_m2}
               millesime={lidarMillesime}
             />
+          )}
+
+          {/* Notes : saisies à CHAQUE visite (audit UX A12). */}
+          <p className="eyebrow field-label">Notes</p>
+          {shownNotes.length > 0 && (
+            <ul className="note-history">
+              {shownNotes.map((n) => (
+                <li key={n.id} className="note-entry">
+                  <span className="note-meta">
+                    {n.author_name ?? 'Note'}
+                    {n.created_at ? ` · ${formatDate(n.created_at)}` : ''}
+                  </span>
+                  <span className="note-body">{n.body}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <textarea
+            className="field-input"
+            placeholder={
+              shownNotes.length
+                ? 'Ajouter une note (la précédente est conservée)…'
+                : 'Ex : repasser en soirée, portail bleu…'
+            }
+            value={newNote}
+            onChange={(e) => setNewNote(e.target.value)}
+            rows={2}
+          />
+
+          {/* Statut COMPACT (réorganisation briac 25/07) : posé à la pose, il
+              change rarement à la réouverture — les 6 chips ne s'affichent
+              qu'au tap sur « Modifier ». */}
+          {!statusOpen ? (
+            <div className="status-line">
+              <span className="eyebrow field-label">Statut</span>
+              <span className="status-line-current">
+                <span className="chip-dot" style={{ background: STATUS_BY_VALUE[status].color }} />
+                {STATUS_BY_VALUE[status].label}
+              </span>
+              <button type="button" className="text-btn" onClick={() => setStatusOpen(true)}>
+                Modifier
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="eyebrow field-label">Statut</p>
+              <div className="chip-row">
+                {STATUSES.map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    className={`chip ${status === s.value ? 'is-active' : ''}`}
+                    style={{ ['--chip' as string]: s.color }}
+                    onClick={() => {
+                      setStatus(s.value)
+                      // « À revoir » sans date ne remonte JAMAIS dans les
+                      // relances : J+7 pré-rempli (modifiable) — audit UX A4.
+                      if (s.value === 'a_revoir' && !revisitAt) setRevisitAt(dayPlus(7))
+                    }}
+                  >
+                    <span className="chip-dot" style={{ background: s.color }} />
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* La date de relance reste visible même statut replié : sur un
+              « à revoir », la décaler est l'édition la plus fréquente. */}
+          {status === 'a_revoir' && (
+            <>
+              <p className="eyebrow field-label">Revoir le</p>
+              <input
+                className="field-input"
+                type="date"
+                value={revisitAt}
+                onChange={(e) => setRevisitAt(e.target.value)}
+              />
+              <div className="chip-row revisit-presets">
+                {REVISIT_PRESETS().map(([label, value]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className={`chip ${revisitAt === value ? 'is-active' : ''}`}
+                    onClick={() => setRevisitAt(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </>
           )}
 
           {/* Destructif déclassé : plus de rangée à égalité avec Enregistrer,

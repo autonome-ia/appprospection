@@ -2479,6 +2479,28 @@ a.text-btn {
   font-weight: 600;
   flex: 0 0 auto;
 }
+/* Statut replié en une ligne : « Statut · ● RDV pris · Modifier ». */
+.status-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 7px;
+}
+.status-line .field-label {
+  margin: 0;
+}
+.status-line-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.status-line .text-btn {
+  margin-left: auto;
+  color: var(--accent);
+}
 /* Libellé de champ + action en vis-à-vis (« Client » · + RDV). */
 .field-label-row {
   display: flex;
