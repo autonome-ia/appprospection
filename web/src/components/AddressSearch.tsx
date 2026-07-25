@@ -14,6 +14,23 @@ interface Props {
 
 const BAN_URL = 'https://data.geopf.fr/geocodage/search/'
 
+/** Recherche BAN brute — partagée avec le champ adresse du formulaire RDV
+    (audit UX B12). L'appelant gère debounce et annulation. */
+export async function searchAddresses(q: string, signal?: AbortSignal): Promise<AddressResult[]> {
+  const url = `${BAN_URL}?q=${encodeURIComponent(q)}&limit=6&autocomplete=1`
+  const res = await fetch(url, { signal })
+  const json = await res.json()
+  return ((json.features ?? []) as {
+    geometry: { coordinates: [number, number] }
+    properties: { label: string; context?: string }
+  }[]).map((f) => ({
+    label: f.properties.label,
+    context: f.properties.context ?? '',
+    lng: f.geometry.coordinates[0],
+    lat: f.geometry.coordinates[1],
+  }))
+}
+
 // Dernières adresses CHOISIES (pas les frappes), mémorisées sur l'appareil :
 // proposées quand on touche le champ vide — retour rapide sur ses secteurs.
 const RECENT_KEY = 'recent-addresses'
@@ -62,20 +79,7 @@ export function AddressSearch({ onSelect }: Props) {
     const controller = new AbortController()
     const timer = setTimeout(async () => {
       try {
-        const url = `${BAN_URL}?q=${encodeURIComponent(q)}&limit=6&autocomplete=1`
-        const res = await fetch(url, { signal: controller.signal })
-        const json = await res.json()
-        const rs: AddressResult[] = (json.features ?? []).map(
-          (f: {
-            geometry: { coordinates: [number, number] }
-            properties: { label: string; context?: string }
-          }) => ({
-            label: f.properties.label,
-            context: f.properties.context ?? '',
-            lng: f.geometry.coordinates[0],
-            lat: f.geometry.coordinates[1],
-          }),
-        )
+        const rs = await searchAddresses(q, controller.signal)
         setResults(rs)
         setOpen(true)
       } catch (e) {

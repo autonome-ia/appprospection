@@ -268,6 +268,12 @@
   max-height: 45vh;
   overflow-y: auto;
 }
+/* Variante formulaire RDV (audit UX B12) : en flux dans la sheet, ombre
+   discrète, hauteur bornée pour ne pas engloutir le formulaire. */
+.form-address-results {
+  box-shadow: var(--shadow-sm);
+  max-height: 240px;
+}
 .address-results li {
   margin: 0;
 }

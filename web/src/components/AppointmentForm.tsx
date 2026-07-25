@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
-import { X } from 'lucide-react'
+import { MapPin, X } from 'lucide-react'
 import { createAppointment, updateAppointment } from '../data/appointments'
 import { addPointNote, syncPointClient } from '../data/points'
+import { searchAddresses, type AddressResult } from './AddressSearch'
 import type { Appointment } from '../domain/appointments'
 import type { Profile } from '../domain/types'
 
@@ -78,6 +79,44 @@ export function AppointmentForm({
   const [address, setAddress] = useState(existing?.address ?? '')
   const [notes, setNotes] = useState(existing?.notes ?? '')
   const [saving, setSaving] = useState(false)
+  // Autocomplétion BAN sur l'adresse (audit UX B12) : un RDV pris depuis
+  // l'agenda partait avec une adresse libre, potentiellement fautive — Waze
+  // géocodait au petit bonheur. Recherche seulement quand le champ a le
+  // focus (les pré-remplissages ne déclenchent rien).
+  const [addrFocus, setAddrFocus] = useState(false)
+  const [addrResults, setAddrResults] = useState<AddressResult[]>([])
+  const [addrOpen, setAddrOpen] = useState(false)
+
+  useEffect(() => {
+    if (!addrFocus) return
+    const q = address.trim()
+    if (q.length < 3) {
+      setAddrResults([])
+      return
+    }
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => {
+      searchAddresses(q, ctrl.signal)
+        .then((rs) => {
+          setAddrResults(rs)
+          setAddrOpen(true)
+        })
+        .catch((e) => {
+          if ((e as Error).name !== 'AbortError') console.error('Recherche adresse :', e)
+        })
+    }, 300)
+    return () => {
+      clearTimeout(timer)
+      ctrl.abort()
+    }
+  }, [address, addrFocus])
+
+  const chooseAddress = (r: AddressResult) => {
+    setAddress(r.label) // label normalisé BAN : Waze et la recherche tombent juste
+    setAddrResults([])
+    setAddrOpen(false)
+    ;(document.activeElement as HTMLElement | null)?.blur()
+  }
 
   // Pré-remplit l'adresse depuis les coordonnées du point (géocodage inverse BAN).
   useEffect(() => {
@@ -247,9 +286,37 @@ export function AppointmentForm({
             className="field-input"
             type="text"
             placeholder="Adresse"
+            autoComplete="off"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
+            onFocus={() => setAddrFocus(true)}
+            onBlur={() => {
+              setAddrFocus(false)
+              // Différé : le tap sur une suggestion doit gagner contre le blur.
+              window.setTimeout(() => setAddrOpen(false), 150)
+            }}
           />
+          {addrOpen && addrResults.length > 0 && (
+            // Liste EN FLUX (pas de dropdown absolu : le corps de la sheet
+            // défile, un overlay serait rogné) — même style que la carte.
+            <ul className="address-results form-address-results">
+              {addrResults.map((r, i) => (
+                <li key={i}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => chooseAddress(r)}
+                  >
+                    <MapPin size={15} strokeWidth={1.8} className="address-result-icon" />
+                    <span className="address-texts">
+                      <span className="address-label">{r.label}</span>
+                      {r.context && <span className="address-context">{r.context}</span>}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
           {(pointNote ?? existing?.point?.notes) && (
             <>
