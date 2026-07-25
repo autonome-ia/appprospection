@@ -123,7 +123,11 @@
 - [x] **Lot Argumentaire (25/07)** — 2 commits :
   - **B3 sélection Σ → plan + rapport** : l'état `excluded` remonté dans RoofModule (Roof3D contrôlé) — plan coté avec pans exclus grisés (contour pointillé), rapport avec « Σ N m² · surface retenue avec vous » (masquée si égale au badge maison), chutes basées sur la sélection, lignes exclues barrées, partage mentionnant la surface retenue.
   - ~~B13 badge matériau tappable~~ **ANNULÉ après test terrain (25/07, décision briac)** : le select « Toiture constatée » est SUPPRIMÉ de la fiche (il n'ajoutait rien), et l'avant/après matériau 3D (« Votre toit en… ») est SUPPRIMÉ aussi — la maquette s'affiche toujours en mode mesure (une couleur par pan). Le badge matériau redevient informatif (toast) ; `mat_toit_confirme` reste en base pour les anciens points.
-- [ ] ⬜ **Lots B restants et C** (ordre proposé : Agenda/Client B11+B12+C1 → Accueil B4 → C2) : B11 ClientSheet (actions en tête + historique), B12 BAN sur l'adresse RDV, C1 agenda « jour d'abord », B4 refonte Accueil, C2 rapport PDF partageable.
+- [x] **Lot Agenda/Client (25/07)** — 3 commits :
+  - **B12 autocomplétion BAN** sur l'adresse du RDV (helper `searchAddresses` partagé, liste en flux dans la sheet, label normalisé au tap, recherche active seulement au focus). *Reliquat non fait : stocker lng/lat + proposer de lier/poser le point (migration + UX à part).*
+  - **B11 fiche client** : issues du RDV du jour (règle jour J + anti-double-tap, statut reflété localement), section « Historique » (tous les RDV du point + journal de notes), module toiture replié.
+  - **C1 agenda « jour d'abord »** : mois replié par défaut en bandeau semaine (pastilles par commercial, ambre = relance), tap sur le mois = grille complète, chevrons semaine/mois selon le mode.
+- [ ] ⬜ **Restants audit UX** : B4 refonte de l'en-tête Accueil, C2 rapport PDF partageable (session dédiée, après B3 ✅).
 - [ ] ⬜ **Équipe/invitations + écran de connexion** : volontairement EN DERNIER (décision briac 25/07) — l'interface commerciale doit être parfaite avant de lancer le test réel à plusieurs.
 
 ## Prochains chantiers (à choisir avec briac)
