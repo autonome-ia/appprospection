@@ -2334,13 +2334,13 @@
   background: var(--surface-2);
 }
 .note-meta {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.03em;
+  /* Geist, échelle resserrée (retour briac 25/07) : le mono 10,5 px espacé
+     jurait avec le corps de la note. */
+  font-size: 12px;
   color: var(--ink-3);
 }
 .note-body {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.45;
   color: var(--ink);
   white-space: pre-wrap;
@@ -2402,13 +2402,14 @@
   inset: -6px;
 }
 .drawer-meta {
+  /* Geist (plus de mono sur du texte) : le mono est réservé aux heures et
+     aux m² — l'en-tête mêlait polices, tailles et gris (retour briac 25/07). */
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 6px 14px;
   margin: 10px 0 2px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--ink-3);
+  font-size: 13px;
+  color: var(--ink-2);
 }
 .drawer-meta span {
   display: inline-flex;
@@ -2433,9 +2434,11 @@
   gap: 8px;
   margin: 12px 0 2px;
   padding: 10px 12px;
-  border: 1px solid var(--line);
+  /* Fond blanc + bordure accent (retour briac 25/07) — le pavé bleu pâle
+     alourdissait la fiche. */
+  border: 1px solid var(--accent);
   border-radius: var(--r-md);
-  background: var(--accent-weak);
+  background: var(--surface);
 }
 .rdv-block-head {
   display: inline-flex;

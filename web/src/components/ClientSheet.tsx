@@ -19,6 +19,7 @@ import {
 } from '../domain/appointments'
 import { HouseBadges } from './HouseBadges'
 import { RoofModule } from './RoofModule'
+import { firstNameOf } from '../domain/names'
 
 // -----------------------------------------------------------------------------
 // Fiche CLIENT de l'agenda (vue « Clients ») : tout ce qu'un commercial doit
@@ -313,15 +314,21 @@ export function ClientSheet({ appt, profile, onOpenChange, onEdit, onShowOnMap, 
               )}
               {notes.length > 0 && (
                 <ul className="note-history">
-                  {notes.map((n) => (
-                    <li key={n.id} className="note-entry">
-                      <span className="note-meta">
-                        {n.author_name ?? 'Note'}
-                        {n.created_at ? ` · ${fmtShort(n.created_at)}` : ''}
-                      </span>
-                      <span className="note-body">{n.body}</span>
-                    </li>
-                  ))}
+                  {notes.map((n) => {
+                    // Date seule pour SES notes ; prénom (jamais l'email)
+                    // pour celles d'un collègue (retour briac 25/07).
+                    const who =
+                      n.author_id && n.author_id !== profile.id
+                        ? firstNameOf(n.author_name)
+                        : null
+                    const when = n.created_at ? fmtShort(n.created_at) : ''
+                    return (
+                      <li key={n.id} className="note-entry">
+                        <span className="note-meta">{who ? `${who} · ${when}` : when}</span>
+                        <span className="note-body">{n.body}</span>
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </>

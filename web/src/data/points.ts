@@ -284,6 +284,8 @@ export interface PointNote {
   id: string
   body: string
   created_at: string
+  /** Pour distinguer SES notes (méta = date seule) de celles d'un collègue. */
+  author_id: string | null
   author_name: string | null
 }
 
@@ -292,7 +294,7 @@ export async function fetchPointNotes(pointId: string): Promise<PointNote[]> {
   if (!supabase) return []
   const { data, error } = await supabase
     .from('point_notes')
-    .select('id, body, created_at, author:profiles(full_name)')
+    .select('id, body, created_at, author_id, author:profiles(full_name)')
     .eq('point_id', pointId)
     .order('created_at', { ascending: false })
   if (error) throw error
@@ -300,6 +302,7 @@ export async function fetchPointNotes(pointId: string): Promise<PointNote[]> {
     id: r.id as string,
     body: r.body as string,
     created_at: r.created_at as string,
+    author_id: (r.author_id as string | null) ?? null,
     author_name: (r.author as { full_name: string | null } | null)?.full_name ?? null,
   }))
 }

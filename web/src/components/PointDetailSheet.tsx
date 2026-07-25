@@ -11,6 +11,7 @@ import {
 } from '../data/points'
 import { fetchPointAppointments } from '../data/appointments'
 import { wazeUrl } from './ClientSheet'
+import { firstNameOf } from '../domain/names'
 import { APPOINTMENT_STATUS_META, type Appointment } from '../domain/appointments'
 import {
   lidarNeedsMeasure,
@@ -281,10 +282,20 @@ export function PointDetailSheet({
             id: 'legacy',
             body: point.note,
             created_at: detail?.created_at ?? '',
+            author_id: detail?.created_by ?? null,
             author_name: detail?.author_name ?? null,
           },
         ]
       : history
+
+  // Méta d'une note : date seule pour SES notes, prénom (jamais l'email) pour
+  // celles d'un collègue — l'adresse mail mangeait la ligne (retour briac).
+  const noteMeta = (n: PointNote): string => {
+    const when = n.created_at ? formatDate(n.created_at) : ''
+    if (!n.author_id || n.author_id === me?.id) return when
+    const who = firstNameOf(n.author_name)
+    return who ? (when ? `${who} · ${when}` : who) : when
+  }
 
   async function save() {
     if (!point) return
@@ -569,10 +580,7 @@ export function PointDetailSheet({
             <ul className="note-history">
               {shownNotes.map((n) => (
                 <li key={n.id} className="note-entry">
-                  <span className="note-meta">
-                    {n.author_name ?? 'Note'}
-                    {n.created_at ? ` · ${formatDate(n.created_at)}` : ''}
-                  </span>
+                  {noteMeta(n) && <span className="note-meta">{noteMeta(n)}</span>}
                   <span className="note-body">{n.body}</span>
                 </li>
               ))}
