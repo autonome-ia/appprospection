@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
+import { toast } from 'sonner'
 import { FileText, Printer, Share2, X } from 'lucide-react'
 import type { RoofData } from '../domain/house'
 import { RoofDiagramSvg, panLetters } from './RoofDiagram'
@@ -57,6 +58,8 @@ export function RoofReport({
   onClose,
 }: Props) {
   const [open, setOpen] = useState(embedded)
+  // Génération du document en cours (canvas + partage) : anti-double-tap.
+  const [sharing, setSharing] = useState(false)
   const { profile } = useSession()
   const letters = panLetters(roof)
   if (letters.size === 0) return null
@@ -96,8 +99,10 @@ export function RoofReport({
     'standalone' in navigator && (navigator as { standalone?: boolean }).standalone === true
   )
 
-  const share = () => {
-    const lines = [
+  // Message d'accompagnement du document (et repli si le partage de
+  // fichiers n'est pas disponible).
+  const shareText = () =>
+    [
       `Rapport de toiture${address ? ` — ${address}` : ''}`,
       maisonM2 != null ? `Toit de la maison : ${maisonM2} m² (mesure laser IGN LiDAR HD)` : null,
       totalM2 != null && totalM2 !== maisonM2 ? `Total avec annexes : ${totalM2} m²` : null,
@@ -105,8 +110,71 @@ export function RoofReport({
       `Surface de commande conseillée (+${wastePct} % de chutes) : ${Math.round(base * (1 + wastePct / 100))} m²`,
       survol ? `Survol laser IGN ${survol} · précision ±5 %` : null,
       identLine,
-    ].filter(Boolean)
-    void navigator.share?.({ title: 'Rapport de toiture', text: lines.join('\n') }).catch(() => {})
+    ]
+      .filter(Boolean)
+      .join('\n')
+
+  // Partage en DOCUMENT (audit UX C2) : le rapport est rendu en image côté
+  // client (canvas, chunk à la demande) et part en fichier via l'API Web
+  // Share — en PWA iOS installée, window.print() est un no-op et le texte
+  // seul ne faisait pas « document remis au prospect ».
+  const shareDocument = async () => {
+    if (sharing) return
+    setSharing(true)
+    try {
+      const { renderReportImage } = await import('../lib/report-image')
+      const blob = await renderReportImage({
+        roof,
+        excluded,
+        letters: [...letters.entries()].sort((a, b) => a[1].localeCompare(b[1])),
+        address,
+        maisonM2,
+        totalM2,
+        selectionM2,
+        showSelection,
+        base,
+        wastePct,
+        wasteRows,
+        edgeRows: roof.aretes
+          ? EDGE_LABELS.filter(([k]) => (roof.aretes![k] ?? 0) >= 1).map(([k, label]) => [
+              label,
+              `${String(roof.aretes![k]).replace('.', ',')} m`,
+            ])
+          : [],
+        survol,
+        identLine,
+      })
+      const slug = (address ?? 'maison')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '') // diacritiques décomposés (é → e + ́)
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 40)
+      const file = new File([blob], `rapport-toiture-${slug}.png`, { type: 'image/png' })
+      if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], text: shareText() })
+      } else if (navigator.share) {
+        // Fichiers non partageables (vieux navigateur) : au moins le texte.
+        await navigator.share({ title: 'Rapport de toiture', text: shareText() })
+      } else {
+        // Desktop sans Web Share : téléchargement direct.
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = file.name
+        a.click()
+        URL.revokeObjectURL(url)
+      }
+    } catch (e) {
+      // Partage annulé par l'utilisateur = pas une erreur.
+      if ((e as Error).name !== 'AbortError') {
+        console.error('Partage du rapport :', e)
+        toast.error('Partage impossible — réessayez')
+      }
+    } finally {
+      setSharing(false)
+    }
   }
 
   return createPortal(
@@ -118,11 +186,9 @@ export function RoofReport({
               <Printer size={15} /> Imprimer / PDF
             </button>
           )}
-          {'share' in navigator && (
-            <button type="button" className="btn" onClick={share}>
-              <Share2 size={15} /> Partager
-            </button>
-          )}
+          <button type="button" className="btn" onClick={() => void shareDocument()} disabled={sharing}>
+            <Share2 size={15} /> {sharing ? 'Préparation…' : 'Partager'}
+          </button>
           <button
             type="button"
             className="icon-btn"

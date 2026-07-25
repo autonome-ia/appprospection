@@ -27,7 +27,7 @@ const toLocal = (
   (lat - lat0) * 110540,
 ]
 
-interface DiagramPan {
+export interface DiagramPan {
   idx: number
   letter: string
   color: string
@@ -39,14 +39,16 @@ interface DiagramPan {
   centre: [number, number]
 }
 
-interface EdgeLabel {
+export interface EdgeLabel {
   x: number
   y: number
   angle: number
   text: string
 }
 
-function buildDiagram(roof: RoofData) {
+/** Géométrie du plan (pans projetés + cotes + bornes) — partagée avec le
+    rendu image du rapport (audit UX C2, lib/report-image). */
+export function buildDiagram(roof: RoofData) {
   const drawable = roof.pans
     .map((pan, idx) => ({ pan, idx }))
     .filter(({ pan }) => pan.contour && pan.contour.length >= 4)
