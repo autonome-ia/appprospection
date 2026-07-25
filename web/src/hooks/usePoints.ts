@@ -31,6 +31,7 @@ type PointChanges = {
   status?: PointStatus
   note?: string | null
   client_name?: string | null
+  client_phone?: string | null
   revisit_at?: string | null
   mat_toit_confirme?: string | null
   /** Déplacement (appui long → « Déplacer ici »). */
@@ -163,6 +164,7 @@ export function usePoints(profile: Profile | null) {
         created_by: profile?.id ?? null,
         note: note ?? null,
         client_name: null,
+        client_phone: null,
         address: null,
         revisit_at: null,
         visited_at: new Date().toISOString(),
@@ -274,6 +276,9 @@ export function usePoints(profile: Profile | null) {
                   ...(changes.status !== undefined ? { status: changes.status } : {}),
                   ...(changes.note !== undefined ? { note: changes.note } : {}),
                   ...(changes.client_name !== undefined ? { client_name: changes.client_name } : {}),
+                  ...(changes.client_phone !== undefined
+                    ? { client_phone: changes.client_phone }
+                    : {}),
                   ...(changes.revisit_at !== undefined ? { revisit_at: changes.revisit_at } : {}),
                   ...(changes.mat_toit_confirme !== undefined
                     ? { mat_toit_confirme: changes.mat_toit_confirme }

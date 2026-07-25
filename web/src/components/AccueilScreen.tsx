@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'motion/react'
-import { MapPin, LogOut, ChevronRight, BellRing, Activity } from 'lucide-react'
+import { MapPin, LogOut, ChevronRight, BellRing, Activity, Phone } from 'lucide-react'
 import { useSession } from '../lib/session'
 import { fetchRelances, localDayKey } from '../data/points'
 import { fetchRecentActivity, type ActivityItem } from '../data/stats'
@@ -119,24 +119,36 @@ export function AccueilScreen({
             <BellRing size={12} strokeWidth={2} /> À relancer · {relances.length}
           </p>
           {relances.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className="home-row"
-              onClick={() => onShowOnMap?.({ pointId: p.id, lng: p.lng, lat: p.lat })}
-            >
-              <span className="status-dot" style={{ background: STATUS_BY_VALUE[p.status].color }} />
-              <span className="home-row-main">
-                <span className="home-row-title">
-                  {p.client_name ?? p.address ?? 'Maison à revoir'}
+            // Bouton (carte) + appel côte à côte : une ancre tel: DANS le
+            // bouton serait du HTML invalide (audit UX B10).
+            <div key={p.id} className="home-row-group">
+              <button
+                type="button"
+                className="home-row"
+                onClick={() => onShowOnMap?.({ pointId: p.id, lng: p.lng, lat: p.lat })}
+              >
+                <span className="status-dot" style={{ background: STATUS_BY_VALUE[p.status].color }} />
+                <span className="home-row-main">
+                  <span className="home-row-title">
+                    {p.client_name ?? p.address ?? 'Maison à revoir'}
+                  </span>
+                  <span className="home-row-sub">
+                    {p.client_name && p.address ? `${p.address} · ` : ''}
+                    {p.note ?? ''}
+                  </span>
                 </span>
-                <span className="home-row-sub">
-                  {p.client_name && p.address ? `${p.address} · ` : ''}
-                  {p.note ?? ''}
-                </span>
-              </span>
-              <span className="home-row-when tnum">{p.revisit_at ? relanceLabel(p.revisit_at) : ''}</span>
-            </button>
+                <span className="home-row-when tnum">{p.revisit_at ? relanceLabel(p.revisit_at) : ''}</span>
+              </button>
+              {p.client_phone && (
+                <a
+                  className="home-row-call"
+                  href={`tel:${p.client_phone}`}
+                  aria-label={`Appeler ${p.client_name ?? 'le client'}`}
+                >
+                  <Phone size={17} strokeWidth={1.9} />
+                </a>
+              )}
+            </div>
           ))}
         </motion.section>
       )}

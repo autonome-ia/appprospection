@@ -22,6 +22,9 @@ export interface MapPoint {
   note: string | null
   /** Nom du client / occupant (mini-CRM). */
   client_name: string | null
+  /** Téléphone du client — « rappelez-moi, voilà mon 06 » d'un « à revoir »
+      (db/0014) ; synchronisé avec le RDV comme client_name. */
+  client_phone: string | null
   /** Adresse (renseignée automatiquement par géocodage inverse BAN à la pose). */
   address: string | null
   /** Date de relance (YYYY-MM-DD) pour les points « à revoir ». */

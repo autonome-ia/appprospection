@@ -36,6 +36,7 @@ interface Props {
       status?: PointStatus
       note?: string | null
       client_name?: string | null
+      client_phone?: string | null
       revisit_at?: string | null
       mat_toit_confirme?: string | null
     },
@@ -108,6 +109,7 @@ export function PointDetailSheet({
   const [history, setHistory] = useState<PointNote[]>([])
   const [newNote, setNewNote] = useState('')
   const [clientName, setClientName] = useState('')
+  const [clientPhone, setClientPhone] = useState('')
   const [revisitAt, setRevisitAt] = useState('')
   const [matConfirme, setMatConfirme] = useState('')
   const [saving, setSaving] = useState(false)
@@ -132,18 +134,26 @@ export function PointDetailSheet({
   // que ce que l'utilisateur a touché DANS CETTE SESSION — comparer à `point`
   // (mis à jour par le realtime) réécrivait l'ancien statut par-dessus le
   // changement d'un collègue, et journalisait un faux événement (audit).
-  const initialRef = useRef({ status: 'absent' as PointStatus, clientName: '', revisitAt: '', matConfirme: '' })
+  const initialRef = useRef({
+    status: 'absent' as PointStatus,
+    clientName: '',
+    clientPhone: '',
+    revisitAt: '',
+    matConfirme: '',
+  })
 
   useEffect(() => {
     if (!open || !point) return
     initialRef.current = {
       status: point.status,
       clientName: point.client_name ?? '',
+      clientPhone: point.client_phone ?? '',
       revisitAt: point.revisit_at ?? '',
       matConfirme: point.mat_toit_confirme ?? '',
     }
     setStatus(point.status)
     setClientName(point.client_name ?? '')
+    setClientPhone(point.client_phone ?? '')
     setRevisitAt(point.revisit_at ?? '')
     setMatConfirme(point.mat_toit_confirme ?? '')
     setNewNote('')
@@ -260,6 +270,7 @@ export function PointDetailSheet({
   const dirty =
     status !== init.status ||
     clientName !== init.clientName ||
+    clientPhone !== init.clientPhone ||
     matConfirme !== init.matConfirme ||
     (status === 'a_revoir' && revisitAt !== init.revisitAt) ||
     newNote.trim().length > 0
@@ -284,6 +295,7 @@ export function PointDetailSheet({
     const changes: {
       status?: PointStatus
       client_name?: string | null
+      client_phone?: string | null
       revisit_at?: string | null
       mat_toit_confirme?: string | null
     } = {}
@@ -293,6 +305,8 @@ export function PointDetailSheet({
     if (status !== init.status) changes.status = status
     if (clientName !== init.clientName)
       changes.client_name = clientName.trim() ? clientName.trim() : null
+    if (clientPhone !== init.clientPhone)
+      changes.client_phone = clientPhone.trim() ? clientPhone.trim() : null
     if (matConfirme !== init.matConfirme) changes.mat_toit_confirme = matConfirme || null
     // Date de relance : suivie seulement pour « à revoir », effacée sinon.
     if (status === 'a_revoir') {
@@ -312,6 +326,7 @@ export function PointDetailSheet({
         initialRef.current = {
           status,
           clientName,
+          clientPhone,
           matConfirme,
           revisitAt: status === 'a_revoir' ? revisitAt : '',
         }
@@ -423,6 +438,12 @@ export function PointDetailSheet({
                   <User size={13} /> {detail.author_name}
                 </span>
               )}
+              {/* Appel direct depuis l'en-tête (audit UX B10). */}
+              {point.client_phone && (
+                <a href={`tel:${point.client_phone}`}>
+                  <Phone size={13} /> {point.client_phone}
+                </a>
+              )}
             </div>
           )}
 
@@ -448,8 +469,8 @@ export function PointDetailSheet({
                 </span>
               )}
               <span className="rdv-actions">
-                {shownRdv.client_phone && (
-                  <a className="text-btn" href={`tel:${shownRdv.client_phone}`}>
+                {(shownRdv.client_phone ?? point.client_phone) && (
+                  <a className="text-btn" href={`tel:${shownRdv.client_phone ?? point.client_phone}`}>
                     <Phone size={14} /> Appeler
                   </a>
                 )}
@@ -564,13 +585,24 @@ export function PointDetailSheet({
                   </button>
                 )}
               </div>
-              <input
-                className="field-input"
-                type="text"
-                placeholder="Nom (facultatif)"
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-              />
+              {/* Nom + téléphone côte à côte (audit UX B10) : le « voilà mon
+                  06 » d'un « à revoir » a enfin sa place hors note libre. */}
+              <div className="field-grid">
+                <input
+                  className="field-input"
+                  type="text"
+                  placeholder="Nom (facultatif)"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                />
+                <input
+                  className="field-input"
+                  type="tel"
+                  placeholder="06 …"
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                />
+              </div>
             </>
           )}
 

@@ -1524,6 +1524,27 @@
   font-size: 11px;
   color: var(--ink-3);
 }
+/* Ligne « À relancer » + bouton d'appel (audit UX B10). */
+.home-row-group {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.home-row-group .home-row {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+.home-row-call {
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--accent);
+}
 
 /* Fiche maison enrichie (open data) : badges compacts sous l'en-tête */
 .house-badges {
@@ -2197,6 +2218,14 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+}
+/* Téléphone du client dans l'en-tête (lien d'appel, audit UX B10). */
+.drawer-meta a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent);
+  text-decoration: none;
 }
 /* --- Bloc « Rendez-vous » en tête de fiche point (audit UX B1) --- */
 .rdv-block {

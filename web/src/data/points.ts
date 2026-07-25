@@ -8,7 +8,7 @@ import type { PointStatus } from '../domain/status'
 // pour tous les points à chaque chargement (carte, accueil, agenda) croîtrait
 // avec l'activité de l'équipe. Récupéré à la demande via fetchPointPans.
 const COLS =
-  'id, lng, lat, status, created_by, notes, client_name, address, revisit_at, visited_at, annee_construction, mat_toit, mat_toit_confirme, toit_surface_m2, dpe_classe, maison_extra, enriched_at, toit_lidar_m2, toit_lidar_principal_m2, toit_lidar_statut, toit_lidar_millesime, toit_lidar_version, toit_lidar_diag'
+  'id, lng, lat, status, created_by, notes, client_name, client_phone, address, revisit_at, visited_at, annee_construction, mat_toit, mat_toit_confirme, toit_surface_m2, dpe_classe, maison_extra, enriched_at, toit_lidar_m2, toit_lidar_principal_m2, toit_lidar_statut, toit_lidar_millesime, toit_lidar_version, toit_lidar_diag'
 
 /** Détail complet d'un point (panneau au clic). */
 export interface PointDetail extends MapPoint {
@@ -26,6 +26,7 @@ function rowToPoint(r: Record<string, unknown>): MapPoint {
     created_by: (r.created_by as string | null) ?? null,
     note: (r.notes as string | null) ?? null,
     client_name: (r.client_name as string | null) ?? null,
+    client_phone: (r.client_phone as string | null) ?? null,
     address: (r.address as string | null) ?? null,
     revisit_at: (r.revisit_at as string | null) ?? null,
     visited_at: (r.visited_at as string | null) ?? null,
@@ -189,6 +190,7 @@ export async function updatePoint(
     status?: PointStatus
     note?: string | null
     client_name?: string | null
+    client_phone?: string | null
     revisit_at?: string | null
     mat_toit_confirme?: string | null
     /** Déplacement du point (appui long → « Déplacer ici ») — pas une visite. */
@@ -209,6 +211,7 @@ export async function updatePoint(
   }
   if (changes.note !== undefined) patch.notes = changes.note
   if (changes.client_name !== undefined) patch.client_name = changes.client_name
+  if (changes.client_phone !== undefined) patch.client_phone = changes.client_phone
   if (changes.revisit_at !== undefined) patch.revisit_at = changes.revisit_at
   if (changes.mat_toit_confirme !== undefined) patch.mat_toit_confirme = changes.mat_toit_confirme
 
@@ -321,16 +324,15 @@ export async function addPointNote(profile: Profile, pointId: string, body: stri
   if (e2) console.error('Dernière note du point :', e2.message)
 }
 
-/** Synchronise le nom du client sur le point (depuis le formulaire RDV). */
-export async function setPointClientName(pointId: string, clientName: string | null): Promise<void> {
+/** Synchronise nom et/ou téléphone du client sur le point (formulaire RDV). */
+export async function syncPointClient(
+  pointId: string,
+  fields: { client_name?: string | null; client_phone?: string | null },
+): Promise<void> {
   if (!supabase) return
   // .select() : la RLS (point d'un collègue) filtre sans erreur — on remonte
-  // l'échec à l'appelant (qui logue : le nom reste porté par le RDV lui-même).
-  const { data, error } = await supabase
-    .from('points')
-    .update({ client_name: clientName })
-    .eq('id', pointId)
-    .select('id')
+  // l'échec à l'appelant (qui logue : les infos restent portées par le RDV).
+  const { data, error } = await supabase.from('points').update(fields).eq('id', pointId).select('id')
   if (error) throw error
   if (!data?.length) throw new Error('point d’un autre commercial (RLS)')
 }

@@ -3,7 +3,7 @@ import { Drawer } from 'vaul'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
 import { createAppointment, updateAppointment } from '../data/appointments'
-import { addPointNote, setPointClientName } from '../data/points'
+import { addPointNote, syncPointClient } from '../data/points'
 import type { Appointment } from '../domain/appointments'
 import type { Profile } from '../domain/types'
 
@@ -19,6 +19,8 @@ interface Props {
   /** Nom client du point lié : pré-rempli à la création (audit UX A5 —
       la synchro existait dans l'autre sens mais le champ arrivait vide). */
   defaultClientName?: string | null
+  /** Téléphone du point lié : même logique (audit UX B10). */
+  defaultClientPhone?: string | null
   onSaved: () => void
 }
 
@@ -65,13 +67,14 @@ export function AppointmentForm({
   coords,
   pointNote,
   defaultClientName,
+  defaultClientPhone,
   onSaved,
 }: Props) {
   const init = existing ? new Date(existing.scheduled_at) : defaultDate()
   const [dateStr, setDateStr] = useState(toDateInput(init))
   const [timeStr, setTimeStr] = useState(toTimeInput(init))
   const [clientName, setClientName] = useState(existing?.client_name ?? defaultClientName ?? '')
-  const [clientPhone, setClientPhone] = useState(existing?.client_phone ?? '')
+  const [clientPhone, setClientPhone] = useState(existing?.client_phone ?? defaultClientPhone ?? '')
   const [address, setAddress] = useState(existing?.address ?? '')
   const [notes, setNotes] = useState(existing?.notes ?? '')
   const [saving, setSaving] = useState(false)
@@ -124,17 +127,21 @@ export function AppointmentForm({
       // modification). Best effort : un échec n'annule pas le RDV.
       const linkedPointId = existing ? existing.point_id : (pointId ?? null)
       if (linkedPointId) {
-        // Synchronisé SEULEMENT si le nom a réellement changé dans CE
+        // Synchronisés SEULEMENT s'ils ont réellement changé dans CE
         // formulaire : décaler l'heure d'un RDV repoussait l'ancien nom sur
         // le point, écrasant une correction faite entre-temps sur la fiche
         // (contre-audit, bug 10). L'effacement (null) se propage aussi.
         const nameChanged = existing
           ? (clientName.trim() || null) !== (existing.client_name ?? null)
           : clientName.trim().length > 0
-        if (nameChanged) {
-          setPointClientName(linkedPointId, clientName.trim() || null).catch((e) =>
-            console.error('Synchro client du point :', e),
-          )
+        const phoneChanged = existing
+          ? (clientPhone.trim() || null) !== (existing.client_phone ?? null)
+          : clientPhone.trim().length > 0 && (clientPhone.trim() || null) !== (defaultClientPhone ?? null)
+        if (nameChanged || phoneChanged) {
+          syncPointClient(linkedPointId, {
+            ...(nameChanged ? { client_name: clientName.trim() || null } : {}),
+            ...(phoneChanged ? { client_phone: clientPhone.trim() || null } : {}),
+          }).catch((e) => console.error('Synchro client du point :', e))
         }
         if (!existing && notes.trim()) {
           addPointNote(profile, linkedPointId, notes.trim()).catch((e) =>
