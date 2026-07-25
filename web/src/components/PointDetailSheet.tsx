@@ -1,14 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
-import { X, Trash2, Clock, User, MapPin } from 'lucide-react'
+import { X, Trash2, Clock, User, MapPin, CalendarClock, Phone, CalendarPlus } from 'lucide-react'
 import {
   getPointDetail,
   fetchPointNotes,
   fetchPointPans,
+  localDayKey,
   type PointDetail,
   type PointNote,
 } from '../data/points'
+import { fetchPointAppointments } from '../data/appointments'
+import { APPOINTMENT_STATUS_META, type Appointment } from '../domain/appointments'
 import {
   CONFIRMED_MAT_OPTIONS,
   lidarNeedsMeasure,
@@ -41,6 +44,11 @@ interface Props {
   onAddNote: (id: string, body: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onRdvNeeded?: (point: MapPoint) => void
+  /** Bascule sur l'onglet Agenda, calé sur ce jour (YYYY-MM-DD). */
+  onShowAgenda?: (day: string) => void
+  /** Incrémenté quand un RDV vient d'être enregistré (formulaire par-dessus
+      la fiche) : le bloc « Rendez-vous » se rafraîchit sans rouvrir. */
+  apptsVersion?: number
 }
 
 function formatDate(iso: string): string {
@@ -58,6 +66,18 @@ function dayPlus(n: number): string {
   const d = new Date()
   d.setDate(d.getDate() + n)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** « Sam. 26 juil. · 16:00 » — l'heure séparée par un point médian. */
+function formatRdvWhen(iso: string): string {
+  const d = new Date(iso)
+  const day = new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  }).format(d)
+  const time = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(d)
+  return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time}`
 }
 
 /** Presets 1-tap de la date de relance (audit UX A4) — évalués à l'affichage
@@ -80,6 +100,8 @@ export function PointDetailSheet({
   onAddNote,
   onDelete,
   onRdvNeeded,
+  onShowAgenda,
+  apptsVersion,
 }: Props) {
   const [detail, setDetail] = useState<PointDetail | null>(null)
   const [status, setStatus] = useState<PointStatus>('absent')
@@ -102,6 +124,9 @@ export function PointDetailSheet({
   const [cachedPans, setCachedPans] = useState<RoofData | null>(null)
   // Suppression en deux taps (voir remove()).
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // RDV liés au point (bloc « Rendez-vous », audit UX B1) — null = pas encore
+  // chargés : le bandeau « Aucun RDV planifié » n'accuse pas pendant le fetch.
+  const [appts, setAppts] = useState<Appointment[] | null>(null)
 
   // Instantané des valeurs INITIALES du formulaire : la sauvegarde n'envoie
   // que ce que l'utilisateur a touché DANS CETTE SESSION — comparer à `point`
@@ -200,6 +225,34 @@ export function PointDetailSheet({
     // pouvait être enregistrée en double — audit).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [point?.id, open])
+
+  // RDV liés (effet séparé : il rejoue aussi quand un RDV vient d'être
+  // enregistré par-dessus la fiche, via apptsVersion).
+  useEffect(() => {
+    setAppts(null)
+    if (!open || !point || !isSupabaseConfigured || point.id.startsWith('temp-')) return
+    let active = true
+    fetchPointAppointments(point.id)
+      .then((as) => {
+        if (active) setAppts(as)
+      })
+      .catch((e) => console.error('RDV du point :', e))
+    return () => {
+      active = false
+    }
+    // Même logique que l'effet principal : l'ID et l'ouverture, pas l'objet.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [point?.id, open, apptsVersion])
+
+  // RDV mis en avant : le prochain « à venir » (1 h de grâce : un RDV en
+  // cours reste LE rendez-vous), sinon le plus récent avec son issue.
+  const shownRdv = useMemo(() => {
+    if (!appts?.length) return null
+    const upcoming = appts.find(
+      (a) => a.status === 'a_venir' && new Date(a.scheduled_at).getTime() >= Date.now() - 3_600_000,
+    )
+    return upcoming ?? appts[appts.length - 1]
+  }, [appts])
 
   if (!point) return null
 
@@ -377,6 +430,55 @@ export function PointDetailSheet({
               défiler la sheet au lieu de la tirer (vaul volait le scroll —
               fermer reste possible par la poignée / l'en-tête). */}
           <div className="drawer-body" data-vaul-no-drag>
+          {/* Bloc « Rendez-vous » en tête (audit UX B1) : la fiche d'un point
+              « RDV pris » n'affichait ni date ni heure — il fallait fouiller
+              l'agenda pour savoir quand on est attendu. */}
+          {shownRdv && (
+            <div className="rdv-block">
+              <span className="rdv-when">
+                <CalendarClock size={15} strokeWidth={2} />
+                {formatRdvWhen(shownRdv.scheduled_at)}
+              </span>
+              {shownRdv.status !== 'a_venir' && (
+                <span
+                  className="rdv-outcome"
+                  style={{ color: APPOINTMENT_STATUS_META[shownRdv.status].color }}
+                >
+                  {APPOINTMENT_STATUS_META[shownRdv.status].label}
+                </span>
+              )}
+              <span className="rdv-actions">
+                {shownRdv.client_phone && (
+                  <a className="text-btn" href={`tel:${shownRdv.client_phone}`}>
+                    <Phone size={14} /> Appeler
+                  </a>
+                )}
+                {onShowAgenda && (
+                  <button
+                    type="button"
+                    className="text-btn"
+                    onClick={() => onShowAgenda(localDayKey(new Date(shownRdv.scheduled_at)))}
+                  >
+                    Voir dans l’agenda
+                  </button>
+                )}
+              </span>
+            </div>
+          )}
+          {/* Trou silencieux (audit UX B1) : un point « RDV pris » SANS RDV en
+              agenda (formulaire balayé à la pose) — personne ne s'y présente. */}
+          {appts !== null &&
+            point.status === 'rdv_pris' &&
+            !appts.some((a) => a.status === 'a_venir') && (
+              <div className="rdv-missing">
+                <span>Aucun RDV planifié pour ce point</span>
+                {onRdvNeeded && (
+                  <button type="button" className="text-btn" onClick={() => onRdvNeeded(point)}>
+                    <CalendarPlus size={14} /> Planifier
+                  </button>
+                )}
+              </div>
+            )}
           <p className="eyebrow field-label">Statut</p>
           <div className="chip-row">
             {STATUSES.map((s) => (
@@ -453,7 +555,15 @@ export function PointDetailSheet({
           {/* Sans objet pour un « Absent » / « Impossible » (audit UX A12). */}
           {(status === 'a_revoir' || status === 'rdv_pris' || status === 'vendu') && (
             <>
-              <p className="eyebrow field-label">Client</p>
+              <div className="field-label-row">
+                <p className="eyebrow field-label">Client</p>
+                {/* RDV sans le détour statut → Enregistrer (audit UX B1). */}
+                {onRdvNeeded && isSupabaseConfigured && !point.id.startsWith('temp-') && (
+                  <button type="button" className="text-btn" onClick={() => onRdvNeeded(point)}>
+                    <CalendarPlus size={14} /> RDV
+                  </button>
+                )}
+              </div>
               <input
                 className="field-input"
                 type="text"

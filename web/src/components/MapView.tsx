@@ -95,11 +95,14 @@ export function MapView({
   active,
   focus,
   onFocusHandled,
+  onShowAgenda,
 }: {
   profile: Profile | null
   active: boolean
   focus?: MapFocus | null
   onFocusHandled?: () => void
+  /** Bascule sur l'onglet Agenda, calé sur un jour (bloc RDV de la fiche). */
+  onShowAgenda?: (day: string) => void
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -122,6 +125,9 @@ export function MapView({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   // Point pour lequel on saisit un RDV (après avoir posé/marqué "RDV pris").
   const [rdvPoint, setRdvPoint] = useState<MapPoint | null>(null)
+  // Incrémenté à chaque RDV enregistré : le bloc « Rendez-vous » de la fiche
+  // (ouverte dessous) se rafraîchit sans rouvrir (audit UX B1).
+  const [apptSeq, setApptSeq] = useState(0)
   // Mode visée : réticule au centre, on déplace la carte sous le viseur puis
   // on valide — le doigt ne masque jamais la maison, aucun tap accidentel.
   const [placing, setPlacing] = useState(false)
@@ -1234,6 +1240,8 @@ export function MapView({
         onAddNote={addNote}
         onDelete={removePoint}
         onRdvNeeded={(p) => isSupabaseConfigured && setRdvPoint(p)}
+        onShowAgenda={onShowAgenda}
+        apptsVersion={apptSeq}
       />
 
       {rdvPoint && profile && (
@@ -1245,7 +1253,10 @@ export function MapView({
           coords={{ lng: rdvPoint.lng, lat: rdvPoint.lat }}
           pointNote={rdvPoint.note}
           defaultClientName={rdvPoint.client_name}
-          onSaved={() => setRdvPoint(null)}
+          onSaved={() => {
+            setRdvPoint(null)
+            setApptSeq((s) => s + 1)
+          }}
         />
       )}
     </div>

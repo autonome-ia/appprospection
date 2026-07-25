@@ -43,6 +43,20 @@ export async function fetchAppointments(): Promise<Appointment[]> {
   }
 }
 
+/** RDV liés à un point (bloc « Rendez-vous » de la fiche point — audit UX B1).
+    Triés par date croissante ; un point n'a jamais qu'une poignée de RDV. */
+export async function fetchPointAppointments(pointId: string): Promise<Appointment[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('appointments')
+    .select(COLS)
+    .eq('point_id', pointId)
+    .order('scheduled_at')
+    .order('id')
+  if (error) throw error
+  return (data ?? []) as unknown as Appointment[]
+}
+
 export async function createAppointment(
   profile: Profile,
   appt: NewAppointment,

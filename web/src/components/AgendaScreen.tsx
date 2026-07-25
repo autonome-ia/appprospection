@@ -261,9 +261,15 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 export function AgendaScreen({
   profile,
   onShowOnMap,
+  focusDay,
+  onFocusDayHandled,
 }: {
   profile: Profile | null
   onShowOnMap?: (target: { pointId: string; lng: number; lat: number }) => void
+  /** « Voir dans l'agenda » depuis la fiche point (audit UX B1) : jour à
+      sélectionner à l'arrivée sur l'onglet (YYYY-MM-DD). */
+  focusDay?: string | null
+  onFocusDayHandled?: () => void
 }) {
   const [appts, setAppts] = useState<Appointment[]>([])
   const [revisits, setRevisits] = useState<MapPoint[]>([])
@@ -291,6 +297,17 @@ export function AgendaScreen({
   const todayRef = useRef(new Date())
   const selectedRef = useRef(selected)
   selectedRef.current = selected
+
+  // « Voir dans l'agenda » depuis la fiche point : sélectionne le jour du RDV
+  // (vue agenda, mois recalé) dès l'arrivée sur l'onglet.
+  useEffect(() => {
+    if (!focusDay) return
+    const d = new Date(`${focusDay}T00:00:00`)
+    setSelected(d)
+    setMonthDate(startOfMonth(d))
+    setView('agenda')
+    onFocusDayHandled?.()
+  }, [focusDay, onFocusDayHandled])
 
   // Anti-course : plusieurs reload se croisent (visibilitychange + realtime +
   // onChanged) et c'était le DERNIER à résoudre qui gagnait, pas le plus

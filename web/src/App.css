@@ -2198,6 +2198,72 @@
   align-items: center;
   gap: 5px;
 }
+/* --- Bloc « Rendez-vous » en tête de fiche point (audit UX B1) --- */
+.rdv-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 12px 0 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--accent-weak);
+}
+.rdv-when {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.rdv-when svg {
+  color: var(--accent);
+}
+.rdv-outcome {
+  font-size: 12px;
+  font-weight: 600;
+}
+.rdv-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+a.text-btn {
+  text-decoration: none;
+}
+/* Point « RDV pris » sans AUCUN RDV en agenda : le trou silencieux. */
+.rdv-missing {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 12px 0 2px;
+  padding: 10px 12px;
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  border-radius: var(--r-md);
+  background: rgba(217, 119, 6, 0.07);
+  font-size: 13px;
+  color: var(--ink);
+}
+.rdv-missing .text-btn {
+  color: var(--st-revoir);
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+/* Libellé de champ + action en vis-à-vis (« Client » · + RDV). */
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 14px 0 7px;
+}
+.field-label-row .field-label {
+  margin: 0;
+}
 .field-label {
   margin: 14px 0 7px;
 }
