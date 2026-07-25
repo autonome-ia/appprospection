@@ -24,6 +24,7 @@ import { HouseBadges } from './HouseBadges'
 import { RoofModule } from './RoofModule'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useSession } from '../lib/session'
+import { markerDataUrl } from '../config/markers'
 import { STATUSES, STATUS_BY_VALUE, type PointStatus } from '../domain/status'
 import type { MapPoint } from '../domain/types'
 
@@ -606,7 +607,7 @@ export function PointDetailSheet({
             <div className="status-line">
               <span className="eyebrow field-label">Statut</span>
               <span className="status-line-current">
-                <span className="chip-dot" style={{ background: STATUS_BY_VALUE[status].color }} />
+                <img className="chip-marker" src={markerDataUrl(status)} alt="" />
                 {STATUS_BY_VALUE[status].label}
               </span>
               <button type="button" className="text-btn" onClick={() => setStatusOpen(true)}>
@@ -630,7 +631,7 @@ export function PointDetailSheet({
                       if (s.value === 'a_revoir' && !revisitAt) setRevisitAt(dayPlus(7))
                     }}
                   >
-                    <span className="chip-dot" style={{ background: s.color }} />
+                    <img className="chip-marker" src={markerDataUrl(s.value)} alt="" />
                     {s.label}
                   </button>
                 ))}

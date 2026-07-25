@@ -9,7 +9,13 @@ import {
   ORTHO_SOURCE_ID,
   getOrthoSource,
 } from '../config/map'
-import { generateMarkerImages, MARKER_PREFIX, MARKER_PIXEL_RATIO, NOTE_SUFFIX } from '../config/markers'
+import {
+  generateMarkerImages,
+  markerDataUrl,
+  MARKER_PREFIX,
+  MARKER_PIXEL_RATIO,
+  NOTE_SUFFIX,
+} from '../config/markers'
 import { createClusterBadge, type ClusterProps } from '../config/clusters'
 import { PAN_COLORS } from '../domain/colors'
 import { toast } from 'sonner'
@@ -644,7 +650,8 @@ export function MapView({
       map.dragPan.disable() // le doigt déplace le POINT, plus la carte
       const el = document.createElement('div')
       el.className = 'drag-ghost'
-      el.style.background = STATUS_BY_VALUE[pt.status].color
+      // Le VRAI marqueur suit le doigt (retour briac 25/07), pas un rond plat.
+      el.style.backgroundImage = `url(${markerDataUrl(pt.status)})`
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([pt.lng, pt.lat])
         .addTo(map)
@@ -1102,7 +1109,7 @@ export function MapView({
                     })
                   }
                 >
-                  <span className="chip-dot" style={{ background: s.color }} />
+                  <img className="chip-marker" src={markerDataUrl(s.value)} alt="" />
                   {s.label}
                 </button>
               ))}

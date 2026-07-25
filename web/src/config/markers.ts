@@ -108,7 +108,7 @@ function drawGlyph(
   }
 }
 
-function drawMarker(color: string, status: PointStatus, withNote = false): ImageData {
+function drawMarkerCanvas(color: string, status: PointStatus, withNote = false): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
   canvas.width = SIZE
   canvas.height = SIZE
@@ -172,19 +172,25 @@ function drawMarker(color: string, status: PointStatus, withNote = false): Image
     ctx.restore()
   }
 
-  // 4) Anneau (affiné) : blanc sur couleur, couleur sur le disque blanc.
-  discPath()
-  ctx.lineWidth = 3
-  ctx.strokeStyle = inverted ? color : '#ffffff'
-  ctx.stroke()
-
-  // 5) Filet hairline sombre à l'extérieur de l'anneau : détache le pin du
-  //    plan clair comme des toits sombres (technique du double contour).
-  ctx.beginPath()
-  ctx.arc(cx, cy, r + 1.6, 0, Math.PI * 2)
-  ctx.lineWidth = 0.8
-  ctx.strokeStyle = `rgba(${INK_SHADOW}, 0.30)`
-  ctx.stroke()
+  // 4) Contour : PLUS d'anneau blanc (retour briac 25/07) — un simple filet
+  //    hairline sombre au bord du disque suffit à le détacher du fond.
+  //    « Absent » (disque blanc) garde son anneau coloré : c'est son identité.
+  if (inverted) {
+    discPath()
+    ctx.lineWidth = 3
+    ctx.strokeStyle = color
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.arc(cx, cy, r + 1.6, 0, Math.PI * 2)
+    ctx.lineWidth = 0.8
+    ctx.strokeStyle = `rgba(${INK_SHADOW}, 0.30)`
+    ctx.stroke()
+  } else {
+    discPath()
+    ctx.lineWidth = 1
+    ctx.strokeStyle = `rgba(${INK_SHADOW}, 0.35)`
+    ctx.stroke()
+  }
 
   drawGlyph(ctx, status, cx, cy, inverted ? color : '#ffffff')
 
@@ -213,15 +219,31 @@ function drawMarker(color: string, status: PointStatus, withNote = false): Image
     ctx.fill()
   }
 
-  return ctx.getImageData(0, 0, SIZE, SIZE)
+  return canvas
 }
 
 /** Images de marqueurs : une par statut + une variante "-note" par statut. */
 export function generateMarkerImages(): Record<string, ImageData> {
   const out: Record<string, ImageData> = {}
   for (const s of STATUSES) {
-    out[s.value] = drawMarker(s.color, s.value)
-    out[`${s.value}${NOTE_SUFFIX}`] = drawMarker(s.color, s.value, true)
+    const plain = drawMarkerCanvas(s.color, s.value)
+    const noted = drawMarkerCanvas(s.color, s.value, true)
+    out[s.value] = plain.getContext('2d')!.getImageData(0, 0, SIZE, SIZE)
+    out[`${s.value}${NOTE_SUFFIX}`] = noted.getContext('2d')!.getImageData(0, 0, SIZE, SIZE)
   }
   return out
+}
+
+// Le MÊME marqueur que sur la carte, en data-URL — pour le sélecteur du
+// viseur, les chips de statut et le fantôme de drag (retour briac 25/07 :
+// « pas juste un rond de la couleur correspondante »).
+const urlCache = new Map<PointStatus, string>()
+
+export function markerDataUrl(status: PointStatus): string {
+  const hit = urlCache.get(status)
+  if (hit) return hit
+  const meta = STATUSES.find((s) => s.value === status) ?? STATUSES[0]
+  const url = drawMarkerCanvas(meta.color, meta.value).toDataURL()
+  urlCache.set(status, url)
+  return url
 }

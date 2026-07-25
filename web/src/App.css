@@ -453,6 +453,14 @@
   border-radius: 50%;
   flex: 0 0 auto;
 }
+/* Le vrai marqueur de la carte dans les chips de statut (viseur, fiche,
+   filtres) — l'image embarque son ombre, d'où la taille généreuse. */
+.chip-marker {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  margin: -4px -2px -4px -4px;
+}
 .status-dot {
   width: 10px;
   height: 10px;
@@ -627,12 +635,12 @@
 }
 
 /* Fantôme du point pendant le drag (appui long → déplacer au doigt). */
+/* Fantôme de drag : le VRAI marqueur, légèrement grossi (« soulevé »). */
 .drag-ghost {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 3px solid #ffffff;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
+  width: 44px;
+  height: 44px;
+  background-size: contain;
+  background-repeat: no-repeat;
 }
 .appt-row {
   display: flex;
