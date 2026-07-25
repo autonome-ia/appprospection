@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Phone, Pencil, Trash2, CalendarClock, ChevronLeft, ChevronRight, StickyNote, MapPin, Navigation, Search } from 'lucide-react'
+import { Plus, Phone, Pencil, Trash2, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, StickyNote, MapPin, Navigation, Search } from 'lucide-react'
 import {
   fetchAppointments,
   deleteAppointment,
@@ -242,6 +242,19 @@ function sameDay(a: Date, b: Date): boolean {
 function startOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), 1)
 }
+/** Les 7 jours de la semaine du jour donné (lundi → dimanche) — bandeau
+    semaine du mode « jour d'abord » (audit UX C1). */
+function weekCells(d: Date): Date[] {
+  const start = new Date(d)
+  start.setHours(0, 0, 0, 0)
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7))
+  return Array.from({ length: 7 }, (_, i) => {
+    const x = new Date(start)
+    x.setDate(start.getDate() + i)
+    return x
+  })
+}
+
 /** Cellules de la grille du mois (lundi -> dimanche, semaines complètes). */
 function monthCells(monthDate: Date): Date[] {
   const first = startOfMonth(monthDate)
@@ -285,6 +298,11 @@ export function AgendaScreen({
   // Agenda PARTAGÉ par défaut (décision chef des ventes, 25/07) : chip
   // « Mes RDV » pour ne voir que les siens.
   const [onlyMine, setOnlyMine] = useState(false)
+  // « Jour d'abord » (audit UX C1) : le mois est REPLIÉ par défaut en bandeau
+  // semaine — le besoin du matin est « mes RDV d'aujourd'hui, dans l'ordre »,
+  // pas une grille de 6 semaines à 400 px. Tap sur le nom du mois = grille
+  // complète (vue de référence du manager, conservée).
+  const [monthOpen, setMonthOpen] = useState(false)
 
   // Échec de chargement ≠ agenda vide : sans ce drapeau, une coupure réseau
   // affichait « Aucun rendez-vous ce jour » — un commercial pouvait rater un
@@ -306,6 +324,7 @@ export function AgendaScreen({
     setSelected(d)
     setMonthDate(startOfMonth(d))
     setView('agenda')
+    setMonthOpen(false) // on atterrit sur le planning du jour, pas la grille
     onFocusDayHandled?.()
   }, [focusDay, onFocusDayHandled])
 
@@ -475,6 +494,14 @@ export function AgendaScreen({
   )
   const shiftMonth = (delta: number) =>
     setMonthDate(new Date(monthDate.getFullYear(), monthDate.getMonth() + delta, 1))
+  // Mode replié : les chevrons naviguent de SEMAINE en semaine (la sélection
+  // suit, même jour de semaine — le planning du bas reste le pilote).
+  const shiftWeek = (delta: number) => {
+    const d = new Date(selected)
+    d.setDate(d.getDate() + 7 * delta)
+    setSelected(d)
+    setMonthDate(startOfMonth(d))
+  }
 
   return (
     <div className="screen">
@@ -574,10 +601,28 @@ export function AgendaScreen({
       </div>
       <div className="cal">
         <div className="cal-nav">
-          <button type="button" className="icon-btn" onClick={() => shiftMonth(-1)} aria-label="Mois précédent">
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => (monthOpen ? shiftMonth(-1) : shiftWeek(-1))}
+            aria-label={monthOpen ? 'Mois précédent' : 'Semaine précédente'}
+          >
             <ChevronLeft size={18} />
           </button>
-          <span className="cal-month">{monthLabel}</span>
+          {/* Tap sur le mois = déplier/replier la grille (audit UX C1). */}
+          <button
+            type="button"
+            className="cal-month cal-month-toggle"
+            onClick={() => setMonthOpen((v) => !v)}
+            aria-expanded={monthOpen}
+          >
+            {monthLabel}
+            <ChevronDown
+              size={15}
+              strokeWidth={2}
+              className={`cal-month-chevron ${monthOpen ? 'is-open' : ''}`}
+            />
+          </button>
           {/* Retour 1 tap au jour courant (audit UX A16) : revenir coûtait
               3-4 taps de chevrons devant le prospect. */}
           {(!sameDay(selected, today) ||
@@ -595,11 +640,57 @@ export function AgendaScreen({
               Aujourd’hui
             </button>
           )}
-          <button type="button" className="icon-btn" onClick={() => shiftMonth(1)} aria-label="Mois suivant">
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => (monthOpen ? shiftMonth(1) : shiftWeek(1))}
+            aria-label={monthOpen ? 'Mois suivant' : 'Semaine suivante'}
+          >
             <ChevronRight size={18} />
           </button>
         </div>
 
+        {/* Bandeau semaine (défaut) : 7 cellules, pastilles par RDV/relance —
+            le planning du jour arrive tout de suite sous le pouce (C1). */}
+        {!monthOpen && (
+          <div className="cal-band">
+            {weekCells(selected).map((d) => {
+              const k = dateKey(d)
+              const dots = [
+                ...(byDay[k] ?? []).map((a) =>
+                  a.commercial_id
+                    ? colorForCommercial(a.commercial_id, whoById[a.commercial_id]?.color)
+                    : '#98a2b3',
+                ),
+                ...(revisitsByDay[k] ?? []).map(() => STATUS_BY_VALUE.a_revoir.color),
+              ].slice(0, 4)
+              const isSel = sameDay(d, selected)
+              const isToday = sameDay(d, today)
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  className={`cal-band-cell ${isSel ? 'is-selected' : ''} ${isToday ? 'is-today' : ''}`}
+                  onClick={() => {
+                    setSelected(d)
+                    setMonthDate(startOfMonth(d))
+                  }}
+                >
+                  <span className="cal-band-dow">{WEEKDAYS[(d.getDay() + 6) % 7]}</span>
+                  <span className="cal-band-num tnum">{d.getDate()}</span>
+                  <span className="cal-band-dots">
+                    {dots.map((c, i) => (
+                      <span key={i} className="cal-band-dot" style={{ background: c }} />
+                    ))}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {monthOpen && (
+        <>
         <div className="cal-weekdays">
           {WEEKDAYS.map((w, i) => (
             <span key={i}>{w}</span>
@@ -658,6 +749,8 @@ export function AgendaScreen({
             )
           })}
         </div>
+        </>
+        )}
       </div>
 
       <section className="appt-section">
