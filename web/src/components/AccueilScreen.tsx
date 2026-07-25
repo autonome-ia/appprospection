@@ -55,6 +55,9 @@ export function AccueilScreen({
   // Échec ≠ sections vides (audit UX A33) : un raté réseau faisait
   // disparaître relances et feed sans un mot.
   const [loadError, setLoadError] = useState(false)
+  // Premier chargement : squelettes à la place du vide (audit UX B14) — les
+  // recharges suivantes (retour au premier plan) restent silencieuses.
+  const [loading, setLoading] = useState(true)
   const load = useCallback(() => {
     Promise.all([fetchRelances(), fetchRecentActivity()])
       .then(([r, a]) => {
@@ -71,6 +74,7 @@ export function AccueilScreen({
         console.error('Accueil :', e)
         setLoadError(true)
       })
+      .finally(() => setLoading(false))
   }, [profile?.role, profile?.id])
   useEffect(() => {
     load()
@@ -110,6 +114,15 @@ export function AccueilScreen({
           <button type="button" className="text-btn" onClick={load}>
             Réessayer
           </button>
+        </div>
+      )}
+
+      {loading && !loadError && (
+        <div className="home-section" aria-hidden="true">
+          <span className="sk sk-line" />
+          <span className="sk sk-row" />
+          <span className="sk sk-row" />
+          <span className="sk sk-row" />
         </div>
       )}
 

@@ -272,7 +272,7 @@ export function StatsScreen({
   // Objectif hebdo : par commercial en drill-down/vue perso, AGRÉGÉ en vue
   // Équipe (audit UX A28 — le manager additionnait de tête les X/Y).
   const showObjective =
-    period === 'semaine' && (focusId !== null || (isManager && teamTarget > 0))
+    data !== null && period === 'semaine' && (focusId !== null || (isManager && teamTarget > 0))
   const objectiveTarget = focusId ? targetOf(focusId) : teamTarget
   const days = data ? daysOf(data.range.start, data.range.end) : []
 
@@ -368,6 +368,22 @@ export function StatsScreen({
         </button>
       )}
 
+      {/* Squelettes tant que les données ne sont pas là (audit UX B14) : les
+          KPI/tunnel/classement affichaient de FAUX zéros plusieurs secondes —
+          des chiffres faux commentés en réunion. */}
+      {!data && !loadError && (
+        <div className="stats-skeleton" aria-hidden="true">
+          <div className="kpis">
+            <span className="sk sk-kpi" />
+            <span className="sk sk-kpi" />
+            <span className="sk sk-kpi" />
+          </div>
+          <span className="sk sk-block" />
+          <span className="sk sk-block sk-block-tall" />
+        </div>
+      )}
+
+      {data && (
       <div className="kpis">
         <Kpi label="Ventes" value={String(cur.ventes)} delta={cur.ventes - prev.ventes} />
         <Kpi label="RDV pris" value={String(cur.rdv_pris)} delta={cur.rdv_pris - prev.rdv_pris} />
@@ -379,6 +395,7 @@ export function StatsScreen({
           <Kpi label="Portes" value={String(cur.portes)} delta={cur.portes - prev.portes} />
         )}
       </div>
+      )}
 
       {showObjective && (
         <div className="card obj-card">
@@ -436,15 +453,17 @@ export function StatsScreen({
         </div>
       )}
 
-      <section className="card">
-        <p className="eyebrow">Tunnel de conversion</p>
-        <Funnel s={cur} />
-      </section>
+      {data && (
+        <section className="card">
+          <p className="eyebrow">Tunnel de conversion</p>
+          <Funnel s={cur} />
+        </section>
+      )}
 
       {showChart && <Chart daily={daily} days={days} />}
 
       {/* Manager : classement complet (cliquable). Commercial : sa position. */}
-      {isManager && !drillId && (
+      {data && isManager && !drillId && (
         <section className="card">
           <p className="eyebrow">Classement des commerciaux</p>
           {ranked.length === 0 && <p className="screen-empty">Aucun commercial.</p>}
@@ -492,7 +511,7 @@ export function StatsScreen({
         </section>
       )}
 
-      {!isManager && myIdx >= 0 && (
+      {data && !isManager && myIdx >= 0 && (
         <section className="card mypos">
           <p className="eyebrow">Ma position</p>
           <div className="mypos-rank">

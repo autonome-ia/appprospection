@@ -1016,6 +1016,34 @@
 }
 
 /* --- Stats : chiffres héros --- */
+/* --- Squelettes de chargement (audit UX B14) : à la place des faux zéros --- */
+.sk {
+  display: block;
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  animation: badge-pulse 1.3s ease-in-out infinite;
+}
+.sk-kpi {
+  height: 82px;
+  border-radius: var(--r-lg);
+}
+.sk-block {
+  height: 120px;
+  border-radius: var(--r-lg);
+  margin-bottom: 12px;
+}
+.sk-block-tall {
+  height: 240px;
+}
+.sk-line {
+  height: 12px;
+  width: 38%;
+  margin-bottom: 10px;
+}
+.sk-row {
+  height: 58px;
+  margin-bottom: 8px;
+}
 .kpis {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
