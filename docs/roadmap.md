@@ -116,7 +116,12 @@
   - **B1 bloc « Rendez-vous »** en tête de fiche point : prochain RDV à venir (sinon le dernier + son issue), « Appeler », « Voir dans l'agenda » (bascule d'onglet calée sur le jour du RDV) ; **bandeau ambre « Aucun RDV planifié » + Planifier** sur un point `rdv_pris` orphelin (le trou silencieux) ; « + RDV » à côté du label Client ; le bloc se rafraîchit quand un RDV est posé par-dessus la fiche.
   - **B6 chip « À relancer »** dans les filtres carte (`revisit_at` atteint), combinée en ET, assouplie à la pose. Au passage : défaut `--chip: var(--accent)` (l'état actif des chips sans couleur inline reposait sur une variable indéfinie).
   - **B10 téléphone client sur le point** (migration `db/0014` **exécutée** le 25/07) : champ dans la fiche, `tel:` dans l'en-tête, bouton d'appel sur les relances de l'Accueil, synchro RDV bidirectionnelle (pré-rempli à la création, réécrit seulement si modifié).
-- [ ] ⬜ **Lots B restants et C** : B3 sélection Σ→rapport, B4 refonte Accueil, pont Stats→Carte (reliquat de B5), B8 chevrons de périodes passées, B11 ClientSheet (actions en tête + historique), B12 BAN sur l'adresse RDV, B13 badge matériau tappable, B14 squelettes ; C1 agenda « jour d'abord », C2 rapport PDF partageable.
+- [x] **Lot Manager (25/07, choix briac — l'interface commerciale d'abord, Équipe/test réel en dernier)** — 3 commits :
+  - **B8 chevrons ‹ ›** sur les Stats : navigation vers les périodes passées (offset ≤ 0 dans `fetchStatsComparison`/`shiftNow`), delta comparé à la période précédant celle affichée, libellé de plage côté client (réactif au tap), « Aujourd'hui » pour revenir, offset remis à zéro au changement de période.
+  - **Pont Stats→Carte** (reliquat B5) : « Voir ses points sur la carte » dans le drill-down manager — bascule Carte avec le filtre « Qui » pré-appliqué et la barre de filtres dépliée.
+  - **B14 squelettes** : Stats (KPI/tunnel/classement — finis les faux zéros commentés en réunion) et Accueil (premier chargement seulement).
+- [ ] ⬜ **Lots B restants et C** (ordre proposé : Argumentaire B3+B13 → Agenda/Client B11+B12+C1 → Accueil B4 → C2) : B3 sélection Σ→rapport, B13 badge matériau tappable, B11 ClientSheet (actions en tête + historique), B12 BAN sur l'adresse RDV, C1 agenda « jour d'abord », B4 refonte Accueil, C2 rapport PDF partageable.
+- [ ] ⬜ **Équipe/invitations + écran de connexion** : volontairement EN DERNIER (décision briac 25/07) — l'interface commerciale doit être parfaite avant de lancer le test réel à plusieurs.
 
 ## Prochains chantiers (à choisir avec briac)
 - [ ] ⬜ **Écran de connexion** — dernier écran encore à l'ancien style ; l'habiller avec la DA (Geist/Lucide). Petit, rapide.
