@@ -27,6 +27,13 @@ function AppInner() {
     setAgendaFocus(day)
     setTab('agenda')
   }
+  // Pont Stats→Carte (audit UX B5) : le drill-down d'un commercial bascule
+  // sur la carte avec le filtre « Qui » pré-appliqué.
+  const [mapWho, setMapWho] = useState<string | null>(null)
+  const showCommercialOnMap = (commercialId: string) => {
+    setMapWho(commercialId)
+    setTab('carte')
+  }
 
   if (loading) {
     return (
@@ -59,6 +66,8 @@ function AppInner() {
               focus={mapFocus}
               onFocusHandled={() => setMapFocus(null)}
               onShowAgenda={showOnAgenda}
+              whoFocus={mapWho}
+              onWhoFocusHandled={() => setMapWho(null)}
             />
           </ScreenBoundary>
         </div>
@@ -79,7 +88,7 @@ function AppInner() {
         ) : null}
         {tab === 'stats' ? (
           <ScreenBoundary>
-            <StatsScreen profile={profile} />
+            <StatsScreen profile={profile} onShowCommercialOnMap={showCommercialOnMap} />
           </ScreenBoundary>
         ) : null}
       </main>

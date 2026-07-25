@@ -96,6 +96,8 @@ export function MapView({
   focus,
   onFocusHandled,
   onShowAgenda,
+  whoFocus,
+  onWhoFocusHandled,
 }: {
   profile: Profile | null
   active: boolean
@@ -103,6 +105,10 @@ export function MapView({
   onFocusHandled?: () => void
   /** Bascule sur l'onglet Agenda, calé sur un jour (bloc RDV de la fiche). */
   onShowAgenda?: (day: string) => void
+  /** Pont Stats→Carte (audit UX B5) : id du commercial dont le drill-down
+      demande « Voir ses points » — pré-applique le filtre « Qui ». */
+  whoFocus?: string | null
+  onWhoFocusHandled?: () => void
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -154,6 +160,14 @@ export function MapView({
     if (!isManager) return
     fetchOrgProfiles().then(setOrgProfiles).catch((e) => console.error('Profils :', e))
   }, [isManager])
+  // Pont Stats→Carte : applique le filtre « Qui » demandé par le drill-down
+  // et déplie la barre de filtres (la chip active dit ce qu'on regarde).
+  useEffect(() => {
+    if (!whoFocus) return
+    setWhoFilter(new Set([whoFocus]))
+    setFiltersOpen(true)
+    onWhoFocusHandled?.()
+  }, [whoFocus, onWhoFocusHandled])
   // Badge du bouton filtres (nb de critères actifs).
   const nFilters =
     statusFilter.size + (ageFilter !== null ? 1 : 0) + (whoFilter.size > 0 ? 1 : 0) + (dueOnly ? 1 : 0)

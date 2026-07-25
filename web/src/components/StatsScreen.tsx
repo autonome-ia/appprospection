@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { motion } from 'motion/react'
-import { ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Minus, Pencil, Plus } from 'lucide-react'
+import { ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, Minus, Pencil, Plus } from 'lucide-react'
 import {
   fetchStatsComparison,
   periodRange,
@@ -161,7 +161,14 @@ function Chart({ daily, days }: { daily: Record<string, number>; days: string[] 
   )
 }
 
-export function StatsScreen({ profile }: { profile: Profile | null }) {
+export function StatsScreen({
+  profile,
+  onShowCommercialOnMap,
+}: {
+  profile: Profile | null
+  /** Pont Stats→Carte (audit UX B5) : « combien » répond enfin à « où ». */
+  onShowCommercialOnMap?: (commercialId: string) => void
+}) {
   const [period, setPeriod] = useState<Period>('semaine')
   // Décalage de période (≤ 0) : le bilan du lundi matin porte sur la semaine
   // ÉCOULÉE, pas sur la semaine en cours (audit UX B8).
@@ -351,6 +358,15 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
         </button>
       )}
       <p className="focus-title">{focusId ? nameOf(focusId) : 'Équipe'}</p>
+      {isManager && drillId && onShowCommercialOnMap && (
+        <button
+          type="button"
+          className="text-btn drill-map"
+          onClick={() => onShowCommercialOnMap(drillId)}
+        >
+          <MapPin size={14} strokeWidth={2} /> Voir ses points sur la carte
+        </button>
+      )}
 
       <div className="kpis">
         <Kpi label="Ventes" value={String(cur.ventes)} delta={cur.ventes - prev.ventes} />
