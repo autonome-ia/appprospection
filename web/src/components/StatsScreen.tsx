@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { motion } from 'motion/react'
-import { ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Info, Minus, Pencil, Plus } from 'lucide-react'
+import { ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Minus, Pencil, Plus } from 'lucide-react'
 import {
   fetchStatsComparison,
   ratio,
@@ -25,8 +25,8 @@ const EMPTY: CommercialStats = {
   commercial_id: '',
   portes: 0,
   absents: 0,
-  contacts: 0,
   rdv_pris: 0,
+  rdv_planifies: 0,
   rdv_effectues: 0,
   ventes: 0,
 }
@@ -69,21 +69,23 @@ function Kpi({ label, value, delta, unit }: { label: string; value: string; delt
   )
 }
 
-// Étapes du tunnel : valeur + taux de passage depuis l'étape précédente.
+// Étapes du tunnel (définitions actées chef des ventes, 25/07) : l'étape
+// « Contacts » est supprimée, et « RDV effectués » se lit sur une COHORTE
+// COHÉRENTE — effectués ÷ RDV échus de la période — au lieu d'effectués ÷
+// pris (deux populations différentes, taux > 100 % possible).
 const STEPS: { key: keyof CommercialStats; label: string; from?: keyof CommercialStats; rate?: string }[] = [
   { key: 'portes', label: 'Portes toquées' },
-  { key: 'contacts', label: 'Contacts', from: 'portes', rate: 'ouvrent' },
-  { key: 'rdv_pris', label: 'RDV pris', from: 'contacts', rate: '→ RDV' },
-  { key: 'rdv_effectues', label: 'RDV honorés', from: 'rdv_pris', rate: 'honorés' },
+  { key: 'rdv_pris', label: 'RDV pris', from: 'portes', rate: '→ RDV' },
+  { key: 'rdv_effectues', label: 'RDV effectués', from: 'rdv_planifies', rate: 'effectués' },
   { key: 'ventes', label: 'Ventes', from: 'rdv_effectues', rate: 'vendent' },
 ]
 
 function Funnel({ s }: { s: CommercialStats }) {
   // Point de blocage = plus faible taux "maîtrisable" (prise RDV / présence / closing).
   const controllable = [
-    { i: 2, r: ratio(s.rdv_pris, s.contacts) },
-    { i: 3, r: ratio(s.rdv_effectues, s.rdv_pris) },
-    { i: 4, r: ratio(s.ventes, s.rdv_effectues) },
+    { i: 1, r: ratio(s.rdv_pris, s.portes) },
+    { i: 2, r: ratio(s.rdv_effectues, s.rdv_planifies) },
+    { i: 3, r: ratio(s.ventes, s.rdv_effectues) },
   ].filter((x) => x.r > 0)
   const leak = controllable.length ? controllable.reduce((a, b) => (b.r < a.r ? b : a)) : null
 
@@ -98,19 +100,7 @@ function Funnel({ s }: { s: CommercialStats }) {
             </div>
           )}
           <div className="funnel-step">
-            <span className="funnel-step-label">
-              {step.label}
-              {/* Définition au tap (audit UX A27) : le TODO interne affiché
-                  en pied d'écran sapait la confiance dans les chiffres. */}
-              {step.key === 'contacts' && (
-                <Info
-                  size={12}
-                  strokeWidth={2}
-                  className="funnel-info"
-                  onClick={() => toast('Un « contact » = la porte s’est ouverte : à revoir, RDV pris ou vendu.')}
-                />
-              )}
-            </span>
+            <span className="funnel-step-label">{step.label}</span>
             <span className="funnel-step-value tnum">{s[step.key] as number}</span>
           </div>
         </div>
@@ -245,12 +235,10 @@ export function StatsScreen({ profile }: { profile: Profile | null }) {
   const convCur = ratio(cur.ventes, cur.portes)
   const convPrev = ratio(prev.ventes, prev.portes)
 
-  // Classement : les COMMERCIAUX seuls (audit UX A24) — le manager
-  // apparaissait à 0 vente et faussait « Ma position : 3 sur 6 ». Ses
-  // événements restent comptés dans les agrégats équipe.
-  const commercials = profiles.filter((p) => p.role === 'commercial')
-  const teamTarget = commercials.reduce((s, p) => s + (p.weekly_rdv_target ?? 0), 0)
-  const ranked = [...commercials].sort((a, b) => {
+  // Classement : TOUT LE MONDE, manager compris (décision chef des ventes
+  // 25/07 — les managers prospectent aussi).
+  const teamTarget = profiles.reduce((s, p) => s + (p.weekly_rdv_target ?? 0), 0)
+  const ranked = [...profiles].sort((a, b) => {
     const sa = data?.current.byCommercial[a.id]?.ventes ?? 0
     const sb = data?.current.byCommercial[b.id]?.ventes ?? 0
     const ra = data?.current.byCommercial[a.id]?.rdv_pris ?? 0

@@ -120,16 +120,14 @@ export async function fetchRecentActivity(limit = 12): Promise<ActivityItem[]> {
   })
 }
 
-// Un "contact" = quelqu'un a répondu (à revoir / RDV pris / vendu).
-// (Absent et Impossible = pas de contact.) — définition à valider avec le métier.
-const CONTACT_STATUSES: PointStatus[] = ['a_revoir', 'rdv_pris', 'vendu']
-
 export interface CommercialStats {
   commercial_id: string
   portes: number
   absents: number
-  contacts: number
   rdv_pris: number
+  /** RDV de la période déjà ÉCHUS (ou soldés) : dénominateur du taux
+      « effectués » — cohorte cohérente (décision chef des ventes, 25/07). */
+  rdv_planifies: number
   rdv_effectues: number
   ventes: number
 }
@@ -144,7 +142,7 @@ export interface StatsResult {
 }
 
 function emptyStats(id: string): CommercialStats {
-  return { commercial_id: id, portes: 0, absents: 0, contacts: 0, rdv_pris: 0, rdv_effectues: 0, ventes: 0 }
+  return { commercial_id: id, portes: 0, absents: 0, rdv_pris: 0, rdv_planifies: 0, rdv_effectues: 0, ventes: 0 }
 }
 
 async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
@@ -170,7 +168,6 @@ async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
     const e = ev as { author_id: string | null; status: PointStatus; occurred_at: string }
     bump(e.author_id, 'portes')
     if (e.status === 'absent') bump(e.author_id, 'absents')
-    if (CONTACT_STATUSES.includes(e.status)) bump(e.author_id, 'contacts')
     if (e.status === 'rdv_pris') bump(e.author_id, 'rdv_pris')
     if (e.status === 'vendu') bump(e.author_id, 'ventes')
 
@@ -182,8 +179,15 @@ async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
     }
   }
 
+  const now = Date.now()
   for (const ap of appts ?? []) {
-    const a = ap as { commercial_id: string | null; status: string }
+    const a = ap as { commercial_id: string | null; status: string; scheduled_at: string }
+    // « Planifiés » = RDV de la période déjà échus OU déjà soldés : un RDV
+    // de demain encore « à venir » n'est pas un RDV non honoré. Comme les
+    // effectués sont un sous-ensemble des échus, le taux reste ≤ 100 %.
+    if (Date.parse(a.scheduled_at) <= now || a.status !== 'a_venir') {
+      bump(a.commercial_id, 'rdv_planifies')
+    }
     if (a.status === 'effectue' || a.status === 'vendu') bump(a.commercial_id, 'rdv_effectues')
   }
 
