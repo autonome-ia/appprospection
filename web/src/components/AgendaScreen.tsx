@@ -719,12 +719,14 @@ export function AgendaScreen({
       {clientAppt && (
         <ClientSheet
           appt={clientAppt}
+          profile={profile}
           onOpenChange={(o) => !o && setClientAppt(null)}
           onEdit={(a) => {
             setClientAppt(null)
             setEditing(a)
           }}
           onShowOnMap={onShowOnMap}
+          onChanged={reload}
         />
       )}
 

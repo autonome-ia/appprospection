@@ -1,15 +1,22 @@
 import { useEffect, useState } from 'react'
 import { Drawer } from 'vaul'
+import { toast } from 'sonner'
 import { CalendarClock, MapPin, Navigation, Pencil, Phone, StickyNote, X } from 'lucide-react'
-import { fetchPoint, fetchPointPans } from '../data/points'
+import { fetchPoint, fetchPointNotes, fetchPointPans, type PointNote } from '../data/points'
+import { fetchPointAppointments, setAppointmentOutcome } from '../data/appointments'
 import {
   lidarNeedsMeasure,
   suggestedWastePct,
   type RoofData,
 } from '../domain/house'
 import type { LidarResult } from '../data/lidar'
-import type { MapPoint } from '../domain/types'
-import { APPOINTMENT_STATUS_META, type Appointment } from '../domain/appointments'
+import type { MapPoint, Profile } from '../domain/types'
+import {
+  APPOINTMENT_OUTCOMES,
+  APPOINTMENT_STATUS_META,
+  type Appointment,
+  type AppointmentStatus,
+} from '../domain/appointments'
 import { HouseBadges } from './HouseBadges'
 import { RoofModule } from './RoofModule'
 
@@ -22,10 +29,13 @@ import { RoofModule } from './RoofModule'
 
 interface Props {
   appt: Appointment
+  profile: Profile
   onOpenChange: (open: boolean) => void
   /** Ferme la fiche et ouvre le formulaire de modification du RDV. */
   onEdit: (a: Appointment) => void
   onShowOnMap?: (target: { pointId: string; lng: number; lat: number }) => void
+  /** Une issue a été donnée depuis la fiche : l'agenda doit se recharger. */
+  onChanged?: () => void
 }
 
 /**
@@ -51,20 +61,62 @@ const fmtFull = (iso: string) =>
     minute: '2-digit',
   }).format(new Date(iso))
 
-export function ClientSheet({ appt, onOpenChange, onEdit, onShowOnMap }: Props) {
+const fmtShort = (iso: string) =>
+  new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(iso))
+
+/** Fin de la journée courante — les issues ne sont tapables que le jour J
+    (même règle que la carte RDV de l'agenda, audit UX A11). */
+function endOfToday(): number {
+  const d = new Date()
+  d.setHours(23, 59, 59, 999)
+  return d.getTime()
+}
+
+export function ClientSheet({ appt, profile, onOpenChange, onEdit, onShowOnMap, onChanged }: Props) {
   const [point, setPoint] = useState<MapPoint | null>(null)
   const [pans, setPans] = useState<RoofData | null>(null)
   const [liveLidar, setLiveLidar] = useState<LidarResult | null>(null)
   const [lidarPending, setLidarPending] = useState(false)
+  // Historique client (audit UX B11) : TOUS les RDV du point + le journal de
+  // notes de la maison — la fiche n'affichait qu'un RDV « représentatif » et
+  // la dernière note, l'historique client était amputé.
+  const [history, setHistory] = useState<Appointment[]>([])
+  const [notes, setNotes] = useState<PointNote[]>([])
+  // Issue donnée depuis CETTE fiche : reflétée sans attendre le reload
+  // (l'objet appt du parent est figé tant que l'agenda n'a pas rechargé).
+  const [statusOverride, setStatusOverride] = useState<AppointmentStatus | null>(null)
+  const [busy, setBusy] = useState(false)
   const pointId = appt.point?.id ?? null
+
+  useEffect(() => {
+    setStatusOverride(null)
+  }, [appt.id])
 
   useEffect(() => {
     setPoint(null)
     setPans(null)
     setLiveLidar(null)
     setLidarPending(false)
+    setHistory([])
+    setNotes([])
     if (!pointId) return
     let active = true
+    fetchPointAppointments(pointId)
+      .then((as) => {
+        if (active) setHistory([...as].sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at)))
+      })
+      .catch((e) => console.error('Historique des RDV :', e))
+    fetchPointNotes(pointId)
+      .then((ns) => {
+        if (active) setNotes(ns)
+      })
+      .catch((e) => console.error('Journal de notes :', e))
     fetchPoint(pointId)
       .then((p) => {
         if (!active || !p) return
@@ -102,7 +154,8 @@ export function ClientSheet({ appt, onOpenChange, onEdit, onShowOnMap }: Props) 
     }
   }, [pointId])
 
-  const meta = APPOINTMENT_STATUS_META[appt.status]
+  const shownStatus = statusOverride ?? appt.status
+  const meta = APPOINTMENT_STATUS_META[shownStatus]
   const lidarStatut = liveLidar?.toit_lidar_statut ?? point?.toit_lidar_statut ?? null
   const lidarM2 =
     lidarStatut === 'ok'
@@ -193,6 +246,87 @@ export function ClientSheet({ appt, onOpenChange, onEdit, onShowOnMap }: Props) 
             )}
           </div>
 
+          {/* Issues du RDV du jour, accessibles SANS repasser par l'agenda
+              (audit UX B11) — même règle jour J que la carte RDV. */}
+          {shownStatus === 'a_venir' && Date.parse(appt.scheduled_at) <= endOfToday() && (
+            <div className="appt-outcomes">
+              {APPOINTMENT_OUTCOMES.map((o) => {
+                const m = APPOINTMENT_STATUS_META[o]
+                return (
+                  <button
+                    key={o}
+                    type="button"
+                    className="outcome-btn"
+                    style={{ color: m.color, borderColor: `${m.color}55` }}
+                    disabled={busy}
+                    onClick={async () => {
+                      if (busy) return
+                      setBusy(true)
+                      try {
+                        const { pointSynced } = await setAppointmentOutcome(profile, appt, o)
+                        setStatusOverride(o)
+                        onChanged?.()
+                        toast.success(`RDV marqué « ${m.label} »`)
+                        if (o === 'vendu' && appt.point_id && !pointSynced) {
+                          toast.error(
+                            'La maison n’a pas pu passer en « vendu » sur la carte — rouvrez sa fiche pour corriger',
+                          )
+                        }
+                      } catch (e) {
+                        console.error('Issue du RDV :', e)
+                        toast.error('Issue non enregistrée — vérifiez le réseau')
+                      } finally {
+                        setBusy(false)
+                      }
+                    }}
+                  >
+                    {m.label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Historique complet (audit UX B11) : les RDV du point (date +
+              issue) et le journal de notes de la maison. */}
+          {(history.length > 1 || notes.length > 0) && (
+            <>
+              <p className="eyebrow field-label">Historique</p>
+              {history.length > 1 && (
+                <div className="rdv-history">
+                  {history.map((h) => {
+                    const hm =
+                      APPOINTMENT_STATUS_META[h.id === appt.id ? shownStatus : h.status]
+                    return (
+                      <div key={h.id} className="rdv-history-row">
+                        <span className="rdv-history-when tnum">{fmtShort(h.scheduled_at)}</span>
+                        <span
+                          className="badge"
+                          style={{ color: hm.color, background: `${hm.color}1a` }}
+                        >
+                          {hm.label}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              {notes.length > 0 && (
+                <ul className="note-history">
+                  {notes.map((n) => (
+                    <li key={n.id} className="note-entry">
+                      <span className="note-meta">
+                        {n.author_name ?? 'Note'}
+                        {n.created_at ? ` · ${fmtShort(n.created_at)}` : ''}
+                      </span>
+                      <span className="note-body">{n.body}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+
           {point && (
             <>
               <p className="eyebrow field-label">La maison</p>
@@ -210,8 +344,8 @@ export function ClientSheet({ appt, onOpenChange, onEdit, onShowOnMap }: Props) 
                 lidarDiag={liveLidar ? liveLidar.toit_lidar_diag : point.toit_lidar_diag}
               />
               {roof && (
-                // Ouvert d'emblée : la fiche client sert à préparer et
-                // argumenter le RDV (audit UX, B2).
+                // Repliée (audit UX B11) : les actions et l'historique
+                // priment — le module s'ouvre en 1 tap pour argumenter.
                 <RoofModule
                   roof={roof}
                   wastePct={wastePct}
@@ -219,7 +353,6 @@ export function ClientSheet({ appt, onOpenChange, onEdit, onShowOnMap }: Props) 
                   maisonM2={lidarM2}
                   totalM2={lidarTotal}
                   millesime={lidarMillesime}
-                  defaultOpen
                 />
               )}
             </>
