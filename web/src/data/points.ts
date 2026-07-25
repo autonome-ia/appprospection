@@ -191,11 +191,16 @@ export async function updatePoint(
     client_name?: string | null
     revisit_at?: string | null
     mat_toit_confirme?: string | null
+    /** Déplacement du point (appui long → « Déplacer ici ») — pas une visite. */
+    lng?: number
+    lat?: number
   },
 ): Promise<MapPoint> {
   if (!supabase) throw new Error('Supabase non configuré')
 
   const patch: Record<string, unknown> = {}
+  if (changes.lng !== undefined) patch.lng = changes.lng
+  if (changes.lat !== undefined) patch.lat = changes.lat
   // Un statut (re)posé = une visite : le filtre « ancienneté » de la carte
   // repart de zéro (les écritures techniques, elles, n'y touchent pas).
   if (changes.status !== undefined) {

@@ -148,6 +148,13 @@ export function MapView({
   const nFilters = statusFilter.size + (ageFilter !== null ? 1 : 0) + (whoFilter.size > 0 ? 1 : 0)
   // « Poser ici » grisé tant que le zoom ne permet pas de viser une maison.
   const [placeZoomOk, setPlaceZoomOk] = useState(true)
+  // Déplacement d'un point mal posé (demande briac 25/07) : appui long sur
+  // SON marqueur → mode réticule « Déplacer ici ».
+  const [movingPoint, setMovingPoint] = useState<MapPoint | null>(null)
+  const movingRef = useRef(movingPoint)
+  movingRef.current = movingPoint
+  const profileRef = useRef(profile)
+  profileRef.current = profile
   // Fiche maison AVANT prospection : maison tapée (sans marqueur) + ses infos.
   const [housePreview, setHousePreview] = useState<{ lng: number; lat: number } | null>(null)
   const [houseInfo, setHouseInfo] = useState<HouseInfo | null>(null)
@@ -174,6 +181,7 @@ export function MapView({
       setSelectedId(null)
       setRdvPoint(null)
       setPlacing(false)
+      setMovingPoint(null)
       setHousePreview(null)
     }
   }, [active])
@@ -485,8 +493,8 @@ export function MapView({
     // sinon ouvre la FICHE MAISON (infos avant prospection) au zoom maison.
     // Le zoom sur une bulle est géré par le donut lui-même (élément DOM).
     map.on('click', (e) => {
-      // En mode visée, le tap ne sert qu'à naviguer.
-      if (placingRef.current) return
+      // En mode visée ou déplacement, le tap ne sert qu'à naviguer.
+      if (placingRef.current || movingRef.current) return
 
       // 2e tap rapproché = double-tap (zoom) : annule la fiche en attente.
       const wasPending = cancelPendingPreview()
@@ -588,6 +596,76 @@ export function MapView({
       if (!activeRef.current) return
       if (status === 'rdv_pris' && isSupabaseConfigured) setRdvPoint(created)
     })
+  }
+
+  // Appui long (~550 ms) sur un de SES marqueurs → mode déplacement. Le
+  // timer est annulé au moindre mouvement (pan/zoom/relâche) : un appui long
+  // immobile seulement.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapLoaded) return
+    let timer: number | undefined
+    const clear = () => {
+      window.clearTimeout(timer)
+      timer = undefined
+    }
+    const onDown = (e: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent) => {
+      if (placingRef.current || movingRef.current) return
+      if (!map.getLayer(MARKERS_LAYER)) return
+      const bbox: [[number, number], [number, number]] = [
+        [e.point.x - HIT_TOLERANCE, e.point.y - HIT_TOLERANCE],
+        [e.point.x + HIT_TOLERANCE, e.point.y + HIT_TOLERANCE],
+      ]
+      const hit = map.queryRenderedFeatures(bbox, { layers: [MARKERS_LAYER] })[0]
+      if (!hit) return
+      const pt = pointsRef.current.find((p) => p.id === (hit.properties?.id as string))
+      if (!pt || pt.id.startsWith('temp-')) return
+      const prof = profileRef.current
+      // Seul l'auteur (ou un manager) peut déplacer — même règle que la RLS.
+      if (!prof || (prof.role !== 'manager' && pt.created_by !== null && pt.created_by !== prof.id))
+        return
+      clear()
+      timer = window.setTimeout(() => {
+        timer = undefined
+        navigator.vibrate?.(30)
+        setSelectedId(null)
+        setHousePreview(null)
+        setMovingPoint(pt)
+        map.easeTo({ center: [pt.lng, pt.lat], duration: 250 })
+      }, 550)
+    }
+    const cancel = () => clear()
+    map.on('touchstart', onDown)
+    map.on('mousedown', onDown)
+    map.on('touchend', cancel)
+    map.on('touchcancel', cancel)
+    map.on('touchmove', cancel)
+    map.on('mouseup', cancel)
+    map.on('move', cancel)
+    return () => {
+      clear()
+      map.off('touchstart', onDown)
+      map.off('mousedown', onDown)
+      map.off('touchend', cancel)
+      map.off('touchcancel', cancel)
+      map.off('touchmove', cancel)
+      map.off('mouseup', cancel)
+      map.off('move', cancel)
+    }
+  }, [mapLoaded])
+
+  const confirmMove = async () => {
+    const map = mapRef.current
+    if (!map || !movingPoint) return
+    const { lng, lat } = map.getCenter()
+    try {
+      await updatePoint(movingPoint.id, { lng, lat })
+      toast.success('Point déplacé')
+    } catch (e) {
+      console.error('Déplacement du point :', e)
+      toast.error('Déplacement impossible — réseau, ou point d’un autre commercial')
+    }
+    setMovingPoint(null)
   }
 
   // Suit le zoom pendant la visée : grise « Poser ici » sous le seuil.
@@ -923,7 +1001,7 @@ export function MapView({
         </button>
       </div>
 
-      {!placing && (
+      {!placing && !movingPoint && (
         <>
           {filtersOpen && (
           <div className="map-filterbar">
@@ -1052,6 +1130,36 @@ export function MapView({
                 disabled={!placeZoomOk}
               >
                 {placeZoomOk ? 'Poser ici' : 'Zoomez pour viser'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {movingPoint && (
+        <>
+          {/* Mode déplacement (appui long sur son marqueur) : même réticule
+              que la pose — on vise la BONNE maison, puis « Déplacer ici ». */}
+          <div className="map-crosshair" aria-hidden="true">
+            <svg width="52" height="52" viewBox="0 0 52 52">
+              <circle cx="26" cy="26" r="15" fill="none" stroke="var(--accent)" strokeWidth="2" />
+              <circle cx="26" cy="26" r="3" fill="var(--accent)" />
+              <line x1="26" y1="3" x2="26" y2="9" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+              <line x1="26" y1="43" x2="26" y2="49" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+              <line x1="3" y1="26" x2="9" y2="26" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+              <line x1="43" y1="26" x2="49" y2="26" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </div>
+          <div className="place-bar">
+            <p className="eyebrow place-hint">
+              Déplacer « {STATUS_BY_VALUE[movingPoint.status].label} » — visez la bonne maison
+            </p>
+            <div className="place-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setMovingPoint(null)}>
+                Annuler
+              </button>
+              <button type="button" className="btn btn-primary" onClick={confirmMove}>
+                Déplacer ici
               </button>
             </div>
           </div>

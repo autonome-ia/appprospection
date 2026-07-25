@@ -33,6 +33,9 @@ type PointChanges = {
   client_name?: string | null
   revisit_at?: string | null
   mat_toit_confirme?: string | null
+  /** Déplacement (appui long → « Déplacer ici »). */
+  lng?: number
+  lat?: number
 }
 
 export function usePoints(profile: Profile | null) {
@@ -244,16 +247,7 @@ export function usePoints(profile: Profile | null) {
   )
 
   const updatePoint = useCallback(
-    async (
-      id: string,
-      changes: {
-        status?: PointStatus
-        note?: string | null
-        client_name?: string | null
-        revisit_at?: string | null
-        mat_toit_confirme?: string | null
-      },
-    ) => {
+    async (id: string, changes: PointChanges) => {
       const mapped = tempIdsRef.current.get(id)
       const realId = mapped && mapped !== 'pending' && mapped !== 'cancelled' ? mapped : id
       if (online && profile && mapped === 'pending') {
@@ -284,6 +278,8 @@ export function usePoints(profile: Profile | null) {
                   ...(changes.mat_toit_confirme !== undefined
                     ? { mat_toit_confirme: changes.mat_toit_confirme }
                     : {}),
+                  ...(changes.lng !== undefined ? { lng: changes.lng } : {}),
+                  ...(changes.lat !== undefined ? { lat: changes.lat } : {}),
                 }
               : x,
           ),
