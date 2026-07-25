@@ -10,14 +10,17 @@ import {
 } from '../domain/house'
 
 /** Badge à provenance TAPPABLE (audit UX A7) : toute la pédagogie vivait
-    dans des `title`, inexistants sur iPhone — un tap montre l'explication. */
+    dans des `title`, inexistants sur iPhone — un tap montre l'explication.
+    `onPress` remplace le toast quand le badge porte une ACTION (B13). */
 function Badge({
   className = '',
   info,
+  onPress,
   children,
 }: {
   className?: string
   info: string
+  onPress?: () => void
   children: ReactNode
 }) {
   return (
@@ -26,7 +29,7 @@ function Badge({
       title={info}
       role="button"
       tabIndex={0}
-      onClick={() => toast(info)}
+      onClick={() => (onPress ? onPress() : toast(info))}
     >
       {children}
     </span>
@@ -51,6 +54,10 @@ interface Props {
   /** Statut de la mesure LiDAR (pour expliquer un échec) + diagnostic. */
   lidarStatut?: string | null
   lidarDiag?: LidarDiag | null
+  /** Tap sur le badge matériau → confirmation terrain (audit UX B13) : la
+      boucle constat → correction se fait sur place, sans chercher le select
+      4 blocs plus bas. Fourni par la fiche point uniquement. */
+  onConfirmMat?: () => void
 }
 
 /** Explication d'une mesure LiDAR absente (verdicts parlants, v18). */
@@ -102,6 +109,7 @@ export function HouseBadges({
   extra,
   lidarStatut,
   lidarDiag,
+  onConfirmMat,
 }: Props) {
   const matToit = matToitLabel(matCode)
   const excuse = lidarExcuse(lidarStatut, lidarDiag)
@@ -160,11 +168,18 @@ export function HouseBadges({
         </Badge>
       )}
       {matConfirme ? (
-        <Badge className="is-confirmed" info="Toiture confirmée sur le terrain">
+        <Badge
+          className="is-confirmed"
+          info="Toiture confirmée sur le terrain"
+          onPress={onConfirmMat}
+        >
           {matConfirme}
         </Badge>
       ) : matToit ? (
-        <Badge info="Donnée fiscale — probable, une rénovation récente peut ne pas apparaître">
+        <Badge
+          info="Donnée fiscale — probable, une rénovation récente peut ne pas apparaître"
+          onPress={onConfirmMat}
+        >
           {matToit}
         </Badge>
       ) : null}

@@ -129,6 +129,15 @@ export function PointDetailSheet({
   // RDV liés au point (bloc « Rendez-vous », audit UX B1) — null = pas encore
   // chargés : le bandeau « Aucun RDV planifié » n'accuse pas pendant le fetch.
   const [appts, setAppts] = useState<Appointment[] | null>(null)
+  // Tap sur le badge matériau → le select « Toiture constatée » (audit UX
+  // B13) : focus DANS le geste (iOS ouvre le picker) + recentrage.
+  const matSelectRef = useRef<HTMLSelectElement>(null)
+  const confirmMatFromBadge = () => {
+    const el = matSelectRef.current
+    if (!el) return
+    el.focus()
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
 
   // Instantané des valeurs INITIALES du formulaire : la sauvegarde n'envoie
   // que ce que l'utilisateur a touché DANS CETTE SESSION — comparer à `point`
@@ -609,7 +618,9 @@ export function PointDetailSheet({
           <HouseBadges
             annee={annee}
             matCode={matCode}
-            matConfirme={point.mat_toit_confirme}
+            // État LOCAL : le badge passe en « confirmé » dès le choix dans
+            // le select, sans attendre l'enregistrement (audit UX B13).
+            matConfirme={matConfirme || point.mat_toit_confirme}
             toitM2={toitM2}
             lidarM2={lidarM2}
             lidarMillesime={lidarMillesime}
@@ -618,12 +629,14 @@ export function PointDetailSheet({
             extra={extra}
             lidarStatut={lidarStatut}
             lidarDiag={liveLidar ? liveLidar.toit_lidar_diag : point.toit_lidar_diag}
+            onConfirmMat={confirmMatFromBadge}
           />
 
           {/* « Toiture constatée » dans sa famille sémantique (audit UX A12) :
               saisie 1 fois par maison, elle coupait le chemin statut → notes. */}
           <p className="eyebrow field-label">Toiture constatée</p>
           <select
+            ref={matSelectRef}
             className="field-input"
             value={matConfirme}
             onChange={(e) => setMatConfirme(e.target.value)}
@@ -641,7 +654,9 @@ export function PointDetailSheet({
             // pose (statut, note, Enregistrer) — audit UX, B2.
             <RoofModule
               roof={lidarPans}
-              wastePct={suggestedWastePct(matCode, point.mat_toit_confirme, lidarPans.aretes)}
+              // matConfirme LOCAL : confirmer « Ardoise » via le badge ajuste
+              // les chutes suggérées sans attendre l'enregistrement (B13).
+              wastePct={suggestedWastePct(matCode, matConfirme || point.mat_toit_confirme, lidarPans.aretes)}
               address={point.address}
               maisonM2={lidarM2}
               totalM2={liveLidar ? liveLidar.toit_lidar_m2 : point.toit_lidar_m2}
