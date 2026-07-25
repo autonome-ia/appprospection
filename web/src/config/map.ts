@@ -68,7 +68,11 @@ export const esriSatelliteSource: RasterSourceSpecification = {
   tiles: [
     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
   ],
-  tileSize: 256,
+  // Astuce « retina » (Esri ne sert que du 256 px) : tileSize 128 fait
+  // charger les tuiles du zoom SUPÉRIEUR affichées à demi-taille → 2 px
+  // d'image par px CSS, nettement plus piqué sur mobile. Coût : 4× plus de
+  // tuiles par vue — négligeable sous le palier gratuit (2 M/mois).
+  tileSize: 128,
   attribution:
     '© <a href="https://www.esri.com/">Esri</a>, Maxar, Earthstar Geographics, GIS User Community',
   maxzoom: ORTHO_NATIVE_MAXZOOM,
