@@ -360,12 +360,13 @@
   opacity: 0.45;
   cursor: default;
 }
-/* Bascule photo standard ↔ HD (WMS 512 px). */
+/* Bascule d'imagerie (SAT 1 = IGN, SAT 2 = Esri). */
 .map-tool-hd {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 10.5px;
   font-weight: 650;
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 /* Contrôles MapLibre (géolocalisation, attribution) alignés sur la DA :

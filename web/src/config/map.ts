@@ -37,9 +37,11 @@ function ignTiles(layer: string, format: 'image/png' | 'image/jpeg'): string {
 // Plan a été retirée le 25/07/2026, décision briac : personne ne s'en servait).
 export const ORTHO_SOURCE_ID = 'ortho-ign'
 export const ORTHO_LAYER_ID = 'ortho-ign'
-// Variante « HD » (WMS 512 px) : bascule via le bouton de la barre d'outils.
-export const ORTHO2X_SOURCE_ID = 'ortho-ign-2x'
-export const ORTHO2X_LAYER_ID = 'ortho-ign-2x'
+// Imagerie ALTERNATIVE (Esri World Imagery) : un autre rendu complet —
+// couleurs, millésimes et traitement différents de l'IGN. Bascule via le
+// bouton de la barre d'outils (demande briac 25/07 : « deux visuels »).
+export const ESRI_SOURCE_ID = 'sat-esri'
+export const ESRI_LAYER_ID = 'sat-esri'
 
 // ⚠️ Zoom natif max de l'ortho IGN = 19 depuis mars 2025 (la THR 5 cm a été
 // retirée du flux, TileMatrixSet passé de PM_0_21 à PM_0_19 — vérifié dans le
@@ -55,20 +57,20 @@ export const orthoWmtsSource: RasterSourceSpecification = {
   maxzoom: ORTHO_NATIVE_MAXZOOM,
 }
 
-// Variante « HD » : mêmes données via le WMS-Raster, images 512 px sur une
-// emprise de tuile 256 → 2 px d'image par px CSS, net sur mobile (le WMTS ne
-// sait pas servir de @2x). ⚠️ Le WMS pioche parfois dans un étage de pyramide
-// à la teinte/millésime différents (rendu plus pâle par zones) — d'où la
-// bascule utilisateur plutôt qu'un remplacement aveugle.
-export const orthoWms2xSource: RasterSourceSpecification = {
+// Esri World Imagery (Maxar) — gratuit jusqu'à 2 M tuiles/mois, attribution
+// obligatoire. Rendu plus chaud/contrasté que l'IGN ; en rural breton la
+// résolution native plafonne vers z19 et peut être plus floue que la BD ORTHO
+// 20 cm au zoom maison (mesuré, docs/etude-imagerie-satellite.md) — c'est un
+// LOOK alternatif, pas un gain de netteté. (La variante « HD » WMS 512 px a
+// été retirée le 25/07 : aucune différence perçue sur le terrain.)
+export const esriSatelliteSource: RasterSourceSpecification = {
   type: 'raster',
   tiles: [
-    'https://data.geopf.fr/wms-r/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap' +
-      '&LAYERS=ORTHOIMAGERY.ORTHOPHOTOS&CRS=EPSG:3857&BBOX={bbox-epsg-3857}' +
-      '&WIDTH=512&HEIGHT=512&FORMAT=image/jpeg&STYLES=',
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
   ],
   tileSize: 256,
-  attribution: IGN_ATTRIBUTION,
+  attribution:
+    '© <a href="https://www.esri.com/">Esri</a>, Maxar, Earthstar Geographics, GIS User Community',
   maxzoom: ORTHO_NATIVE_MAXZOOM,
 }
 

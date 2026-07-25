@@ -7,10 +7,10 @@ import {
   FRANCE_ZOOM,
   ORTHO_LAYER_ID,
   ORTHO_SOURCE_ID,
-  ORTHO2X_LAYER_ID,
-  ORTHO2X_SOURCE_ID,
+  ESRI_LAYER_ID,
+  ESRI_SOURCE_ID,
   orthoWmtsSource,
-  orthoWms2xSource,
+  esriSatelliteSource,
 } from '../config/map'
 import {
   generateMarkerImages,
@@ -122,8 +122,9 @@ export function MapView({
   const { points, addPoint, updatePoint, addNote, removePoint } = usePoints(profile)
   const [activeStatus, setActiveStatus] = useState<PointStatus>('absent')
   // La vue Plan a été RETIRÉE (25/07, décision briac) : la photo est
-  // permanente, le bouton bascule sur la variante « HD » (WMS 512 px).
-  const [sharpOn, setSharpOn] = useState(false)
+  // permanente, le bouton bascule sur l'imagerie ALTERNATIVE (Esri — un
+  // autre rendu complet : couleurs, millésimes).
+  const [esriOn, setEsriOn] = useState(false)
   const [mapLoaded, setMapLoaded] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   // Point pour lequel on saisit un RDV (après avoir posé/marqué "RDV pris").
@@ -279,22 +280,22 @@ export function MapView({
         'raster-brightness-max': ['interpolate', ['linear'], ['zoom'], 13, 0.95, 19, 0.99],
       } as maplibregl.RasterLayerSpecification['paint']
 
-      // Deux couches ortho : WMTS standard (visible) + « HD » WMS 512 px
-      // (masquée, bascule au bouton). Les tuiles d'une couche masquée ne sont
-      // pas téléchargées : pas de double trafic.
+      // Deux imageries : IGN (visible) + Esri (masquée, bascule au bouton) —
+      // deux rendus complets. Les tuiles d'une couche masquée ne sont pas
+      // téléchargées : pas de double trafic. Paint Esri neutre : l'imagerie
+      // Maxar est déjà corrigée en couleur.
       map.addSource(ORTHO_SOURCE_ID, orthoWmtsSource)
       map.addLayer(
         { id: ORTHO_LAYER_ID, type: 'raster', source: ORTHO_SOURCE_ID, paint: orthoPaint },
         beforeLabels,
       )
-      map.addSource(ORTHO2X_SOURCE_ID, orthoWms2xSource)
+      map.addSource(ESRI_SOURCE_ID, esriSatelliteSource)
       map.addLayer(
         {
-          id: ORTHO2X_LAYER_ID,
+          id: ESRI_LAYER_ID,
           type: 'raster',
-          source: ORTHO2X_SOURCE_ID,
+          source: ESRI_SOURCE_ID,
           layout: { visibility: 'none' },
-          paint: orthoPaint,
         },
         beforeLabels,
       )
@@ -971,18 +972,18 @@ export function MapView({
     onFocusHandled?.()
   }, [focus, mapLoaded, onFocusHandled])
 
-  // Bascule photo standard ↔ « HD » (WMS 512 px) : une seule des deux couches
-  // est visible — les tuiles de l'autre ne sont pas téléchargées.
+  // Bascule IGN ↔ Esri : une seule des deux couches est visible — les tuiles
+  // de l'autre ne sont pas téléchargées.
   useEffect(() => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
     if (map.getLayer(ORTHO_LAYER_ID)) {
-      map.setLayoutProperty(ORTHO_LAYER_ID, 'visibility', sharpOn ? 'none' : 'visible')
+      map.setLayoutProperty(ORTHO_LAYER_ID, 'visibility', esriOn ? 'none' : 'visible')
     }
-    if (map.getLayer(ORTHO2X_LAYER_ID)) {
-      map.setLayoutProperty(ORTHO2X_LAYER_ID, 'visibility', sharpOn ? 'visible' : 'none')
+    if (map.getLayer(ESRI_LAYER_ID)) {
+      map.setLayoutProperty(ESRI_LAYER_ID, 'visibility', esriOn ? 'visible' : 'none')
     }
-  }, [sharpOn, mapLoaded])
+  }, [esriOn, mapLoaded])
 
   const selectedPoint = points.find((p) => p.id === selectedId) ?? null
   // Conserve le dernier point sélectionné le temps de l'animation de fermeture.
@@ -998,17 +999,17 @@ export function MapView({
       />
 
       <div className="map-toolbar">
-        {/* La vue Plan a été retirée (25/07) : ce bouton bascule la photo en
-            « HD » (WMS 512 px — plus net sur Retina, teinte parfois
-            différente selon les zones : même donnée, autre étage IGN). */}
+        {/* La vue Plan a été retirée (25/07) : ce bouton bascule entre les
+            DEUX imageries (IGN ↔ Esri) — deux rendus complets, couleurs et
+            millésimes différents, au goût de chaque commercial. */}
         <button
           type="button"
-          className={`map-tool ${sharpOn ? 'is-on' : ''}`}
-          onClick={() => setSharpOn((v) => !v)}
-          title={sharpOn ? 'Photo standard' : 'Photo haute netteté (HD)'}
-          aria-pressed={sharpOn}
+          className={`map-tool ${esriOn ? 'is-on' : ''}`}
+          onClick={() => setEsriOn((v) => !v)}
+          title={esriOn ? 'Imagerie IGN' : 'Imagerie alternative (Esri)'}
+          aria-pressed={esriOn}
         >
-          <span className="map-tool-hd">HD</span>
+          <span className="map-tool-hd">{esriOn ? 'SAT 2' : 'SAT 1'}</span>
         </button>
       </div>
 
