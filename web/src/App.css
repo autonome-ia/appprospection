@@ -151,7 +151,7 @@
 .cluster-badge.is-lg {
   width: 50px;
   height: 50px;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 /* Réticule de visée (centre exact de la carte = point posé) */
@@ -312,7 +312,7 @@
   min-width: 0;
 }
 .address-label {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--ink);
   white-space: nowrap;
@@ -420,7 +420,7 @@
 }
 .chip-lg {
   padding: 10px 14px;
-  font-size: 14px;
+  font-size: 15px;
   box-shadow: var(--shadow-md);
 }
 .chip.is-active {
@@ -555,7 +555,7 @@
   border: none;
   border-radius: var(--r-full);
   padding: 9px 15px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   background: var(--ink);
   color: #ffffff;
@@ -566,7 +566,7 @@
 }
 .screen-empty {
   color: var(--ink-3);
-  font-size: 14px;
+  font-size: 13px;
 }
 .empty-state {
   display: flex;
@@ -579,7 +579,7 @@
 }
 .empty-state p {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
 }
 /* Typographie héritée de .eyebrow (toujours utilisées ensemble). */
 .section-title {
@@ -613,7 +613,7 @@
 }
 .appt-time {
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--ink);
   padding-top: 2px;
@@ -651,7 +651,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -660,7 +660,7 @@
   align-items: center;
   gap: 5px;
   flex: 0 0 auto;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 .appt-status .status-dot {
@@ -840,7 +840,7 @@
 .cal-weekdays span {
   text-align: center;
   /* Des LETTRES, pas des chiffres : Geist, pas de mono (règle DA). */
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.05em;
   color: var(--ink-3);
@@ -887,7 +887,7 @@
   height: 20px;
   margin-right: 1px;
   border-radius: 50%;
-  font-size: 11.5px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
@@ -912,7 +912,7 @@
   max-width: 100%;
   padding: 2.5px 3px;
   border-radius: 4px;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   line-height: 1.15;
   color: #ffffff;
@@ -926,7 +926,7 @@
 }
 .cal-more {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   color: var(--ink-3);
   text-align: right;
   padding-right: 2px;
@@ -1087,7 +1087,7 @@
   align-items: center;
   gap: 3px;
   margin-left: auto;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 .hero-delta.up {
@@ -1110,7 +1110,7 @@
 }
 .hero-pos {
   margin: 5px 0 0;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 
@@ -1122,7 +1122,7 @@
   margin-bottom: 10px;
 }
 .obj-big {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
 }
 
@@ -1168,7 +1168,7 @@
   background: var(--st-vendu);
 }
 .fun-value {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   flex: 0 0 auto;
 }
@@ -1450,7 +1450,7 @@
 }
 .guide-step-text {
   margin: 14px 2px 0;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.55;
   color: var(--ink);
 }
@@ -1521,7 +1521,7 @@
 }
 .brand-word {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 15px;
   letter-spacing: -0.01em;
 }
 /* En-tête compact « la journée, pas le profil » (audit UX B4). */
@@ -1543,13 +1543,13 @@
 }
 .accueil-hello {
   margin: 0;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 650;
   letter-spacing: -0.02em;
   line-height: 1.15;
 }
 .accueil-role {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 /* Carte « Aujourd'hui » : les chiffres du jour + l'objectif hebdo. */
@@ -1567,24 +1567,24 @@
 }
 .today-num {
   font-family: var(--font-mono);
-  font-size: 23px;
+  font-size: 24px;
   font-weight: 650;
 }
 .today-cap {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 .today-obj {
   display: block;
   margin-top: 6px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 /* Heure du RDV dans les lignes « Mes RDV aujourd'hui ». */
 .rdv-row-time {
   flex: 0 0 auto;
   font-family: var(--font-mono);
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   margin-top: 1px;
 }
@@ -1749,7 +1749,7 @@
   gap: 1px;
 }
 .home-row-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--ink);
   white-space: nowrap;
@@ -1757,7 +1757,7 @@
   text-overflow: ellipsis;
 }
 .home-row-sub {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink-3);
   white-space: nowrap;
   overflow: hidden;
@@ -1978,8 +1978,8 @@
   border: none;
   background: none;
   color: var(--ink);
-  font-size: 14px;
-  font-weight: 550;
+  font-size: 15px;
+  font-weight: 600;
   text-align: left;
 }
 .roof-module-head svg:first-child {
@@ -2018,7 +2018,7 @@
   background: none;
   color: var(--ink-2);
   font-size: 13px;
-  font-weight: 550;
+  font-weight: 600;
 }
 .roof-module-seg button.is-active {
   background: var(--surface);
@@ -2151,14 +2151,14 @@
 }
 .rdv-history-when {
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink-2);
 }
 .client-row {
   display: flex;
   gap: 10px;
   align-items: flex-start;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--ink-2);
   line-height: 1.35;
 }
@@ -2223,13 +2223,13 @@
 }
 .roof-report-head h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 650;
   letter-spacing: -0.01em;
 }
 .roof-report-address {
   margin: 4px 0 0;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--ink-2);
 }
 .roof-report-source {
@@ -2356,7 +2356,7 @@
 /* Mention de source (obligation Licence Ouverte) */
 .data-attribution {
   margin: 10px 0 0;
-  font-size: 10.5px;
+  font-size: 11px;
   text-align: center;
   color: var(--ink-3);
 }
@@ -2387,7 +2387,7 @@
   color: var(--ink-3);
 }
 .note-body {
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.45;
   color: var(--ink);
   white-space: pre-wrap;
@@ -2549,7 +2549,7 @@ a.text-btn {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--ink);
 }
@@ -2671,7 +2671,7 @@ select.field-input {
   border: 1px solid #cbd5e1;
   border-radius: 999px;
   padding: 10px 20px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   background: #ffffff;
   color: #1e293b;
@@ -2706,13 +2706,13 @@ select.field-input {
   margin: 0 0 8px;
   text-align: center;
   color: #64748b;
-  font-size: 14px;
+  font-size: 15px;
 }
 .auth-card input {
   border: 1px solid #cbd5e1;
   border-radius: 10px;
   padding: 12px;
-  font-size: 16px;
+  font-size: 15px;
 }
 .auth-card input:focus {
   outline: 2px solid #3b82f6;
@@ -2722,7 +2722,7 @@ select.field-input {
   border: none;
   border-radius: 10px;
   padding: 12px;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   background: #1e293b;
   color: #ffffff;
@@ -2734,7 +2734,7 @@ select.field-input {
   border: none;
   background: none;
   color: #3b82f6;
-  font-size: 14px;
+  font-size: 13px;
 }
 .auth-error {
   margin: 0;
@@ -2780,13 +2780,13 @@ select.field-input {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 650;
 }
 .sheet-close {
   border: none;
   background: none;
-  font-size: 18px;
+  font-size: 17px;
   color: #64748b;
   padding: 4px 8px;
 }
