@@ -1,0 +1,19 @@
+/* Variante B — « Sécurité » : encre neutre quasi noire, orange signal
+   réservé aux actions, full Geist, relief net. Prototype injecté. */
+:root {
+  --bg: #f6f6f5;
+  --surface: #ffffff;
+  --surface-2: #eeeeec;
+  --ink: #111113;
+  --ink-2: #5c5c63;
+  --ink-3: #8b8b93;
+  --line: #e4e4e1;
+  --line-strong: #d2d2ce;
+  --accent: #f54e00;
+  --accent-ink: #ffffff;
+  --accent-weak: rgba(245, 78, 0, 0.09);
+  --accent-ring: rgba(245, 78, 0, 0.35);
+  --shadow-sm: 0 1px 2px rgba(17, 17, 19, 0.07), 0 2px 8px rgba(17, 17, 19, 0.06);
+  --shadow-md: 0 8px 24px rgba(17, 17, 19, 0.11);
+  --shadow-lg: 0 20px 48px rgba(17, 17, 19, 0.18);
+}

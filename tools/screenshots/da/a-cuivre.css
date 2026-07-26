@@ -1,0 +1,32 @@
+/* Variante A — « Cuivre » : encre chaude, papier crème, accent cuivre,
+   titres Fraunces (artisan premium). Prototype injecté, jamais shippé. */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,650&display=swap');
+:root {
+  --bg: #faf7f2;
+  --surface: #ffffff;
+  --surface-2: #f3eee6;
+  --ink: #1c1917;
+  --ink-2: #6e675e;
+  --ink-3: #a49b8f;
+  --line: #e8e1d6;
+  --line-strong: #d9d0c1;
+  --accent: #c2540a;
+  --accent-ink: #ffffff;
+  --accent-weak: rgba(194, 84, 10, 0.1);
+  --accent-ring: rgba(194, 84, 10, 0.35);
+  --danger: #dc2626;
+  --shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.08), 0 2px 6px rgba(28, 25, 23, 0.05);
+  --shadow-md: 0 6px 22px rgba(28, 25, 23, 0.13);
+  --shadow-lg: 0 20px 48px rgba(28, 25, 23, 0.2);
+}
+h1,
+h2,
+.accueil-hello,
+.cal-month,
+.stats-range,
+.drawer-title,
+.brand-word {
+  font-family: 'Fraunces', Georgia, serif;
+  letter-spacing: 0;
+  font-weight: 600;
+}
