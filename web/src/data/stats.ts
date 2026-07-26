@@ -81,50 +81,6 @@ async function fetchAllRows(
   }
 }
 
-/** Une action récente de l'équipe (feed d'activité de l'Accueil). */
-export interface ActivityItem {
-  id: string
-  status: PointStatus
-  occurred_at: string
-  author_name: string | null
-  client_name: string | null
-  address: string | null
-  /** Point lié (null si supprimé depuis) — le feed ouvre la carte (audit UX A29). */
-  point: { id: string; lng: number; lat: number } | null
-}
-
-/** Dernières actions de l'équipe (journal point_events, plus récentes d'abord). */
-export async function fetchRecentActivity(limit = 12): Promise<ActivityItem[]> {
-  if (!supabase) return []
-  const { data, error } = await supabase
-    .from('point_events')
-    .select('id, status, occurred_at, author:profiles(full_name), point:points(id, lng, lat, client_name, address)')
-    .order('occurred_at', { ascending: false })
-    .limit(limit)
-  if (error) throw error
-  return ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => {
-    const pt = r.point as {
-      id?: string
-      lng?: number
-      lat?: number
-      client_name?: string | null
-      address?: string | null
-    } | null
-    return {
-      id: r.id as string,
-      status: r.status as PointStatus,
-      occurred_at: r.occurred_at as string,
-      author_name: (r.author as { full_name?: string | null } | null)?.full_name ?? null,
-      client_name: pt?.client_name ?? null,
-      address: pt?.address ?? null,
-      point:
-        pt?.id != null && pt.lng != null && pt.lat != null
-          ? { id: pt.id, lng: pt.lng, lat: pt.lat }
-          : null,
-    }
-  })
-}
-
 export interface CommercialStats {
   commercial_id: string
   portes: number

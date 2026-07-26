@@ -6,14 +6,13 @@ import {
   LogOut,
   ChevronRight,
   BellRing,
-  Activity,
   CalendarClock,
   Phone,
   X,
 } from 'lucide-react'
 import { useSession } from '../lib/session'
 import { fetchRelances, localDayKey } from '../data/points'
-import { fetchRecentActivity, fetchStats, type ActivityItem, type StatsResult } from '../data/stats'
+import { fetchStats, type StatsResult } from '../data/stats'
 import { fetchAppointments } from '../data/appointments'
 import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
 import { STATUS_BY_VALUE } from '../domain/status'
@@ -21,16 +20,6 @@ import { APPOINTMENT_STATUS_META, type Appointment } from '../domain/appointment
 import { ClientSheet } from './ClientSheet'
 import { AppointmentForm } from './AppointmentForm'
 import type { MapPoint } from '../domain/types'
-
-/** « il y a 5 min », « hier »… pour le feed d'activité. */
-function timeAgo(iso: string): string {
-  const s = (Date.now() - new Date(iso).getTime()) / 1000
-  if (s < 60) return 'à l’instant'
-  if (s < 3600) return `il y a ${Math.floor(s / 60)} min`
-  if (s < 86400) return `il y a ${Math.floor(s / 3600)} h`
-  const d = Math.floor(s / 86400)
-  return d === 1 ? 'hier' : `il y a ${d} j`
-}
 
 function relanceLabel(iso: string): string {
   // Jour LOCAL (toISOString = UTC : « aujourd'hui » était faux entre minuit
@@ -71,7 +60,6 @@ export function AccueilScreen({
   const meId = profile?.id ?? null
 
   const [relances, setRelances] = useState<MapPoint[]>([])
-  const [activity, setActivity] = useState<ActivityItem[]>([])
   // La journée, pas le profil (audit UX B4) : portes/RDV du jour + objectif.
   const [statsJour, setStatsJour] = useState<StatsResult | null>(null)
   const [statsSemaine, setStatsSemaine] = useState<StatsResult | null>(null)
@@ -91,20 +79,18 @@ export function AccueilScreen({
   const load = useCallback(() => {
     Promise.all([
       fetchRelances(),
-      fetchRecentActivity(),
       fetchStats('jour'),
       fetchStats('semaine'),
       fetchAppointments(),
       fetchOrgProfiles(),
     ])
-      .then(([r, a, sj, sw, appts, profs]) => {
+      .then(([r, sj, sw, appts, profs]) => {
         // Carte privée (décision chef des ventes, 25/07) : le commercial ne
         // relance que SES portes — une relance d'un collègue ouvrirait une
         // carte où le point est invisible pour lui.
         setRelances(
           profile?.role === 'manager' ? r : r.filter((p) => p.created_by === profile?.id),
         )
-        setActivity(a)
         setStatsJour(sj)
         setStatsSemaine(sw)
         setOrgProfiles(profs)
@@ -311,44 +297,6 @@ export function AccueilScreen({
               )}
             </div>
           ))}
-        </motion.section>
-      )}
-
-      {activity.length > 0 && (
-        <motion.section className="home-section" variants={fade} custom={5} initial="hidden" animate="show">
-          <p className="eyebrow section-title">
-            <Activity size={12} strokeWidth={2} /> Activité récente
-          </p>
-          {/* Cliquable vers la carte (audit UX A29) — même pattern que les
-              relances juste au-dessus ; ligne inerte si le point a disparu. */}
-          {activity.map((a) => {
-            const inner = (
-              <>
-                <span className="status-dot" style={{ background: STATUS_BY_VALUE[a.status].color }} />
-                <span className="home-row-main">
-                  <span className="home-row-title">
-                    {(a.author_name ?? 'Équipe').split(/\s/)[0]} · {STATUS_BY_VALUE[a.status].label}
-                  </span>
-                  <span className="home-row-sub">{a.client_name ?? a.address ?? ''}</span>
-                </span>
-                <span className="home-row-when tnum">{timeAgo(a.occurred_at)}</span>
-              </>
-            )
-            return a.point && onShowOnMap ? (
-              <button
-                key={a.id}
-                type="button"
-                className="home-row"
-                onClick={() => onShowOnMap({ pointId: a.point!.id, lng: a.point!.lng, lat: a.point!.lat })}
-              >
-                {inner}
-              </button>
-            ) : (
-              <div key={a.id} className="home-row is-static">
-                {inner}
-              </div>
-            )
-          })}
         </motion.section>
       )}
 
