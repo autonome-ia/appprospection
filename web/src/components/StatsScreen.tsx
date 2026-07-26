@@ -49,25 +49,22 @@ function daysOf(start: Date, end: Date): string[] {
   return out
 }
 
-function Delta({ value, unit }: { value: number; unit?: string }) {
-  if (value === 0) return <span className="delta flat">—</span>
-  const up = value > 0
-  return (
-    <span className={`delta ${up ? 'up' : 'down'}`}>
-      {up ? <ArrowUp size={12} strokeWidth={2.4} /> : <ArrowDown size={12} strokeWidth={2.4} />}
-      {Math.abs(value)}
-      {unit ? ` ${unit}` : ''}
-    </span>
-  )
+// Delta du chiffre héros : une phrase lisible, pas un sigle (refonte 26/07).
+const PREV_LABEL: Record<Period, string> = {
+  jour: 'vs la veille',
+  semaine: 'vs semaine précédente',
+  mois: 'vs mois précédent',
 }
 
-function Kpi({ label, value, delta, unit }: { label: string; value: string; delta: number; unit?: string }) {
+function HeroDelta({ value, period }: { value: number; period: Period }) {
+  const label = PREV_LABEL[period]
+  if (value === 0) return <span className="hero-delta flat">= {label}</span>
+  const up = value > 0
   return (
-    <div className="kpi">
-      <span className="eyebrow">{label}</span>
-      <span className="kpi-value tnum">{value}</span>
-      <Delta value={delta} unit={unit} />
-    </div>
+    <span className={`hero-delta ${up ? 'up' : 'down'}`}>
+      {up ? <ArrowUp size={13} strokeWidth={2.4} /> : <ArrowDown size={13} strokeWidth={2.4} />}
+      <span className="tnum">{up ? `+${value}` : `−${Math.abs(value)}`}</span> {label}
+    </span>
   )
 }
 
@@ -245,7 +242,6 @@ export function StatsScreen({
     : {}
 
   const convCur = ratio(cur.ventes, cur.portes)
-  const convPrev = ratio(prev.ventes, prev.portes)
 
   // Classement : TOUT LE MONDE, manager compris (décision chef des ventes
   // 25/07 — les managers prospectent aussi).
@@ -293,11 +289,9 @@ export function StatsScreen({
   const above = myIdx > 0 ? ranked[myIdx - 1] : null
 
   return (
+    // Pas d'en-tête « Statistiques » (refonte 26/07, même logique que
+    // l'agenda) : le segmented ouvre l'écran, la période est le titre.
     <div className="screen">
-      <header className="screen-head">
-        <h2>Statistiques</h2>
-      </header>
-
       <div className="seg">
         {PERIODS.map((p) => (
           <button
@@ -357,44 +351,57 @@ export function StatsScreen({
           <ChevronLeft size={16} /> Retour équipe
         </button>
       )}
-      <p className="focus-title">{focusId ? nameOf(focusId) : 'Équipe'}</p>
-      {isManager && drillId && onShowCommercialOnMap && (
-        <button
-          type="button"
-          className="text-btn drill-map"
-          onClick={() => onShowCommercialOnMap(drillId)}
-        >
-          <MapPin size={14} strokeWidth={2} /> Voir ses points sur la carte
-        </button>
-      )}
 
       {/* Squelettes tant que les données ne sont pas là (audit UX B14) : les
           KPI/tunnel/classement affichaient de FAUX zéros plusieurs secondes —
           des chiffres faux commentés en réunion. */}
       {!data && !loadError && (
         <div className="stats-skeleton" aria-hidden="true">
-          <div className="kpis">
-            <span className="sk sk-kpi" />
-            <span className="sk sk-kpi" />
-            <span className="sk sk-kpi" />
-          </div>
+          <span className="sk sk-hero" />
           <span className="sk sk-block" />
           <span className="sk sk-block sk-block-tall" />
         </div>
       )}
 
+      {/* Chiffre HÉROS (refonte 26/07) : les ventes portent l'écran, delta en
+          phrase ; les autres KPI passent en ligne secondaire — fini les 3
+          cartes de même poids qui doublonnaient le tunnel. */}
       {data && (
-      <div className="kpis">
-        <Kpi label="Ventes" value={String(cur.ventes)} delta={cur.ventes - prev.ventes} />
-        <Kpi label="RDV pris" value={String(cur.rdv_pris)} delta={cur.rdv_pris - prev.rdv_pris} />
-        {focusId ? (
-          <Kpi label="Conversion" value={pct1(convCur)} delta={Math.round((convCur - convPrev) * 100)} unit="pts" />
-        ) : (
-          // Vue Équipe : « qui toque ? » était invisible (audit UX A10) — la
-          // conversion reste lisible en pied de tunnel.
-          <Kpi label="Portes" value={String(cur.portes)} delta={cur.portes - prev.portes} />
-        )}
-      </div>
+        <section className="stats-hero">
+          <p className="eyebrow">{focusId ? nameOf(focusId) : 'Équipe'}</p>
+          <div className="hero-line">
+            <span className="hero-value tnum">{cur.ventes}</span>
+            <span className="hero-unit">vente{cur.ventes > 1 ? 's' : ''}</span>
+            <HeroDelta value={cur.ventes - prev.ventes} period={period} />
+          </div>
+          <p className="hero-sub">
+            <b className="tnum">{cur.portes}</b> portes · <b className="tnum">{cur.rdv_pris}</b>{' '}
+            RDV pris · conv. <b className="tnum">{pct1(convCur)}</b>
+          </p>
+          {/* « Ma position » vit sous le héros (plus de carte séparée en
+              fond d'écran que personne n'atteignait). */}
+          {!isManager && myIdx >= 0 && (
+            <p className="hero-pos">
+              {myIdx + 1}
+              {myIdx === 0 ? 'ᵉʳ' : 'ᵉ'} sur {ranked.length}
+              {above &&
+                ` · ${above.full_name ?? 'le suivant'} devant (+${
+                  (data?.current.byCommercial[above.id]?.ventes ?? 0) - cur.ventes
+                } vente${
+                  (data?.current.byCommercial[above.id]?.ventes ?? 0) - cur.ventes > 1 ? 's' : ''
+                })`}
+            </p>
+          )}
+          {isManager && drillId && onShowCommercialOnMap && (
+            <button
+              type="button"
+              className="text-btn drill-map"
+              onClick={() => onShowCommercialOnMap(drillId)}
+            >
+              <MapPin size={14} strokeWidth={2} /> Voir ses points sur la carte
+            </button>
+          )}
+        </section>
       )}
 
       {showObjective && (
@@ -508,23 +515,6 @@ export function StatsScreen({
               </div>
             )
           })}
-        </section>
-      )}
-
-      {data && !isManager && myIdx >= 0 && (
-        <section className="card mypos">
-          <p className="eyebrow">Ma position</p>
-          <div className="mypos-rank">
-            <span className="mypos-num tnum">{myIdx + 1}</span>
-            <span className="mypos-total">sur {ranked.length}</span>
-          </div>
-          {above && (
-            <p className="mypos-gap">
-              {above.full_name ?? 'Le suivant'} est devant (+
-              {(data?.current.byCommercial[above.id]?.ventes ?? 0) - cur.ventes} vente
-              {(data?.current.byCommercial[above.id]?.ventes ?? 0) - cur.ventes > 1 ? 's' : ''})
-            </p>
-          )}
         </section>
       )}
 
