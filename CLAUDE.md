@@ -63,8 +63,13 @@ DA **« Encre & signal »** (choisie par briac le 26/07/2026 sur prototypes comp
 - **UN seul accent : l'orange signal** (`--accent: #f54e00`) — réservé aux **actions, liens et états actifs**.
   JAMAIS pour de la donnée : les statuts gardent leurs couleurs sémantiques (« RDV pris » reste bleu,
   « Vendu » vert, « À revoir » ambre — couleur = statut sur la carte, couleur = commercial dans l'agenda).
-- Police **Geist** (UI) + **Geist Mono** (chiffres, heures, stats). **Jamais de mono sur du texte courant**
-  (adresses, noms, métas) — le mono est l'exception chiffrée, pas un style décoratif (retour briac 25/07).
+- **Doctrine typo (26/07, bilan briac « trop de polices »)** : **Geist partout** — y compris les labels de
+  section `.eyebrow` (Geist 11 uppercase 600 letterspacé, plus de mono) ; **Geist Mono STRICTEMENT réservé
+  aux données chiffrées** (heures, m², compteurs, tableaux, cotes — `.tnum`). Dans une ligne mixte, seuls
+  les nombres sont en mono (les dates/heures composées comptent comme données). **Échelle fermée de 8
+  crans : 10 (micro, grille du mois seulement) · 11 (labels) · 12 (métas) · 13 (secondaire) · 15 (corps,
+  actions) · 17 (titres de bloc) · 24 (titres d'écran) · 42 (héros)** — jamais de demi-pixels ni de
+  tailles hors échelle. Graisses : 400/500 (courant), 600 (emphase), 650 (chiffres/titres forts).
 - Icônes **Lucide** — **JAMAIS d'emojis** comme icônes.
 - **Vaul** (bottom sheets / drawers), **Sonner** (toasts), **Motion** (animations).
 - Tokens CSS dans `web/src/index.css` ; DA aussi cuite en TS : `config/markers.ts` (marqueurs/clusters),
