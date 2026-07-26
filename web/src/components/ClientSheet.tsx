@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
-import { CalendarClock, MapPin, Navigation, Pencil, Phone, StickyNote, X } from 'lucide-react'
+import { CalendarClock, MapPin, Navigation, Pencil, Phone, StickyNote, Trash2, X } from 'lucide-react'
 import { fetchPoint, fetchPointNotes, fetchPointPans, type PointNote } from '../data/points'
-import { fetchPointAppointments, setAppointmentOutcome } from '../data/appointments'
+import { deleteAppointment, fetchPointAppointments, setAppointmentOutcome } from '../data/appointments'
 import {
   lidarNeedsMeasure,
   suggestedWastePct,
@@ -93,6 +93,12 @@ export function ClientSheet({ appt, profile, onOpenChange, onEdit, onShowOnMap, 
   // (l'objet appt du parent est figé tant que l'agenda n'a pas rechargé).
   const [statusOverride, setStatusOverride] = useState<AppointmentStatus | null>(null)
   const [busy, setBusy] = useState(false)
+  // Suppression en deux taps (audit UX A32), déplacée ici depuis la carte RDV
+  // (refonte rail 26/07 : le bloc du jour reste léger, la gestion vit ici).
+  const [confirmDel, setConfirmDel] = useState(false)
+  // La RLS ne laisse supprimer que le titulaire ou un manager : proposer le
+  // bouton aux autres produisait un faux « RDV supprimé » (audit).
+  const canDelete = profile.role === 'manager' || appt.commercial_id === profile.id
   const pointId = appt.point?.id ?? null
 
   useEffect(() => {
@@ -364,6 +370,36 @@ export function ClientSheet({ appt, profile, onOpenChange, onEdit, onShowOnMap, 
                 />
               )}
             </>
+          )}
+
+          {canDelete && (
+            <button
+              type="button"
+              className="text-btn danger drawer-delete"
+              disabled={busy}
+              onClick={async () => {
+                if (!confirmDel) {
+                  setConfirmDel(true)
+                  window.setTimeout(() => setConfirmDel(false), 4000)
+                  return
+                }
+                setBusy(true)
+                try {
+                  await deleteAppointment(appt.id)
+                  toast('RDV supprimé')
+                  onChanged?.()
+                  onOpenChange(false)
+                } catch (e) {
+                  console.error('Suppression du RDV :', e)
+                  toast.error('Suppression impossible — vérifiez le réseau')
+                } finally {
+                  setBusy(false)
+                }
+              }}
+            >
+              <Trash2 size={14} strokeWidth={1.8} />{' '}
+              {confirmDel ? 'Confirmer la suppression ?' : 'Supprimer le RDV'}
+            </button>
           )}
 
           <div className="drawer-footer">
