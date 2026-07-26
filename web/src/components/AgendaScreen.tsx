@@ -663,45 +663,49 @@ export function AgendaScreen({
 
       {view === 'agenda' && (
       <>
-      <div className="chip-row agenda-mine">
-        <button
-          type="button"
-          className={`chip ${onlyMine ? 'is-active' : ''}`}
-          onClick={() => setOnlyMine((v) => !v)}
-        >
-          Mes RDV
-        </button>
-      </div>
       <div className="cal">
+        {/* Titre du mois à gauche, navigation groupée à droite (DA 26/07). */}
         <div className="cal-nav">
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={() => shiftMonth(-1)}
-            aria-label="Mois précédent"
-          >
-            <ChevronLeft size={18} />
-          </button>
           <span className="cal-month">{monthLabel}</span>
-          {/* Retour 1 tap au mois courant (audit UX A16) : revenir coûtait
-              3-4 taps de chevrons devant le prospect. */}
-          {(monthDate.getMonth() !== today.getMonth() ||
-            monthDate.getFullYear() !== today.getFullYear()) && (
+          <div className="cal-nav-controls">
             <button
               type="button"
-              className="text-btn cal-today"
-              onClick={() => setMonthDate(startOfMonth(new Date()))}
+              className="icon-btn"
+              onClick={() => shiftMonth(-1)}
+              aria-label="Mois précédent"
             >
-              Aujourd’hui
+              <ChevronLeft size={18} />
             </button>
-          )}
+            {/* Retour 1 tap au mois courant (audit UX A16) : revenir coûtait
+                3-4 taps de chevrons devant le prospect. */}
+            {(monthDate.getMonth() !== today.getMonth() ||
+              monthDate.getFullYear() !== today.getFullYear()) && (
+              <button
+                type="button"
+                className="text-btn cal-today"
+                onClick={() => setMonthDate(startOfMonth(new Date()))}
+              >
+                Aujourd’hui
+              </button>
+            )}
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => shiftMonth(1)}
+              aria-label="Mois suivant"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+
+        <div className="chip-row agenda-mine">
           <button
             type="button"
-            className="icon-btn"
-            onClick={() => shiftMonth(1)}
-            aria-label="Mois suivant"
+            className={`chip ${onlyMine ? 'is-active' : ''}`}
+            onClick={() => setOnlyMine((v) => !v)}
           >
-            <ChevronRight size={18} />
+            Mes RDV
           </button>
         </div>
 

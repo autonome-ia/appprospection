@@ -803,30 +803,37 @@
   gap: 10px;
   padding: 0 2px 8px;
 }
+.cal-nav-controls {
+  display: flex;
+  align-items: center;
+}
 .agenda-mine {
-  margin: 0 0 10px;
+  margin: 0 2px 10px;
 }
 .cal-today {
-  margin-left: auto;
   color: var(--accent);
   font-weight: 600;
+  padding: 0 8px;
 }
 .cal-month {
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  padding-left: 2px;
 }
 .cal-weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
 }
 .cal-weekdays span {
   text-align: center;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  /* Des LETTRES, pas des chiffres : Geist, pas de mono (règle DA). */
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   color: var(--ink-3);
-  padding: 4px 0;
+  padding: 4px 0 6px;
 }
 .cal-grid {
   display: grid;
@@ -834,10 +841,12 @@
      largeur du contenu — les étiquettes nowrap faisaient déborder la grille
      de l'écran sur mobile au lieu d'être coupées. */
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 3px 2px;
+  /* Bord à bord : les hairlines entre semaines courent d'un trait. */
+  gap: 0;
 }
 /* Cases « mois » façon agenda iOS (référence capture briac) : hautes, avec
-   les RDV en étiquettes NOMMÉES — on voit qui on a sur tout le mois. */
+   les RDV en étiquettes NOMMÉES — on voit qui on a sur tout le mois.
+   Hairlines horizontales entre les semaines (réf. Fantastical/Notion Cal). */
 .cal-cell {
   position: relative;
   display: flex;
@@ -845,12 +854,16 @@
   align-items: stretch;
   gap: 3px;
   border: none;
+  border-top: 1px solid var(--line);
   background: none;
-  padding: 3px 1px 4px;
-  border-radius: var(--r-md);
+  padding: 4px 2px 6px;
+  border-radius: 0;
   min-height: 78px;
   min-width: 0; /* autorise la case à rétrécir : le texte se coupe dedans */
   overflow: hidden;
+}
+.cal-cell:nth-child(-n + 7) {
+  border-top: none; /* la 1re semaine s'appuie sur le trait des jours L-D */
 }
 .cal-cell:active {
   background: var(--surface-2);
@@ -906,19 +919,6 @@
   color: var(--ink-3);
   text-align: right;
   padding-right: 2px;
-}
-
-/* --- Formulaire (RDV) --- */
-.form-input {
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 15px;
-  font-family: inherit;
-}
-.form-input:focus {
-  outline: 2px solid #3b82f6;
-  border-color: transparent;
 }
 
 /* --- Stats : sélecteur de période (segmented) --- */
