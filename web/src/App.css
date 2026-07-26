@@ -1124,43 +1124,74 @@
   font-weight: 600;
 }
 
-/* --- Stats : tunnel (étapes + taux de passage) --- */
-.funnel2 {
-  margin-top: 10px;
+/* --- Stats : tunnel en barres proportionnelles (refonte 26/07) --- */
+.funnel3 {
+  margin-top: 12px;
 }
-.funnel-step {
+.fun-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 9px 12px;
-  background: var(--surface-2);
-  border-radius: var(--r-md);
+  gap: 10px;
 }
-.funnel-step-label {
-  font-size: 14px;
-  color: var(--ink);
+.fun-label {
+  flex: 0 0 76px;
+  font-size: 13px;
+  color: var(--ink-2);
 }
-.funnel-step-value {
-  font-size: 16px;
-  font-weight: 600;
-}
-.funnel-link {
+.fun-track {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 12px 5px 18px;
 }
-.funnel-rate {
-  font-size: 13px;
+.fun-bar {
+  display: block;
+  height: 18px;
+  border-radius: 4px;
+  background: var(--accent);
+  transition: width 0.35s var(--ease-out);
+}
+/* L'entonnoir se concentre : opacité croissante, les ventes en vert plein. */
+.fun-bar-0 {
+  opacity: 0.3;
+}
+.fun-bar-1 {
+  opacity: 0.55;
+}
+.fun-bar-2 {
+  opacity: 0.8;
+}
+.fun-bar-3 {
+  background: var(--st-vendu);
+}
+.fun-value {
+  font-size: 14px;
   font-weight: 600;
-  color: var(--ink);
+  flex: 0 0 auto;
 }
-.funnel-rate-label {
+.fun-rate {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0 4px 86px;
   font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.fun-rate svg {
   color: var(--ink-3);
 }
-.funnel-link.is-leak .funnel-rate,
-.funnel-link.is-leak .funnel-rate-label {
+.fun-rate-label {
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.fun-leak {
+  font-weight: 600;
+}
+.fun-rate.is-leak,
+.fun-rate.is-leak svg,
+.fun-rate.is-leak .fun-rate-label {
   color: var(--danger);
 }
 .funnel-foot {
@@ -1181,12 +1212,6 @@
   color: var(--ink-3);
   font-size: 12px;
 }
-.funnel-leak-note {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: var(--danger);
-}
-
 /* --- Stats : graphe activité --- */
 .chart-bars {
   display: flex;
@@ -1331,11 +1356,6 @@
 }
 .chart-bar.is-today {
   background: var(--accent);
-}
-.funnel-info {
-  color: var(--ink-3);
-  margin-left: 4px;
-  vertical-align: -1px;
 }
 .rank-edit {
   position: relative;

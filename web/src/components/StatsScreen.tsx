@@ -73,12 +73,15 @@ function HeroDelta({ value, period }: { value: number; period: Period }) {
 // COHÉRENTE — effectués ÷ RDV échus de la période — au lieu d'effectués ÷
 // pris (deux populations différentes, taux > 100 % possible).
 const STEPS: { key: keyof CommercialStats; label: string; from?: keyof CommercialStats; rate?: string }[] = [
-  { key: 'portes', label: 'Portes toquées' },
-  { key: 'rdv_pris', label: 'RDV pris', from: 'portes', rate: '→ RDV' },
-  { key: 'rdv_effectues', label: 'RDV effectués', from: 'rdv_planifies', rate: 'effectués' },
+  { key: 'portes', label: 'Portes' },
+  { key: 'rdv_pris', label: 'RDV pris', from: 'portes', rate: 'prennent RDV' },
+  { key: 'rdv_effectues', label: 'Effectués', from: 'rdv_planifies', rate: 'effectués' },
   { key: 'ventes', label: 'Ventes', from: 'rdv_effectues', rate: 'vendent' },
 ]
 
+/** Tunnel en barres PROPORTIONNELLES (refonte 26/07) : la largeur = le
+    volume — on VOIT l'entonnoir et où il fuit, au lieu de lire 4 boîtes
+    égales. La fuite la plus forte est marquée sur son taux. */
 function Funnel({ s }: { s: CommercialStats }) {
   // Point de blocage = plus faible taux "maîtrisable" (prise RDV / présence / closing).
   const controllable = [
@@ -87,23 +90,36 @@ function Funnel({ s }: { s: CommercialStats }) {
     { i: 3, r: ratio(s.ventes, s.rdv_effectues) },
   ].filter((x) => x.r > 0)
   const leak = controllable.length ? controllable.reduce((a, b) => (b.r < a.r ? b : a)) : null
+  const max = Math.max(1, ...STEPS.map((st) => s[st.key] as number))
 
   return (
-    <div className="funnel2">
-      {STEPS.map((step, i) => (
-        <div key={step.key}>
-          {i > 0 && (
-            <div className={`funnel-link ${leak?.i === i ? 'is-leak' : ''}`}>
-              <span className="funnel-rate tnum">{pct(ratio(s[step.key] as number, s[step.from!] as number))}</span>
-              <span className="funnel-rate-label">{step.rate}</span>
+    <div className="funnel3">
+      {STEPS.map((step, i) => {
+        const v = s[step.key] as number
+        const isLeak = leak?.i === i
+        return (
+          <div key={step.key}>
+            {i > 0 && (
+              <div className={`fun-rate ${isLeak ? 'is-leak' : ''}`}>
+                <ArrowDown size={11} strokeWidth={2.2} />
+                <span className="tnum">{pct(ratio(v, s[step.from!] as number))}</span>
+                <span className="fun-rate-label">{step.rate}</span>
+                {isLeak && <span className="fun-leak">· point de blocage</span>}
+              </div>
+            )}
+            <div className="fun-row">
+              <span className="fun-label">{step.label}</span>
+              <div className="fun-track">
+                <span
+                  className={`fun-bar fun-bar-${i}`}
+                  style={{ width: `${Math.max(2, (v / max) * 100)}%` }}
+                />
+                <span className="fun-value tnum">{v}</span>
+              </div>
             </div>
-          )}
-          <div className="funnel-step">
-            <span className="funnel-step-label">{step.label}</span>
-            <span className="funnel-step-value tnum">{s[step.key] as number}</span>
           </div>
-        </div>
-      ))}
+        )
+      })}
       <div className="funnel-foot">
         <span className="funnel-conv">
           Conversion globale <b className="tnum">{pct1(ratio(s.ventes, s.portes))}</b>
@@ -112,11 +128,6 @@ function Funnel({ s }: { s: CommercialStats }) {
           {s.absents} absents · {pct(ratio(s.absents, s.portes))}
         </span>
       </div>
-      {leak && (
-        <p className="funnel-leak-note">
-          Point de blocage : {STEPS[leak.i].label.toLowerCase()} ({pct(controllable.find((c) => c.i === leak.i)!.r)})
-        </p>
-      )}
     </div>
   )
 }
