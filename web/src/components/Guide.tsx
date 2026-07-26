@@ -24,6 +24,8 @@ interface Guide {
   steps: GuideStep[]
 }
 
+// 3 étapes MAX par tuto, une phrase par étape (retour briac 26/07 : trop
+// d'étapes tue le tuto — chaque capture doit porter UNE idée).
 const GUIDES: Guide[] = [
   {
     id: 'pose',
@@ -32,23 +34,18 @@ const GUIDES: Guide[] = [
     steps: [
       {
         img: '/guide/pose-1.webp',
-        alt: 'Carte en mode visée avec le réticule au centre',
-        text: 'Sur la carte, appuyez sur « + » : un viseur apparaît au centre. Déplacez la carte pour placer la maison sous le viseur (zoomez au niveau rue).',
+        alt: 'Carte en mode visée : réticule au centre et choix du statut',
+        text: 'Appuyez sur « + » : placez la maison sous le viseur, choisissez le statut, puis « Poser ».',
       },
       {
         img: '/guide/pose-2.webp',
-        alt: 'Choix du statut avant de poser le point',
-        text: 'Choisissez le statut de la visite — Absent, À revoir, Refus, Hors cible, RDV pris ou Vendu — puis validez avec « Poser ».',
+        alt: 'Fiche du point ouverte après la pose',
+        text: 'La fiche s’ouvre : client, téléphone, note. Sur « À revoir », datez la relance — elle reviendra le jour venu.',
       },
       {
         img: '/guide/pose-3.webp',
-        alt: 'Fiche du point ouverte après la pose',
-        text: 'La fiche s’ouvre : nom du client, téléphone, note… Sur « À revoir », datez la relance — elle reviendra sur l’Accueil et dans l’agenda le jour venu.',
-      },
-      {
-        img: '/guide/pose-4.webp',
         alt: 'Déplacement d’un point par appui long',
-        text: 'Point mal placé ? Appui long dessus, puis glissez-le sur la bonne maison : adresse, fiche maison et mesure du toit se recalculent automatiquement.',
+        text: 'Mal placé ? Appui long sur le point puis glissez-le : adresse, fiche et mesure du toit se recalculent.',
       },
     ],
   },
@@ -60,22 +57,17 @@ const GUIDES: Guide[] = [
       {
         img: '/guide/rdv-1.webp',
         alt: 'Formulaire de prise de rendez-vous',
-        text: 'Posez un point « RDV pris » (ou « + RDV » depuis une fiche) : date, créneau à la demi-heure, client, adresse auto-complétée.',
+        text: '« RDV pris » ouvre le formulaire : date, créneau, client — l’adresse se complète toute seule.',
       },
       {
         img: '/guide/rdv-2.webp',
         alt: 'Agenda : grille du mois avec les RDV de l’équipe',
-        text: 'Le RDV rejoint l’agenda partagé : la grille du mois montre les RDV de toute l’équipe (une couleur par commercial). La chip « Mes RDV » filtre les vôtres.',
+        text: 'L’agenda est partagé : une couleur par commercial, chip « Mes RDV » pour filtrer. Tap sur un jour = son planning.',
       },
       {
         img: '/guide/rdv-3.webp',
-        alt: 'Planning d’un jour avec les issues du RDV',
-        text: 'Tapez un jour pour ouvrir son planning. Le jour J, marquez l’issue en un tap : Vendu, Effectué, Manqué ou Annulé — c’est ce qui alimente les stats.',
-      },
-      {
-        img: '/guide/rdv-4.webp',
-        alt: 'Maison passée en vendu sur la carte',
-        text: '« Vendu » rebascule automatiquement la maison en vert sur la carte — le chantier devient un point d’appui pour prospecter autour.',
+        alt: 'Planning du jour avec les issues du RDV',
+        text: 'Le jour J, marquez l’issue en un tap. « Vendu » passe la maison en vert sur la carte.',
       },
     ],
   },
@@ -86,23 +78,18 @@ const GUIDES: Guide[] = [
     steps: [
       {
         img: '/guide/maison-1.webp',
-        alt: 'Fiche maison avec les badges (année, matériau, DPE)',
-        text: 'Tapez une maison sur la carte (même sans point) : adresse, année de construction, matériau du toit, DPE — et la mesure laser du toit se lance toute seule.',
+        alt: 'Fiche maison : badges et pans mesurés sur la photo',
+        text: 'Tapez une maison, même sans point : année, matériau, DPE — et le toit se mesure au laser tout seul, pans dessinés sur la photo.',
       },
       {
         img: '/guide/maison-2.webp',
-        alt: 'Pans du toit dessinés sur la photo aérienne',
-        text: 'Les pans mesurés se dessinent sur la photo avec leurs surfaces ; le badge affiche les m² de LA maison (mesure laser IGN, fiable à quelques %).',
+        alt: 'Maquette 3D du toit manipulable au doigt',
+        text: 'En 3D, le toit se manipule au doigt. Touchez un pan pour l’inclure ou l’exclure du total, devant le client.',
       },
       {
         img: '/guide/maison-3.webp',
-        alt: 'Maquette 3D du toit manipulable au doigt',
-        text: '« Voir le toit en 3D » : la maquette se manipule au doigt. Touchez un pan pour l’inclure ou l’exclure du total Σ — ajustez la surface retenue devant le client.',
-      },
-      {
-        img: '/guide/maison-4.webp',
         alt: 'Rapport client avec plan coté et surfaces',
-        text: 'Générez le rapport client : chiffres clés + plan coté, partageable en image ou imprimable — l’argumentaire posé sur la table du client.',
+        text: 'Le rapport client (chiffres + plan coté) se partage en une image — l’argumentaire posé sur la table.',
       },
     ],
   },
