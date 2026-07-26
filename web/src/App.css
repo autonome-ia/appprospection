@@ -1659,7 +1659,7 @@
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: rgba(16, 16, 26, 0.4);
+  background: rgba(17, 17, 19, 0.4);
 }
 .drawer-content {
   position: fixed;

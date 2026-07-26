@@ -26,7 +26,7 @@ export const MARKER_PIXEL_RATIO = 3
 const SIZE = (BASE * MARKER_PIXEL_RATIO) / 2 // 96 (le 64 logique valait déjà 2×)
 const K = SIZE / BASE // facteur logique → device
 
-const INK_SHADOW = '16, 16, 26' // --ink en rgb (ombres teintées encre, pas noires)
+const INK_SHADOW = '17, 17, 19' // --ink en rgb (ombres teintées encre, pas noires)
 
 /** Mélange hex → hex (t ∈ [0,1]) — dégradés du disque sans lib couleur. */
 function mix(hex: string, target: string, t: number): string {
@@ -215,7 +215,7 @@ function drawMarkerCanvas(color: string, status: PointStatus, withNote = false):
     ctx.stroke()
     ctx.beginPath()
     ctx.arc(bx, by, 3.5, 0, Math.PI * 2)
-    ctx.fillStyle = '#2f6bff' // = --accent (index.css)
+    ctx.fillStyle = '#f54e00' // = --accent (index.css, DA « Encre & signal »)
     ctx.fill()
   }
 

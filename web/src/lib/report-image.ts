@@ -18,12 +18,13 @@ const M = 36 // marge
 // Polices de la DA : Geist est chargée par l'app, le canvas y a accès.
 const SANS = "'Geist Variable', -apple-system, 'Segoe UI', sans-serif"
 const MONO = "'Geist Mono Variable', ui-monospace, 'SF Mono', monospace"
-// Tokens couleur (index.css) — le canvas ne lit pas les variables CSS.
-const INK = '#16161a'
-const INK2 = '#6b6b73'
-const INK3 = '#9a9aa2'
-const LINE = '#ececea'
-const ACCENT = '#2f6bff'
+// Tokens couleur (index.css, DA « Encre & signal ») — le canvas ne lit pas
+// les variables CSS.
+const INK = '#111113'
+const INK2 = '#5c5c63'
+const INK3 = '#8b8b93'
+const LINE = '#e4e4e1'
+const ACCENT = '#f54e00'
 
 const CARDINALS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO']
 const exposition = (az: number) => CARDINALS[Math.round(az / 45) % 8]

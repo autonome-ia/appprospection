@@ -159,9 +159,9 @@ export function RoofDiagramSvg({ roof, excluded }: Props) {
           <polygon
             key={p.idx}
             points={p.pts.map(([x, y]) => `${x},${y}`).join(' ')}
-            fill={isOff(p.idx) ? '#9a9aa2' : p.color}
+            fill={isOff(p.idx) ? '#8b8b93' : p.color}
             fillOpacity={isOff(p.idx) ? 0.14 : 0.55}
-            stroke={isOff(p.idx) ? '#9a9aa2' : p.color}
+            stroke={isOff(p.idx) ? '#8b8b93' : p.color}
             strokeWidth={span * 0.006}
             strokeDasharray={isOff(p.idx) ? `${span * 0.014} ${span * 0.01}` : undefined}
             strokeLinejoin="round"

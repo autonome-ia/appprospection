@@ -51,8 +51,8 @@ const PANS_FILL_LAYER = 'lidar-pans-fill'
 const PANS_LINE_LAYER = 'lidar-pans-line'
 const NO_ID = '__none__'
 // Couleur de la DA (même valeur que --accent dans index.css : MapLibre ne
-// lit pas les variables CSS).
-const ACCENT = '#2f6bff'
+// lit pas les variables CSS). DA « Encre & signal » : orange signal.
+const ACCENT = '#f54e00'
 // Tolérance du tap (px) : un doigt n'est pas un curseur — on cherche les
 // marqueurs dans un carré autour du point touché plutôt qu'au pixel exact.
 const HIT_TOLERANCE = 14
