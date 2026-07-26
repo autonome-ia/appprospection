@@ -124,8 +124,9 @@ function Funnel({ s }: { s: CommercialStats }) {
         <span className="funnel-conv">
           Conversion globale <b className="tnum">{pct1(ratio(s.ventes, s.portes))}</b>
         </span>
-        <span className="funnel-absents tnum">
-          {s.absents} absents · {pct(ratio(s.absents, s.portes))}
+        <span className="funnel-absents">
+          <span className="tnum">{s.absents}</span> absents ·{' '}
+          <span className="tnum">{pct(ratio(s.absents, s.portes))}</span>
         </span>
       </div>
     </div>
@@ -504,8 +505,10 @@ export function StatsScreen({
                   </div>
                   {/* Portes dans la ligne (audit UX A10) : 0 porte et 80
                       portes sans RDV étaient indiscernables. */}
-                  <div className="rank-metrics tnum">
-                    {s.portes} portes · {s.rdv_pris} RDV · conv. {pct1(ratio(s.ventes, s.portes))}
+                  <div className="rank-metrics">
+                    <span className="tnum">{s.portes}</span> portes ·{' '}
+                    <span className="tnum">{s.rdv_pris}</span> RDV · conv.{' '}
+                    <span className="tnum">{pct1(ratio(s.ventes, s.portes))}</span>
                   </div>
                   {/* Barre d'objectif HEBDO seulement en Semaine (audit UX
                       A9) : en Jour tout le monde était à 10 %, en Mois tout

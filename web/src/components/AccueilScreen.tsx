@@ -218,8 +218,11 @@ export function AccueilScreen({
                   style={{ width: `${Math.min(100, (rdvSemaine / objTarget) * 100)}%` }}
                 />
               </div>
-              <span className="today-obj tnum">
-                {rdvSemaine}/{objTarget} RDV cette semaine{isManager ? ' (équipe)' : ''}
+              <span className="today-obj">
+                <span className="tnum">
+                  {rdvSemaine}/{objTarget}
+                </span>{' '}
+                RDV cette semaine{isManager ? ' (équipe)' : ''}
               </span>
             </>
           )}
@@ -285,7 +288,7 @@ export function AccueilScreen({
                     {p.note ?? ''}
                   </span>
                 </span>
-                <span className="home-row-when tnum">{p.revisit_at ? relanceLabel(p.revisit_at) : ''}</span>
+                <span className="home-row-when">{p.revisit_at ? relanceLabel(p.revisit_at) : ''}</span>
               </button>
               {p.client_phone && (
                 <a

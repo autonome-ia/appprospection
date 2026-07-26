@@ -284,7 +284,7 @@ function DaySheet({
                         {p.note ?? ''}
                       </span>
                     </span>
-                    <span className="home-row-when tnum">À revoir</span>
+                    <span className="home-row-when">À revoir</span>
                   </button>
                 ))}
               </>
