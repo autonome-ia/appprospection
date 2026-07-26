@@ -1,5 +1,4 @@
 import { Home, Map, CalendarDays, BarChart3, type LucideIcon } from 'lucide-react'
-import { motion } from 'motion/react'
 
 export type Tab = 'accueil' | 'carte' | 'agenda' | 'stats'
 
@@ -21,7 +20,8 @@ interface Props {
   onChange: (tab: Tab) => void
 }
 
-/** Barre de navigation inférieure — icônes Lucide + indicateur glissant animé. */
+/** Barre de navigation inférieure — l'onglet actif se signale par l'icône
+    colorée seule (la pastille de fond a été retirée, retour briac 26/07). */
 export function BottomNav({ active, onChange }: Props) {
   return (
     <nav className="bottom-nav">
@@ -34,13 +34,6 @@ export function BottomNav({ active, onChange }: Props) {
             className={`nav-item ${on ? 'is-active' : ''}`}
             onClick={() => onChange(tab)}
           >
-            {on && (
-              <motion.span
-                layoutId="nav-indicator"
-                className="nav-indicator"
-                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-              />
-            )}
             <Icon className="nav-icon" size={21} strokeWidth={on ? 2.2 : 1.7} />
             <span className="nav-label">{label}</span>
           </button>

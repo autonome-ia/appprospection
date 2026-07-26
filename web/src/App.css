@@ -506,27 +506,8 @@
 .nav-item.is-active {
   color: var(--ink);
 }
-.nav-indicator {
-  position: absolute;
-  top: 4px;
-  left: 50%;
-  margin-left: -26px;
-  width: 52px;
-  height: 30px;
-  border-radius: var(--r-full);
-  background: var(--accent-weak);
-  z-index: 0;
-}
-.nav-icon {
-  position: relative;
-  z-index: 1;
-}
 .nav-item.is-active .nav-icon {
   color: var(--accent);
-}
-.nav-label {
-  position: relative;
-  z-index: 1;
 }
 
 /* --- Écrans scrollables (Agenda / Stats) --- */
