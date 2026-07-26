@@ -1226,12 +1226,14 @@
   display: flex;
   align-items: flex-end;
 }
+/* Jours passés estompés, aujourd'hui plein : la barre du jour ressort
+   (refonte 26/07). */
 .chart-bar {
   width: 100%;
   min-height: 2px;
   background: var(--accent);
   border-radius: 3px 3px 0 0;
-  opacity: 0.85;
+  opacity: 0.35;
 }
 
 /* --- Stats : classement --- */
@@ -1296,7 +1298,7 @@
 .rank-metrics {
   font-size: 12px;
   color: var(--ink-2);
-  margin: 4px 0 8px;
+  margin: 3px 0 7px;
 }
 .rank-obj {
   display: flex;
@@ -1355,7 +1357,7 @@
   text-align: center;
 }
 .chart-bar.is-today {
-  background: var(--accent);
+  opacity: 1;
 }
 .rank-edit {
   position: relative;
