@@ -1165,16 +1165,9 @@
 .fun-rate svg {
   color: var(--ink-3);
 }
-.fun-rate-label {
-  font-weight: 500;
-  color: var(--ink-3);
-}
-.fun-leak {
-  font-weight: 600;
-}
+/* Le plus faible des deux taux en rouge, sans texte (briac 26/07). */
 .fun-rate.is-leak,
-.fun-rate.is-leak svg,
-.fun-rate.is-leak .fun-rate-label {
+.fun-rate.is-leak svg {
   color: var(--danger);
 }
 .funnel-foot {

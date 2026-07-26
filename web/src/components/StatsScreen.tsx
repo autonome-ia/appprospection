@@ -49,46 +49,48 @@ function daysOf(start: Date, end: Date): string[] {
   return out
 }
 
-// Delta du chiffre héros : une phrase lisible, pas un sigle (refonte 26/07).
+// Delta du chiffre héros : une phrase lisible, AFFICHÉE SEULEMENT quand ça
+// bouge — « = vs semaine précédente » à 0 vente était du vide (briac 26/07).
 const PREV_LABEL: Record<Period, string> = {
   jour: 'vs la veille',
-  semaine: 'vs semaine précédente',
-  mois: 'vs mois précédent',
+  semaine: 'vs sem. dernière',
+  mois: 'vs mois dernier',
 }
 
 function HeroDelta({ value, period }: { value: number; period: Period }) {
-  const label = PREV_LABEL[period]
-  if (value === 0) return <span className="hero-delta flat">= {label}</span>
+  if (value === 0) return null
   const up = value > 0
   return (
     <span className={`hero-delta ${up ? 'up' : 'down'}`}>
       {up ? <ArrowUp size={13} strokeWidth={2.4} /> : <ArrowDown size={13} strokeWidth={2.4} />}
-      <span className="tnum">{up ? `+${value}` : `−${Math.abs(value)}`}</span> {label}
+      <span className="tnum">{up ? `+${value}` : `−${Math.abs(value)}`}</span> {PREV_LABEL[period]}
     </span>
   )
 }
 
-// Étapes du tunnel (définitions actées chef des ventes, 25/07) : l'étape
-// « Contacts » est supprimée, et « RDV effectués » se lit sur une COHORTE
-// COHÉRENTE — effectués ÷ RDV échus de la période — au lieu d'effectués ÷
-// pris (deux populations différentes, taux > 100 % possible).
-const STEPS: { key: keyof CommercialStats; label: string; from?: keyof CommercialStats; rate?: string }[] = [
+// Tunnel simplifié (cahier des charges briac, 26/07) : 4 volumes et DEUX
+// taux seulement — effectués ÷ pris et ventes ÷ effectués. Les libellés de
+// taux, le taux portes→RDV et les « absents » ont été retirés (bruit).
+// NB : effectués ÷ pris mélange deux populations (un RDV pris cette semaine
+// peut être fait la suivante) — peut dépasser 100 % sur une petite période ;
+// taux « métier » assumé, qui remplace la cohorte du 25/07 à l'affichage.
+const STEPS: { key: keyof CommercialStats; label: string; from?: keyof CommercialStats }[] = [
   { key: 'portes', label: 'Portes' },
-  { key: 'rdv_pris', label: 'RDV pris', from: 'portes', rate: 'prennent RDV' },
-  { key: 'rdv_effectues', label: 'Effectués', from: 'rdv_planifies', rate: 'effectués' },
-  { key: 'ventes', label: 'Ventes', from: 'rdv_effectues', rate: 'vendent' },
+  { key: 'rdv_pris', label: 'RDV pris' },
+  { key: 'rdv_effectues', label: 'Effectués', from: 'rdv_pris' },
+  { key: 'ventes', label: 'Ventes', from: 'rdv_effectues' },
 ]
 
 /** Tunnel en barres PROPORTIONNELLES (refonte 26/07) : la largeur = le
-    volume — on VOIT l'entonnoir et où il fuit, au lieu de lire 4 boîtes
-    égales. La fuite la plus forte est marquée sur son taux. */
+    volume. Le plus faible des deux taux passe en rouge (sans texte). */
 function Funnel({ s }: { s: CommercialStats }) {
-  // Point de blocage = plus faible taux "maîtrisable" (prise RDV / présence / closing).
+  // Un taux compte dès que son DÉNOMINATEUR existe : 0 vente sur 3 RDV faits
+  // est un vrai blocage (l'ancien filtre r > 0 marquait le bon taux en rouge
+  // et laissait le 0 % en gris).
   const controllable = [
-    { i: 1, r: ratio(s.rdv_pris, s.portes) },
-    { i: 2, r: ratio(s.rdv_effectues, s.rdv_planifies) },
-    { i: 3, r: ratio(s.ventes, s.rdv_effectues) },
-  ].filter((x) => x.r > 0)
+    { i: 2, r: ratio(s.rdv_effectues, s.rdv_pris), has: s.rdv_pris > 0 },
+    { i: 3, r: ratio(s.ventes, s.rdv_effectues), has: s.rdv_effectues > 0 },
+  ].filter((x) => x.has)
   const leak = controllable.length ? controllable.reduce((a, b) => (b.r < a.r ? b : a)) : null
   const max = Math.max(1, ...STEPS.map((st) => s[st.key] as number))
 
@@ -96,15 +98,12 @@ function Funnel({ s }: { s: CommercialStats }) {
     <div className="funnel3">
       {STEPS.map((step, i) => {
         const v = s[step.key] as number
-        const isLeak = leak?.i === i
         return (
           <div key={step.key}>
-            {i > 0 && (
-              <div className={`fun-rate ${isLeak ? 'is-leak' : ''}`}>
+            {step.from && (
+              <div className={`fun-rate ${leak?.i === i ? 'is-leak' : ''}`}>
                 <ArrowDown size={11} strokeWidth={2.2} />
-                <span className="tnum">{pct(ratio(v, s[step.from!] as number))}</span>
-                <span className="fun-rate-label">{step.rate}</span>
-                {isLeak && <span className="fun-leak">· point de blocage</span>}
+                <span className="tnum">{pct(ratio(v, s[step.from] as number))}</span>
               </div>
             )}
             <div className="fun-row">
@@ -122,11 +121,7 @@ function Funnel({ s }: { s: CommercialStats }) {
       })}
       <div className="funnel-foot">
         <span className="funnel-conv">
-          Conversion globale <b className="tnum">{pct1(ratio(s.ventes, s.portes))}</b>
-        </span>
-        <span className="funnel-absents">
-          <span className="tnum">{s.absents}</span> absents ·{' '}
-          <span className="tnum">{pct(ratio(s.absents, s.portes))}</span>
+          Conversion <b className="tnum">{pct1(ratio(s.ventes, s.portes))}</b>
         </span>
       </div>
     </div>
@@ -253,7 +248,6 @@ export function StatsScreen({
       : data.current.activityByDay
     : {}
 
-  const convCur = ratio(cur.ventes, cur.portes)
 
   // Classement : TOUT LE MONDE, manager compris (décision chef des ventes
   // 25/07 — les managers prospectent aussi).
@@ -386,9 +380,10 @@ export function StatsScreen({
             <span className="hero-unit">vente{cur.ventes > 1 ? 's' : ''}</span>
             <HeroDelta value={cur.ventes - prev.ventes} period={period} />
           </div>
+          {/* La conversion ne vit plus qu'au pied du tunnel (doublon, 26/07). */}
           <p className="hero-sub">
             <b className="tnum">{cur.portes}</b> portes · <b className="tnum">{cur.rdv_pris}</b>{' '}
-            RDV pris · conv. <b className="tnum">{pct1(convCur)}</b>
+            RDV pris
           </p>
           {/* « Ma position » vit sous le héros (plus de carte séparée en
               fond d'écran que personne n'atteignait). */}
