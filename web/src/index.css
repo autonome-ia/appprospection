@@ -1,5 +1,7 @@
 /* =============================================================================
-   AppProspection — Système de design "Clair & précis" (Linear-light / Vercel)
+   AppProspection — DA « Encre & signal » (choisie par briac le 26/07/2026)
+   Encre quasi noire, papier neutre, relief marqué, et UN accent : l'orange
+   signal, réservé aux actions et états actifs — jamais pour de la donnée.
    Tokens : couleur, typographie, espacement, rayons, ombres, mouvement.
    ========================================================================== */
 
@@ -9,22 +11,22 @@
   --font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', monospace;
 
   /* Couleurs — surfaces & encre */
-  --bg: #fbfbfa;
+  --bg: #f6f6f5;
   --surface: #ffffff;
-  --surface-2: #f6f6f5;
-  --ink: #16161a;
-  --ink-2: #6b6b73;
-  --ink-3: #9a9aa2;
+  --surface-2: #eeeeec;
+  --ink: #111113;
+  --ink-2: #5c5c63;
+  --ink-3: #8b8b93;
 
   /* Traits / bordures */
-  --line: #ececea;
-  --line-strong: #e0e0dd;
+  --line: #e4e4e1;
+  --line-strong: #d2d2ce;
 
-  /* Accent */
-  --accent: #2f6bff;
+  /* Accent — orange signal (actions, liens, états actifs) */
+  --accent: #f54e00;
   --accent-ink: #ffffff;
-  --accent-weak: rgba(47, 107, 255, 0.09);
-  --accent-ring: rgba(47, 107, 255, 0.35);
+  --accent-weak: rgba(245, 78, 0, 0.09);
+  --accent-ring: rgba(245, 78, 0, 0.35);
 
   /* Statuts (palette raffinée) — doit rester aligné avec domain/status.ts */
   --st-absent: #7d8898;
@@ -45,10 +47,10 @@
   --r-xl: 22px;
   --r-full: 999px;
 
-  /* Ombres (subtiles = premium) */
-  --shadow-sm: 0 1px 2px rgba(16, 16, 26, 0.06), 0 1px 1px rgba(16, 16, 26, 0.04);
-  --shadow-md: 0 4px 16px rgba(16, 16, 26, 0.08);
-  --shadow-lg: 0 16px 40px rgba(16, 16, 26, 0.14);
+  /* Ombres (relief marqué : les surfaces décollent du papier) */
+  --shadow-sm: 0 1px 2px rgba(17, 17, 19, 0.07), 0 2px 8px rgba(17, 17, 19, 0.06);
+  --shadow-md: 0 8px 24px rgba(17, 17, 19, 0.11);
+  --shadow-lg: 0 20px 48px rgba(17, 17, 19, 0.18);
 
   /* Mouvement */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);

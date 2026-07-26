@@ -136,8 +136,8 @@
   font-weight: 600;
   cursor: pointer;
   box-shadow:
-    0 0 0 5px rgba(47, 107, 255, 0.22),
-    0 2px 10px rgba(16, 16, 26, 0.25);
+    0 0 0 5px var(--accent-ring),
+    0 2px 10px rgba(17, 17, 19, 0.25);
   transition: transform 0.15s var(--ease-out);
 }
 .cluster-badge:active {

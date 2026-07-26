@@ -58,12 +58,18 @@ Workflow type : coder → `npm run build` (vérifie) → commit → `git push` �
 - **Géoplateforme** : **1 seule couche par appel WFS/WMS-V** (limite IGN au 15/06/2026 — ne jamais regrouper des TYPENAMES) ; la doc IGN vit sur **cartes.gouv.fr** (geoservices.ign.fr = redirections). `copc`/`laz-perf` figés en versions exactes ; toujours passer `{ lazPerf }` à `Copc.loadPointDataView` (sinon un 2e wasm s'instancie).
 
 ## Direction artistique (IMPORTANT)
-Design premium **« Clair & précis »** (réf. **Linear / Vercel / Emil Kowalski**).
+DA **« Encre & signal »** (choisie par briac le 26/07/2026 sur prototypes comparés — remplace « Clair & précis »).
+- **Encre quasi noire** (#111113) sur papier neutre, **relief marqué** (ombres franches, les cartes décollent).
+- **UN seul accent : l'orange signal** (`--accent: #f54e00`) — réservé aux **actions, liens et états actifs**.
+  JAMAIS pour de la donnée : les statuts gardent leurs couleurs sémantiques (« RDV pris » reste bleu,
+  « Vendu » vert, « À revoir » ambre — couleur = statut sur la carte, couleur = commercial dans l'agenda).
 - Police **Geist** (UI) + **Geist Mono** (chiffres, heures, stats). **Jamais de mono sur du texte courant**
   (adresses, noms, métas) — le mono est l'exception chiffrée, pas un style décoratif (retour briac 25/07).
 - Icônes **Lucide** — **JAMAIS d'emojis** comme icônes.
 - **Vaul** (bottom sheets / drawers), **Sonner** (toasts), **Motion** (animations).
-- Tokens CSS (couleurs, ombres, rayons, mouvement) dans `web/src/index.css`.
+- Tokens CSS dans `web/src/index.css` ; DA aussi cuite en TS : `config/markers.ts` (marqueurs/clusters),
+  `MapView.tsx` (ACCENT halos/réticule), `lib/report-image.ts` (rapport client) — à garder alignés.
+- Prototypage DA : `tools/screenshots/da-shots.mjs` (injection de tokens + captures comparées).
 - Ne jamais retomber dans le look « IA générée » (emojis, composants basiques, styles génériques).
 
 ## Architecture data (rappel)
