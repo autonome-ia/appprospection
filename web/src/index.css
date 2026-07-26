@@ -92,19 +92,20 @@ select {
   font-family: inherit;
 }
 
-/* Chiffres tabulaires par défaut pour la data (stats, heures). */
+/* Chiffres tabulaires pour la data (heures, m², stats) — SEUL usage
+   légitime du mono (doctrine typo 26/07 : Geist partout ailleurs). */
 .tnum {
   font-family: var(--font-mono);
   font-feature-settings: 'tnum' 1;
   letter-spacing: -0.01em;
 }
 
-/* Micro-label (mono, majuscules, discret) — signature de la DA. */
+/* Micro-label (majuscules, discret) — Geist comme tout le texte : le
+   contraste texte/chiffres-mono est l'identité, pas un 3e style. */
 .eyebrow {
-  font-family: var(--font-mono);
   font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
+  font-weight: 600;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--ink-3);
 }

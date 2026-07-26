@@ -581,13 +581,8 @@
   margin: 0;
   font-size: 14px;
 }
+/* Typographie héritée de .eyebrow (toujours utilisées ensemble). */
 .section-title {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-3);
   margin: 20px 2px 9px;
 }
 .section-title.warn {
@@ -1358,8 +1353,8 @@
 .chart-day {
   display: block;
   margin-top: 4px;
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 500;
   color: var(--ink-3);
   text-align: center;
 }
@@ -1624,8 +1619,8 @@
   font-size: 15px;
 }
 .user-role {
-  font-family: var(--font-mono);
   font-size: 11px;
+  font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
