@@ -577,14 +577,10 @@ export function AgendaScreen({
     setMonthDate(new Date(monthDate.getFullYear(), monthDate.getMonth() + delta, 1))
 
   return (
+    // Pas d'en-tête « Agenda / + RDV » (retour briac 26/07) : de l'espace
+    // perdu — le segmented ouvre l'écran, la création passe par la sheet du
+    // jour (« RDV ce jour ») ou par la pose d'un statut « RDV pris ».
     <div className="screen agenda-screen">
-      <header className="screen-head">
-        <h2>Agenda</h2>
-        <button type="button" className="head-action" onClick={() => setCreating({ at: null })}>
-          <Plus size={16} strokeWidth={2.2} /> RDV
-        </button>
-      </header>
-
       {loadError && (
         <div className="load-error">
           <span>Agenda impossible à charger — vérifiez le réseau.</span>
