@@ -11,9 +11,9 @@ const IN = resolve(root, 'screenshoots', 'guide')
 const OUT = resolve(root, 'web', 'public', 'guide')
 mkdirSync(OUT, { recursive: true })
 
-const files = readdirSync(IN).filter(
-  (f) => f.endsWith('.png') && !f.startsWith('probe-') && f !== 'accueil.png',
-)
+// Seuls les fichiers du Guide (pas les sondes/contrôles/débogages qui
+// traînent dans le dossier de travail).
+const files = readdirSync(IN).filter((f) => /^(pose|rdv|maison)-\d\.png$/.test(f))
 for (const f of files) {
   const out = resolve(OUT, f.replace(/\.png$/, '.webp'))
   const { size } = await sharp(resolve(IN, f))

@@ -160,26 +160,46 @@ if (await todayCell.count()) {
   }
 }
 
-// pose-2 : fiche d'un POINT posé — via la vue Clients → fiche client →
-// bouton « Carte » (bascule + fiche du point ouverte sur la carte).
-await page.getByRole('button', { name: 'Clients' }).click()
-await page.waitForTimeout(1000)
-const clientRow = page.locator('.home-row').first()
-if (await clientRow.count()) {
-  await clientRow.click()
-  await page.waitForTimeout(2000)
-  const mapBtn = page.locator('.drawer-content').getByRole('button', { name: 'Carte', exact: true })
-  if (await mapBtn.count()) {
-    await mapBtn.click()
-    await page.waitForTimeout(7000) // bascule carte + recadrage + fiche point
+// pose-2 : fiche d'un POINT posé SANS RDV (cohérence tuto : client/note/
+// relance, pas de bloc RDV) — on centre sur l'adresse d'un point « absent »
+// (find-point.mjs pour en lister) et on tape le marqueur. La fiche point se
+// reconnaît à sa ligne « Statut » ; la fiche avant prospection (« Poser un
+// point ») déclenche un nouvel essai décalé.
+const POSE2 = process.env.POSE2_ADDR ?? '26 Rue du Rétalaire Le Folgoët'
+await page.getByRole('button', { name: 'Carte', exact: true }).click()
+await page.waitForTimeout(1500)
+await search.fill(POSE2)
+await page.waitForTimeout(1200)
+const res2 = page.locator('.address-results button').first()
+if (await res2.count()) {
+  await res2.click()
+  await page.waitForTimeout(4500)
+  // Balayage en grille : le marqueur n'est pas pile sous l'adresse BAN
+  // (tolérance de tap ±14 px → pas de 26 px). La fiche point se reconnaît
+  // à sa ligne « Statut » ; les fiches avant prospection sont refermées.
+  let ok = false
+  scan: for (const dy of [0, -26, 26, -52, 52, -78, 78]) {
+    for (const dx of [-52, -26, 0, 26, -78, 52, -104, 78]) {
+      await page.mouse.click(CX + dx, CY + dy)
+      await page.waitForTimeout(1600)
+      const drawer = page.locator('.drawer-content')
+      if (!(await drawer.count())) continue
+      if (await drawer.getByText('Statut', { exact: true }).count()) {
+        ok = true
+        break scan
+      }
+      await closeSheet() // fiche avant prospection : pas la bonne, on décale
+    }
+  }
+  if (ok) {
+    await page.waitForTimeout(5000) // badges/mesure éventuels
     await shot('pose-2')
     await closeSheet()
   } else {
-    await closeSheet()
-    console.log('! bouton Carte absent de la fiche client (point non lié ?)')
+    console.log('! fiche du point « absent » introuvable au tap')
   }
 } else {
-  console.log('! aucun client dans la vue Clients')
+  console.log('! aucune suggestion pour', POSE2)
 }
 
 // --- Accueil (contrôle visuel du guide) -------------------------------------
