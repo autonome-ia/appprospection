@@ -358,6 +358,13 @@
   background: var(--surface);
   border-radius: var(--r-full);
 }
+/* Carte masquée (autre onglet actif) : le CSS MapLibre force
+   visibility:visible sur l'attribution compacte DÉPLIÉE, qui perçait le
+   visibility:hidden du .map-slot — le pill « © IGN » flottait sur l'Agenda
+   et l'Accueil (bug vu aux captures Playwright du 26/07). */
+.map-slot.is-hidden .maplibregl-ctrl-attrib.maplibregl-compact-show {
+  visibility: hidden;
+}
 .maplibregl-ctrl-attrib a {
   color: var(--ink-2);
 }
