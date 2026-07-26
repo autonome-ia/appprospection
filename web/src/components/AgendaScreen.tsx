@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Drawer } from 'vaul'
 import { toast } from 'sonner'
-import { Plus, Phone, Pencil, Trash2, CalendarClock, ChevronLeft, ChevronRight, StickyNote, MapPin, Navigation, Search } from 'lucide-react'
+import { Plus, Phone, Pencil, Trash2, CalendarClock, ChevronLeft, ChevronRight, StickyNote, MapPin, Navigation, Search, X } from 'lucide-react'
 import {
   fetchAppointments,
   deleteAppointment,
@@ -259,6 +260,125 @@ function monthCells(monthDate: Date): Date[] {
 }
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
+// -----------------------------------------------------------------------------
+// Sheet du jour : le mois occupe tout l'écran, le planning d'une journée
+// s'ouvre au tap sur sa case (refonte agenda 26/07). Gabarit vaul commun
+// OBLIGATOIRE : en-tête fixe, corps défilant data-vaul-no-drag, pied sticky,
+// repositionInputs={false} (bug visualViewport iOS — ne jamais retirer).
+// -----------------------------------------------------------------------------
+
+interface DaySheetProps {
+  date: Date
+  appts: Appointment[]
+  revisits: MapPoint[]
+  whoById: Record<string, OrgProfile>
+  profile: Profile
+  onOpenChange: (open: boolean) => void
+  onChanged: () => void
+  /** Ferment la sheet avant d'ouvrir l'autre surface : pas d'empilement de
+      drawers vaul sur iOS (gestes et scroll se disputent le doigt). */
+  onEdit: (a: Appointment) => void
+  onOpenClient: (a: Appointment) => void
+  onShowOnMap?: (target: { pointId: string; lng: number; lat: number }) => void
+  onCreate: () => void
+}
+
+function DaySheet({
+  date,
+  appts,
+  revisits,
+  whoById,
+  profile,
+  onOpenChange,
+  onChanged,
+  onEdit,
+  onOpenClient,
+  onShowOnMap,
+  onCreate,
+}: DaySheetProps) {
+  const dayLabel = capitalize(
+    new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(date),
+  )
+  return (
+    <Drawer.Root open onOpenChange={onOpenChange} repositionInputs={false}>
+      <Drawer.Portal>
+        <Drawer.Overlay className="drawer-overlay" />
+        <Drawer.Content className="drawer-content">
+          <div className="drawer-grip" />
+
+          <div className="drawer-header">
+            <span className="drawer-title">{dayLabel}</span>
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => onOpenChange(false)}
+              aria-label="Fermer"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="drawer-body" data-vaul-no-drag>
+            {appts.length === 0 && revisits.length === 0 ? (
+              <div className="empty-state">
+                <CalendarClock size={26} strokeWidth={1.5} />
+                <p>Aucun rendez-vous ce jour.</p>
+              </div>
+            ) : (
+              <>
+                {appts.map((a) => (
+                  <AppointmentCard
+                    key={a.id}
+                    appt={a}
+                    who={a.commercial_id ? whoById[a.commercial_id] : undefined}
+                    profile={profile}
+                    onChanged={onChanged}
+                    onEdit={onEdit}
+                    onShowOnMap={onShowOnMap}
+                    onOpenClient={onOpenClient}
+                    timeOnly
+                  />
+                ))}
+                {/* Maisons « à revoir » planifiées ce jour (pas des RDV : un
+                    tap ouvre la fiche sur la carte). */}
+                {revisits.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="home-row"
+                    onClick={() => onShowOnMap?.({ pointId: p.id, lng: p.lng, lat: p.lat })}
+                  >
+                    <span
+                      className="status-dot"
+                      style={{ background: STATUS_BY_VALUE.a_revoir.color }}
+                    />
+                    <span className="home-row-main">
+                      <span className="home-row-title">
+                        {p.client_name ?? p.address ?? 'Maison à revoir'}
+                      </span>
+                      <span className="home-row-sub">
+                        {p.client_name && p.address ? `${p.address} · ` : ''}
+                        {p.note ?? ''}
+                      </span>
+                    </span>
+                    <span className="home-row-when tnum">À revoir</span>
+                  </button>
+                ))}
+              </>
+            )}
+
+            <div className="drawer-footer">
+              <button type="button" className="btn btn-primary" onClick={onCreate}>
+                <Plus size={15} strokeWidth={2.2} /> RDV ce jour
+              </button>
+            </div>
+          </div>
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
+  )
+}
+
 export function AgendaScreen({
   profile,
   onShowOnMap,
@@ -269,10 +389,14 @@ export function AgendaScreen({
   const [appts, setAppts] = useState<Appointment[]>([])
   const [revisits, setRevisits] = useState<MapPoint[]>([])
   const [profiles, setProfiles] = useState<OrgProfile[]>([])
-  const [creating, setCreating] = useState(false)
+  // Création : depuis l'en-tête (heure par défaut) ou depuis la sheet du jour
+  // (pré-datée sur ce jour).
+  const [creating, setCreating] = useState<{ at: Date | null } | null>(null)
   const [editing, setEditing] = useState<Appointment | null>(null)
   const [monthDate, setMonthDate] = useState(() => startOfMonth(new Date()))
-  const [selected, setSelected] = useState(() => new Date())
+  // Jour ouvert en sheet (refonte 26/07 : le mois plein écran est la vue,
+  // le planning du jour s'ouvre par-dessus).
+  const [daySheet, setDaySheet] = useState<Date | null>(null)
   // Vue « Clients » : une ligne par client (RDV pris), tap -> fiche complète.
   const [view, setView] = useState<'agenda' | 'clients'>('agenda')
   const [clientAppt, setClientAppt] = useState<Appointment | null>(null)
@@ -286,12 +410,12 @@ export function AgendaScreen({
   // RDV en croyant sa journée libre (audit).
   const [loadError, setLoadError] = useState(false)
 
-  // « Aujourd'hui » du dernier recalage + miroir de la sélection : au réveil
-  // de la PWA on distingue la sélection par défaut restée sur l'ancien
-  // aujourd'hui (à recaler) d'un jour choisi à la main (à respecter).
+  // « Aujourd'hui » du dernier recalage + miroir du mois affiché : au réveil
+  // de la PWA on distingue le mois par défaut resté sur l'ancien aujourd'hui
+  // (à recaler) d'un mois choisi à la main (à respecter).
   const todayRef = useRef(new Date())
-  const selectedRef = useRef(selected)
-  selectedRef.current = selected
+  const monthDateRef = useRef(monthDate)
+  monthDateRef.current = monthDate
 
   // Anti-course : plusieurs reload se croisent (visibilitychange + realtime +
   // onChanged) et c'était le DERNIER à résoudre qui gagnait, pas le plus
@@ -350,13 +474,12 @@ export function AgendaScreen({
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return
       // Nuit (ou plus) en arrière-plan : iOS restaure la PWA sans recharger
-      // la page. Si la date a changé et que la sélection était restée sur
-      // l'ancien « aujourd'hui », on la recale sur le jour réel — sinon le
-      // planning du bas titrait encore LA VEILLE (contre-audit, bug 30).
+      // la page. Si la date a changé et que la grille était restée sur le
+      // mois de l'ancien « aujourd'hui », on la recale sur le mois réel —
+      // sinon la grille marquait encore LA VEILLE (contre-audit, bug 30).
       const now = new Date()
       if (!sameDay(now, todayRef.current)) {
-        if (sameDay(selectedRef.current, todayRef.current)) {
-          setSelected(now)
+        if (monthDateRef.current.getTime() === startOfMonth(todayRef.current).getTime()) {
           setMonthDate(startOfMonth(now))
         }
         todayRef.current = now
@@ -447,24 +570,17 @@ export function AgendaScreen({
 
   const cells = monthCells(monthDate)
   const today = new Date()
-  const selectedAppts = (byDay[dateKey(selected)] ?? []).sort((a, b) =>
-    a.scheduled_at.localeCompare(b.scheduled_at),
-  )
-  const selectedRevisits = revisitsByDay[dateKey(selected)] ?? []
   const monthLabel = capitalize(
     new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(monthDate),
-  )
-  const dayLabel = capitalize(
-    new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(selected),
   )
   const shiftMonth = (delta: number) =>
     setMonthDate(new Date(monthDate.getFullYear(), monthDate.getMonth() + delta, 1))
 
   return (
-    <div className="screen">
+    <div className="screen agenda-screen">
       <header className="screen-head">
         <h2>Agenda</h2>
-        <button type="button" className="head-action" onClick={() => setCreating(true)}>
+        <button type="button" className="head-action" onClick={() => setCreating({ at: null })}>
           <Plus size={16} strokeWidth={2.2} /> RDV
         </button>
       </header>
@@ -567,19 +683,14 @@ export function AgendaScreen({
             <ChevronLeft size={18} />
           </button>
           <span className="cal-month">{monthLabel}</span>
-          {/* Retour 1 tap au jour courant (audit UX A16) : revenir coûtait
+          {/* Retour 1 tap au mois courant (audit UX A16) : revenir coûtait
               3-4 taps de chevrons devant le prospect. */}
-          {(!sameDay(selected, today) ||
-            monthDate.getMonth() !== today.getMonth() ||
+          {(monthDate.getMonth() !== today.getMonth() ||
             monthDate.getFullYear() !== today.getFullYear()) && (
             <button
               type="button"
               className="text-btn cal-today"
-              onClick={() => {
-                const now = new Date()
-                setSelected(now)
-                setMonthDate(startOfMonth(now))
-              }}
+              onClick={() => setMonthDate(startOfMonth(new Date()))}
             >
               Aujourd’hui
             </button>
@@ -627,16 +738,15 @@ export function AgendaScreen({
             const shown = items.slice(0, 4)
             const extra = items.length - shown.length
             const out = d.getMonth() !== monthDate.getMonth()
-            const isSel = sameDay(d, selected)
             const isToday = sameDay(d, today)
             return (
               <button
                 key={dateKey(d)}
                 type="button"
-                className={`cal-cell ${out ? 'is-out' : ''} ${isSel ? 'is-selected' : ''} ${isToday ? 'is-today' : ''}`}
+                className={`cal-cell ${out ? 'is-out' : ''} ${isToday ? 'is-today' : ''}`}
                 onClick={() => {
-                  setSelected(d)
                   if (out) setMonthDate(startOfMonth(d))
+                  setDaySheet(d)
                 }}
               >
                 <span className="cal-daynum">{d.getDate()}</span>
@@ -654,60 +764,43 @@ export function AgendaScreen({
         </div>
       </div>
 
-      <section className="appt-section">
-        <p className="eyebrow section-title">
-          {dayLabel} · {selectedAppts.length} RDV
-          {selectedRevisits.length > 0 && ` · ${selectedRevisits.length} à revoir`}
-        </p>
-        {selectedAppts.length === 0 && selectedRevisits.length === 0 ? (
-          <div className="empty-state">
-            <CalendarClock size={26} strokeWidth={1.5} />
-            <p>Aucun rendez-vous ce jour.</p>
-          </div>
-        ) : (
-          <>
-            {selectedAppts.map((a) => (
-              <AppointmentCard
-                key={a.id}
-                appt={a}
-                who={a.commercial_id ? whoById[a.commercial_id] : undefined}
-                profile={profile}
-                onChanged={reload}
-                onEdit={setEditing}
-                onShowOnMap={onShowOnMap}
-                onOpenClient={setClientAppt}
-                timeOnly
-              />
-            ))}
-            {/* Maisons « à revoir » planifiées ce jour (pas des RDV : un tap
-                ouvre la fiche sur la carte). */}
-            {selectedRevisits.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                className="home-row"
-                onClick={() => onShowOnMap?.({ pointId: p.id, lng: p.lng, lat: p.lat })}
-              >
-                <span
-                  className="status-dot"
-                  style={{ background: STATUS_BY_VALUE.a_revoir.color }}
-                />
-                <span className="home-row-main">
-                  <span className="home-row-title">
-                    {p.client_name ?? p.address ?? 'Maison à revoir'}
-                  </span>
-                  <span className="home-row-sub">
-                    {p.client_name && p.address ? `${p.address} · ` : ''}
-                    {p.note ?? ''}
-                  </span>
-                </span>
-                <span className="home-row-when tnum">À revoir</span>
-              </button>
-            ))}
-          </>
-        )}
-      </section>
       </>
+      )}
+
+      {daySheet && (
+        <DaySheet
+          date={daySheet}
+          appts={(byDay[dateKey(daySheet)] ?? []).sort((a, b) =>
+            a.scheduled_at.localeCompare(b.scheduled_at),
+          )}
+          revisits={revisitsByDay[dateKey(daySheet)] ?? []}
+          whoById={whoById}
+          profile={profile}
+          onOpenChange={(o) => !o && setDaySheet(null)}
+          onChanged={reload}
+          onEdit={(a) => {
+            setDaySheet(null)
+            setEditing(a)
+          }}
+          onOpenClient={(a) => {
+            setDaySheet(null)
+            setClientAppt(a)
+          }}
+          onShowOnMap={
+            onShowOnMap
+              ? (t) => {
+                  setDaySheet(null)
+                  onShowOnMap(t)
+                }
+              : undefined
+          }
+          onCreate={() => {
+            const at = new Date(daySheet)
+            at.setHours(9, 0, 0, 0)
+            setDaySheet(null)
+            setCreating({ at })
+          }}
+        />
       )}
 
       {clientAppt && (
@@ -727,10 +820,11 @@ export function AgendaScreen({
       {creating && (
         <AppointmentForm
           open
-          onOpenChange={(o) => !o && setCreating(false)}
+          onOpenChange={(o) => !o && setCreating(null)}
           profile={profile}
+          defaultAt={creating.at}
           onSaved={() => {
-            setCreating(false)
+            setCreating(null)
             reload()
           }}
         />

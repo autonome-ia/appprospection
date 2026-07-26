@@ -22,6 +22,8 @@ interface Props {
   defaultClientName?: string | null
   /** Téléphone du point lié : même logique (audit UX B10). */
   defaultClientPhone?: string | null
+  /** Date/heure proposée à la création (sheet du jour : RDV pré-daté). */
+  defaultAt?: Date | null
   onSaved: () => void
 }
 
@@ -54,9 +56,10 @@ export function AppointmentForm({
   pointNote,
   defaultClientName,
   defaultClientPhone,
+  defaultAt,
   onSaved,
 }: Props) {
-  const init = existing ? new Date(existing.scheduled_at) : defaultDate()
+  const init = existing ? new Date(existing.scheduled_at) : (defaultAt ?? defaultDate())
   const [dateStr, setDateStr] = useState(toDateInput(init))
   const [timeStr, setTimeStr] = useState(toTimeInput(init))
   const [clientName, setClientName] = useState(existing?.client_name ?? defaultClientName ?? '')
