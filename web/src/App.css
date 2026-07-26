@@ -599,16 +599,103 @@
 .appt-section {
   margin-bottom: 4px;
 }
-.appt-card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  /* Liseré à la couleur du COMMERCIAL (agenda partagé : qui a ce RDV,
-     d'un coup d'œil — décision chef des ventes 25/07). */
-  border-left: 3px solid var(--who, var(--line));
-  border-radius: var(--r-lg);
-  padding: 14px;
-  margin-bottom: 10px;
-  box-shadow: var(--shadow-sm);
+/* RDV en « rail horaire » (refonte 26/07, réf. Fantastical/Things) : heure
+   mono à gauche, barre verticale à la couleur du COMMERCIAL (agenda partagé :
+   qui a ce RDV, d'un coup d'œil — décision chef des ventes 25/07), contenu
+   aéré — les blocs se séparent par l'air, plus de cadre de carte. */
+.appt-item {
+  display: grid;
+  grid-template-columns: 44px 3px minmax(0, 1fr);
+  gap: 0 12px;
+  padding: 4px 2px 18px;
+}
+.appt-time {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  padding-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.appt-rail {
+  border-radius: var(--r-full);
+  background: var(--who, var(--line-strong));
+}
+.appt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.appt-main {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+}
+.appt-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.appt-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.appt-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.appt-status .status-dot {
+  width: 7px;
+  height: 7px;
+}
+.appt-addr {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.appt-owner {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+/* Notes en citation : filet neutre = note du RDV, filet accent = contexte
+   terrain du point lié. */
+.appt-quote {
+  border-left: 2px solid var(--line-strong);
+  padding: 1px 0 1px 9px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+.appt-quote.is-context {
+  border-left-color: var(--accent);
+}
+.appt-quick {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+/* Issues dans le rail : l'air fait la séparation, pas de trait. */
+.appt-item .appt-outcomes {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 /* Fantôme du point pendant le drag (appui long → déplacer au doigt). */
@@ -619,70 +706,11 @@
   background-size: contain;
   background-repeat: no-repeat;
 }
-.appt-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.appt-when {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink);
-  text-transform: capitalize;
-}
 .badge {
   font-size: 11px;
   font-weight: 600;
   padding: 3px 9px;
   border-radius: var(--r-full);
-}
-.appt-client {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  margin-top: 8px;
-}
-.appt-address {
-  font-size: 13px;
-  color: var(--ink-2);
-  margin-top: 2px;
-}
-/* Notes du RDV (StickyNote) et contexte terrain du point lié (MapPin) */
-.appt-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  margin-top: 8px;
-  padding: 8px 10px;
-  border-radius: var(--r-sm);
-  background: var(--surface-2);
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--ink);
-}
-.appt-note svg {
-  flex: 0 0 auto;
-  margin-top: 2px;
-  color: var(--ink-3);
-}
-.appt-note.is-context {
-  background: var(--accent-weak);
-  color: var(--ink-2);
-}
-.appt-note.is-context svg {
-  color: var(--accent);
-}
-
-/* Nom tappable → fiche client (audit UX A6). */
-.appt-open {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  padding: 0;
-  border: none;
-  background: none;
-  text-align: left;
 }
 /* Recherche de la vue Clients (audit UX A18). */
 .clients-search {
@@ -700,21 +728,7 @@
 .clients-search .field-input {
   padding-left: 36px;
 }
-.appt-foot {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-}
-.appt-who {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 13px;
-  color: var(--ink-2);
-}
 .appt-call {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -738,11 +752,6 @@
   padding: 10px 14px; /* cible tactile ~40 px : c'est l'action qui écrit les stats */
   font-size: 13px;
   font-weight: 600;
-}
-.appt-actions {
-  display: flex;
-  gap: 16px;
-  margin-top: 10px;
 }
 .text-btn {
   position: relative;
@@ -2075,11 +2084,6 @@
   margin-left: 5px;
 }
 /* Adresse cliquable = itinéraire Waze (fiche client + cartes RDV). */
-.appt-address.is-nav {
-  display: block;
-  color: var(--accent);
-  text-decoration: none;
-}
 /* Rapport client : plein écran, imprimable (PDF natif du téléphone). */
 .roof-report-overlay {
   position: fixed;

@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
-import { Plus, Phone, Pencil, Trash2, CalendarClock, ChevronLeft, ChevronRight, StickyNote, MapPin, Navigation, Search, X } from 'lucide-react'
+import { Plus, Phone, CalendarClock, ChevronLeft, ChevronRight, Navigation, Search, X } from 'lucide-react'
 import {
   fetchAppointments,
-  deleteAppointment,
   setAppointmentOutcome,
   subscribeAppointments,
 } from '../data/appointments'
@@ -42,182 +41,111 @@ interface CardProps {
   who: OrgProfile | undefined
   profile: Profile
   onChanged: () => void
-  onEdit: (a: Appointment) => void
-  onShowOnMap?: (target: { pointId: string; lng: number; lat: number }) => void
-  /** Ouvre la fiche client complète (badges, 3D, rapport) — audit UX A6. */
-  onOpenClient?: (a: Appointment) => void
-  timeOnly?: boolean
+  /** Ouvre la fiche client complète (badges, 3D, rapport) — audit UX A6.
+      Modifier / Supprimer / Carte vivent dans la fiche : le bloc reste léger. */
+  onOpenClient: (a: Appointment) => void
 }
 
-function AppointmentCard({
-  appt,
-  who,
-  profile,
-  onChanged,
-  onEdit,
-  onShowOnMap,
-  onOpenClient,
-  timeOnly,
-}: CardProps) {
+/** RDV en « rail horaire » (refonte 26/07) : heure mono à gauche, barre à la
+    couleur du commercial, contenu aéré — plus de cadre de carte. */
+function AppointmentCard({ appt, who, profile, onChanged, onOpenClient }: CardProps) {
   const meta = APPOINTMENT_STATUS_META[appt.status]
   const color = who ? colorForCommercial(who.id, who.color) : '#98a2b3'
   // Un appel en vol désactive les boutons : un double tap « Vendu » comptait
   // la vente DEUX fois dans les stats (audit).
   const [busy, setBusy] = useState(false)
-  // Suppression en deux taps (audit UX A32) : fini le window.confirm système
-  // hors DA — même pattern que la fiche point.
-  const [confirmDel, setConfirmDel] = useState(false)
-  // La RLS ne laisse supprimer que le titulaire ou un manager : proposer le
-  // bouton aux autres produisait un faux « RDV supprimé » (audit).
-  const canDelete = profile.role === 'manager' || appt.commercial_id === profile.id
+  const waze = wazeUrl(appt.point, appt.address)
 
   return (
-    <div className="appt-card" style={{ ['--who' as string]: color }}>
-      <div className="appt-row">
-        <span className="appt-when tnum">{fmt(appt.scheduled_at, timeOnly)}</span>
-        <span className="badge" style={{ color: meta.color, background: `${meta.color}1a` }}>
-          {meta.label}
-        </span>
-      </div>
-
-      {/* Nom tappable → fiche client complète (audit UX A6 : le même RDV
-          existait à deux endroits sans lien, la préparation vit dans la
-          fiche). Chevron = affordance. */}
-      {onOpenClient ? (
-        <button type="button" className="appt-open" onClick={() => onOpenClient(appt)}>
-          <span className="appt-client">{appt.client_name ?? appt.address ?? 'Fiche client'}</span>
-          <ChevronRight size={15} strokeWidth={1.9} className="row-chevron" />
+    <div className="appt-item" style={{ ['--who' as string]: color }}>
+      <span className="appt-time">{fmt(appt.scheduled_at, true)}</span>
+      <span className="appt-rail" aria-hidden="true" />
+      <div className="appt-body">
+        {/* Tout le bloc lecture est tappable → fiche client (audit UX A6). */}
+        <button type="button" className="appt-main" onClick={() => onOpenClient(appt)}>
+          <span className="appt-name-row">
+            <span className="appt-name">{appt.client_name ?? appt.address ?? 'Rendez-vous'}</span>
+            {/* Le statut ne s'affiche que s'il dit quelque chose : « À venir »
+                sur chaque RDV était du bruit. */}
+            {appt.status !== 'a_venir' && (
+              <span className="appt-status" style={{ color: meta.color }}>
+                <span className="status-dot" style={{ background: meta.color }} />
+                {meta.label}
+              </span>
+            )}
+            <ChevronRight size={15} strokeWidth={1.9} className="row-chevron" />
+          </span>
+          {/* Pas de doublon : sans nom client, l'adresse sert déjà de titre. */}
+          {appt.client_name && appt.address && (
+            <span className="appt-addr">{appt.address}</span>
+          )}
+          {/* Prénom du commercial seulement si ≠ soi (même règle que les
+              notes, retour briac 25/07) — la barre porte déjà sa couleur. */}
+          {who && who.id !== profile.id && (
+            <span className="appt-owner">{displayName(who)}</span>
+          )}
+          {/* Les notes sont LE contexte du commercial : toujours visibles.
+              Filet neutre = note du RDV, filet accent = note terrain du
+              point (masquée si elle répète la note du RDV). */}
+          {appt.notes && <span className="appt-quote">{appt.notes}</span>}
+          {appt.point?.notes && appt.point.notes.trim() !== (appt.notes ?? '').trim() && (
+            <span className="appt-quote is-context">{appt.point.notes}</span>
+          )}
         </button>
-      ) : (
-        appt.client_name && <div className="appt-client">{appt.client_name}</div>
-      )}
-      {/* Adresse LISIBLE (audit UX A17) : c'était un lien Waze sans
-          affordance — l'app de nav se lançait quand on voulait juste lire.
-          L'itinéraire devient un bouton explicite dans le pied de carte. */}
-      {appt.address && <div className="appt-address">{appt.address}</div>}
 
-      {/* Les notes sont LE contexte du commercial : toujours visibles, quel
-          que soit le statut du RDV. */}
-      {appt.notes && (
-        <div className="appt-note">
-          <StickyNote size={13} strokeWidth={1.9} />
-          <span>{appt.notes}</span>
-        </div>
-      )}
-      {/* Contexte terrain masqué s'il répète la note du RDV (comparaison
-          nettoyée : les données historiques peuvent différer d'un espace). */}
-      {appt.point?.notes && appt.point.notes.trim() !== (appt.notes ?? '').trim() && (
-        <div className="appt-note is-context">
-          <MapPin size={13} strokeWidth={1.9} />
-          <span>{appt.point.notes}</span>
-        </div>
-      )}
-
-      <div className="appt-foot">
-        <span className="appt-who">
-          <span className="status-dot" style={{ background: color }} />
-          {displayName(who)}
-        </span>
-        {wazeUrl(appt.point, appt.address) && (
-          <a
-            className="appt-call"
-            href={wazeUrl(appt.point, appt.address)!}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Navigation size={14} strokeWidth={1.9} /> Itinéraire
-          </a>
+        {(appt.client_phone || waze) && (
+          <div className="appt-quick">
+            {appt.client_phone && (
+              <a className="appt-call" href={`tel:${appt.client_phone}`}>
+                <Phone size={14} strokeWidth={1.9} /> Appeler
+              </a>
+            )}
+            {waze && (
+              <a className="appt-call" href={waze} target="_blank" rel="noopener noreferrer">
+                <Navigation size={14} strokeWidth={1.9} /> Itinéraire
+              </a>
+            )}
+          </div>
         )}
-        {appt.client_phone && (
-          <a className="appt-call" href={`tel:${appt.client_phone}`}>
-            <Phone size={14} strokeWidth={1.9} /> Appeler
-          </a>
-        )}
-      </div>
 
-      {/* Issues visibles seulement le jour venu (audit UX A11) : à J-15, un
-          tap de scroll raté écrivait des stats fausses. */}
-      {appt.status === 'a_venir' && Date.parse(appt.scheduled_at) <= endOfToday() && (
-        <div className="appt-outcomes">
-          {APPOINTMENT_OUTCOMES.map((o) => {
-            const m = APPOINTMENT_STATUS_META[o]
-            return (
-              <button
-                key={o}
-                type="button"
-                className="outcome-btn"
-                style={{ color: m.color, borderColor: `${m.color}55` }}
-                disabled={busy}
-                onClick={async () => {
-                  if (busy) return
-                  setBusy(true)
-                  try {
-                    const { pointSynced } = await setAppointmentOutcome(profile, appt, o)
-                    onChanged()
-                    toast.success(`RDV marqué « ${m.label} »`)
-                    if (o === 'vendu' && appt.point_id && !pointSynced) {
-                      toast.error(
-                        'La maison n’a pas pu passer en « vendu » sur la carte — rouvrez sa fiche pour corriger',
-                      )
+        {/* Issues visibles seulement le jour venu (audit UX A11) : à J-15, un
+            tap de scroll raté écrivait des stats fausses. */}
+        {appt.status === 'a_venir' && Date.parse(appt.scheduled_at) <= endOfToday() && (
+          <div className="appt-outcomes">
+            {APPOINTMENT_OUTCOMES.map((o) => {
+              const m = APPOINTMENT_STATUS_META[o]
+              return (
+                <button
+                  key={o}
+                  type="button"
+                  className="outcome-btn"
+                  style={{ color: m.color, borderColor: `${m.color}55` }}
+                  disabled={busy}
+                  onClick={async () => {
+                    if (busy) return
+                    setBusy(true)
+                    try {
+                      const { pointSynced } = await setAppointmentOutcome(profile, appt, o)
+                      onChanged()
+                      toast.success(`RDV marqué « ${m.label} »`)
+                      if (o === 'vendu' && appt.point_id && !pointSynced) {
+                        toast.error(
+                          'La maison n’a pas pu passer en « vendu » sur la carte — rouvrez sa fiche pour corriger',
+                        )
+                      }
+                    } catch (e) {
+                      console.error('Issue du RDV :', e)
+                      toast.error('Issue non enregistrée — vérifiez le réseau')
+                    } finally {
+                      setBusy(false)
                     }
-                  } catch (e) {
-                    console.error('Issue du RDV :', e)
-                    toast.error('Issue non enregistrée — vérifiez le réseau')
-                  } finally {
-                    setBusy(false)
-                  }
-                }}
-              >
-                {m.label}
-              </button>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Accessible quel que soit le statut : un RDV vendu/effectué doit
-          rester consultable et modifiable (notes = mémoire client). */}
-      <div className="appt-actions">
-        {appt.point && onShowOnMap && (
-          <button
-            type="button"
-            className="text-btn"
-            onClick={() =>
-              onShowOnMap({ pointId: appt.point!.id, lng: appt.point!.lng, lat: appt.point!.lat })
-            }
-          >
-            <MapPin size={14} strokeWidth={1.8} /> Carte
-          </button>
-        )}
-        <button type="button" className="text-btn" onClick={() => onEdit(appt)}>
-          <Pencil size={14} strokeWidth={1.8} /> Modifier
-        </button>
-        {canDelete && (
-          <button
-            type="button"
-            className="text-btn danger"
-            disabled={busy}
-            onClick={async () => {
-              if (!confirmDel) {
-                setConfirmDel(true)
-                window.setTimeout(() => setConfirmDel(false), 4000)
-                return
-              }
-              setBusy(true)
-              try {
-                await deleteAppointment(appt.id)
-                onChanged()
-                toast('RDV supprimé')
-              } catch (e) {
-                console.error('Suppression du RDV :', e)
-                toast.error('Suppression impossible — vérifiez le réseau')
-              } finally {
-                setBusy(false)
-              }
-            }}
-          >
-            <Trash2 size={14} strokeWidth={1.8} /> {confirmDel ? 'Confirmer ?' : 'Supprimer'}
-          </button>
+                  }}
+                >
+                  {m.label}
+                </button>
+              )
+            })}
+          </div>
         )}
       </div>
     </div>
@@ -277,7 +205,6 @@ interface DaySheetProps {
   onChanged: () => void
   /** Ferment la sheet avant d'ouvrir l'autre surface : pas d'empilement de
       drawers vaul sur iOS (gestes et scroll se disputent le doigt). */
-  onEdit: (a: Appointment) => void
   onOpenClient: (a: Appointment) => void
   onShowOnMap?: (target: { pointId: string; lng: number; lat: number }) => void
   onCreate: () => void
@@ -291,7 +218,6 @@ function DaySheet({
   profile,
   onOpenChange,
   onChanged,
-  onEdit,
   onOpenClient,
   onShowOnMap,
   onCreate,
@@ -333,10 +259,7 @@ function DaySheet({
                     who={a.commercial_id ? whoById[a.commercial_id] : undefined}
                     profile={profile}
                     onChanged={onChanged}
-                    onEdit={onEdit}
-                    onShowOnMap={onShowOnMap}
                     onOpenClient={onOpenClient}
-                    timeOnly
                   />
                 ))}
                 {/* Maisons « à revoir » planifiées ce jour (pas des RDV : un
@@ -778,10 +701,6 @@ export function AgendaScreen({
           profile={profile}
           onOpenChange={(o) => !o && setDaySheet(null)}
           onChanged={reload}
-          onEdit={(a) => {
-            setDaySheet(null)
-            setEditing(a)
-          }}
           onOpenClient={(a) => {
             setDaySheet(null)
             setClientAppt(a)
