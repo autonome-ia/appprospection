@@ -19,6 +19,7 @@ import { STATUS_BY_VALUE } from '../domain/status'
 import { APPOINTMENT_STATUS_META, type Appointment } from '../domain/appointments'
 import { ClientSheet } from './ClientSheet'
 import { AppointmentForm } from './AppointmentForm'
+import { GuideSection } from './Guide'
 import type { MapPoint } from '../domain/types'
 
 function relanceLabel(iso: string): string {
@@ -299,6 +300,12 @@ export function AccueilScreen({
           ))}
         </motion.section>
       )}
+
+      {/* Guide de l'app (26/07, à la place du feed d'activité) : les tutos
+          pas-à-pas — l'onboarding des futurs commerciaux de l'équipe. */}
+      <motion.div variants={fade} custom={5} initial="hidden" animate="show">
+        <GuideSection />
+      </motion.div>
 
       {/* Profil + déconnexion : sheet derrière l'avatar (audit UX B4). */}
       {/* repositionInputs={false} : gabarit commun des sheets (bug iOS). */}

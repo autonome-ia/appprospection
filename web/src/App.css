@@ -1373,6 +1373,107 @@
   inset: -10px; /* crayon 15 px : cible portée à ~40 px */
 }
 
+/* --- Accueil : guide de l'app (tutos pas-à-pas, 26/07) --- */
+/* Défilement horizontal : axe verrouillé (convention). */
+.guide-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  padding: 2px 2px 6px;
+  margin: 0 -2px;
+  scrollbar-width: none;
+}
+.guide-scroll::-webkit-scrollbar {
+  display: none;
+}
+.guide-card {
+  flex: 0 0 auto;
+  width: 138px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  text-align: left;
+}
+.guide-card:active {
+  transform: scale(0.98);
+}
+.guide-cover {
+  display: block;
+  height: 148px;
+  background: var(--surface-2);
+}
+.guide-card-title {
+  display: block;
+  padding: 9px 11px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+.guide-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.guide-img.is-cover {
+  object-fit: cover;
+  object-position: top;
+}
+.guide-ph {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  color: var(--ink-3);
+}
+.guide-ph-note {
+  font-size: 12px;
+}
+/* Cadre de la capture dans la sheet : hauteur fixe, capture entière visible. */
+.guide-frame {
+  height: min(46vh, 420px);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.guide-step-text {
+  margin: 14px 2px 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.guide-footer {
+  align-items: center;
+}
+.guide-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  padding: 0 4px;
+}
+.guide-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--line-strong);
+  transition: background 0.2s var(--ease-out), width 0.2s var(--ease-out);
+}
+.guide-dot.is-active {
+  width: 16px;
+  background: var(--accent);
+}
+
 /* --- Chargement --- */
 .app-loading {
   display: flex;
