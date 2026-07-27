@@ -8,9 +8,10 @@ import {
   subscribeAppointments,
 } from '../data/appointments'
 import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
-import { fetchRevisits, subscribePoints } from '../data/points'
+import { fetchContacts, fetchRevisits, subscribePoints } from '../data/points'
 import { AppointmentForm } from './AppointmentForm'
 import { ClientSheet, wazeUrl } from './ClientSheet'
+import { ContactSheet } from './ContactSheet'
 import { APPOINTMENT_STATUS_META, APPOINTMENT_OUTCOMES, type Appointment } from '../domain/appointments'
 import { STATUS_BY_VALUE } from '../domain/status'
 import { colorForCommercial } from '../domain/colors'
@@ -24,6 +25,10 @@ function fmt(iso: string, timeOnly = false): string {
       : { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' },
   ).format(new Date(iso))
 }
+
+/** Date seule (échéance de relance dans la liste Contacts). */
+const fmtDateOnly = (iso: string) =>
+  new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(new Date(iso))
 
 /** Nom affichable d'un commercial : jamais l'email brut (audit UX A11). */
 function displayName(p: OrgProfile | undefined): string {
@@ -320,9 +325,15 @@ export function AgendaScreen({
   // Jour ouvert en sheet (refonte 26/07 : le mois plein écran est la vue,
   // le planning du jour s'ouvre par-dessus).
   const [daySheet, setDaySheet] = useState<Date | null>(null)
-  // Vue « Clients » : une ligne par client (RDV pris), tap -> fiche complète.
-  const [view, setView] = useState<'agenda' | 'clients'>('agenda')
+  // Vue « Contacts » (refonte 27/07) : les prospects encore en jeu — un
+  // contact = un POINT « RDV pris » ou « À revoir » (vendu/refus sortent par
+  // le statut). ClientSheet reste la fiche du flux RDV (planning du jour).
+  const [view, setView] = useState<'agenda' | 'contacts'>('agenda')
   const [clientAppt, setClientAppt] = useState<Appointment | null>(null)
+  const [contacts, setContacts] = useState<MapPoint[]>([])
+  const [contactOpen, setContactOpen] = useState<MapPoint | null>(null)
+  // Filtre par statut : null = tous, sinon ne montre que ce statut.
+  const [contactFilter, setContactFilter] = useState<'rdv_pris' | 'a_revoir' | null>(null)
   const [clientQuery, setClientQuery] = useState('')
   // Agenda PARTAGÉ par défaut (décision chef des ventes, 25/07) : chip
   // « Mes RDV » pour ne voir que les siens.
@@ -348,15 +359,16 @@ export function AgendaScreen({
   const reloadSeq = useRef(0)
   const reload = useCallback(() => {
     const seq = ++reloadSeq.current
-    Promise.all([fetchAppointments(), fetchRevisits()])
-      .then(([a, r]) => {
+    Promise.all([fetchAppointments(), fetchRevisits(), fetchContacts()])
+      .then(([a, r, c]) => {
         if (seq !== reloadSeq.current) return
         setAppts(a)
-        // Les « à revoir » suivent la carte privée : ceux du commercial
-        // seulement (le manager voit tout).
-        setRevisits(
-          profile?.role === 'manager' ? r : r.filter((p) => p.created_by === profile?.id),
-        )
+        // Relances ET contacts : chacun les siens, le manager voit tout
+        // (décision briac 27/07 — contacts non partagés).
+        const mine = <T extends { created_by: string | null }>(rows: T[]) =>
+          profile?.role === 'manager' ? rows : rows.filter((p) => p.created_by === profile?.id)
+        setRevisits(mine(r))
+        setContacts(mine(c))
         setLoadError(false)
       })
       .catch((e) => {
@@ -449,45 +461,47 @@ export function AgendaScreen({
     return m
   }, [revisits])
 
-  // Vue « Clients » : un client = une ligne. Regroupé par nom (repli adresse) ;
-  // la ligne porte le RDV le plus PERTINENT (prochain à venir, sinon le plus
-  // récent). Tri : à venir d'abord (par date), puis passés (du plus récent).
-  const clients = useMemo(() => {
-    const groups = new Map<string, Appointment[]>()
-    for (const a of appts) {
-      // Nom ET adresse (audit UX A18) : deux « Le Gall » distincts
-      // fusionnaient en une seule ligne avec le nom seul.
-      const name = a.client_name?.trim().toLowerCase() ?? ''
-      const addr = a.address?.trim().toLowerCase() ?? ''
-      const key = name || addr ? `${name}|${addr}` : a.id
-      const list = groups.get(key)
-      if (list) list.push(a)
-      else groups.set(key, [a])
-    }
+  // Prochain RDV « à venir » par point (tolérance 1 h, comme le planning) :
+  // sous-titre/tri de la liste Contacts + ligne d'échéance de la fiche.
+  const nextRdvByPoint = useMemo(() => {
     const now = Date.now()
-    const reps = [...groups.values()].map((list) => {
-      const upcoming = list
-        .filter((a) => a.status === 'a_venir' && Date.parse(a.scheduled_at) >= now - 3_600_000)
-        .sort((x, y) => x.scheduled_at.localeCompare(y.scheduled_at))
-      const rep =
-        upcoming[0] ?? [...list].sort((x, y) => y.scheduled_at.localeCompare(x.scheduled_at))[0]
-      return { rep, count: list.length, upcoming: upcoming.length > 0 }
-    })
+    const m: Record<string, Appointment> = {}
+    for (const a of appts) {
+      if (!a.point_id || a.status !== 'a_venir') continue
+      if (Date.parse(a.scheduled_at) < now - 3_600_000) continue
+      const cur = m[a.point_id]
+      if (!cur || a.scheduled_at < cur.scheduled_at) m[a.point_id] = a
+    }
+    return m
+  }, [appts])
+
+  // Vue « Contacts » : un contact = un point. Filtre statut + recherche,
+  // tri par échéance (prochain RDV ou relance, la plus proche d'abord) puis
+  // sans-échéance par dernière visite (décision briac 27/07).
+  const shownContacts = useMemo(() => {
     const q = clientQuery.trim().toLowerCase()
-    const shown = q
-      ? reps.filter(
-          ({ rep }) =>
-            (rep.client_name ?? '').toLowerCase().includes(q) ||
-            (rep.address ?? '').toLowerCase().includes(q),
-        )
-      : reps
-    return shown.sort((a, b) => {
-      if (a.upcoming !== b.upcoming) return a.upcoming ? -1 : 1
-      return a.upcoming
-        ? a.rep.scheduled_at.localeCompare(b.rep.scheduled_at)
-        : b.rep.scheduled_at.localeCompare(a.rep.scheduled_at)
-    })
-  }, [appts, clientQuery])
+    const due = (p: MapPoint): number | null => {
+      if (p.status === 'rdv_pris') {
+        const rdv = nextRdvByPoint[p.id]
+        return rdv ? Date.parse(rdv.scheduled_at) : null
+      }
+      return p.revisit_at ? Date.parse(p.revisit_at) : null
+    }
+    return contacts
+      .filter((p) => (contactFilter ? p.status === contactFilter : true))
+      .filter(
+        (p) =>
+          !q ||
+          (p.client_name ?? '').toLowerCase().includes(q) ||
+          (p.address ?? '').toLowerCase().includes(q),
+      )
+      .map((p) => ({ p, due: due(p) }))
+      .sort((a, b) => {
+        if ((a.due === null) !== (b.due === null)) return a.due === null ? 1 : -1
+        if (a.due !== null && b.due !== null && a.due !== b.due) return a.due - b.due
+        return (b.p.visited_at ?? '').localeCompare(a.p.visited_at ?? '')
+      })
+  }, [contacts, contactFilter, clientQuery, nextRdvByPoint])
 
   if (!profile) return <div className="placeholder">Connexion requise.</div>
 
@@ -517,8 +531,8 @@ export function AgendaScreen({
         {(
           [
             ['agenda', 'Agenda'],
-            ['clients', 'Clients'],
-          ] as ['agenda' | 'clients', string][]
+            ['contacts', 'Contacts'],
+          ] as ['agenda' | 'contacts', string][]
         ).map(([v, label]) => (
           <button
             key={v}
@@ -532,7 +546,7 @@ export function AgendaScreen({
         ))}
       </div>
 
-      {view === 'clients' && (
+      {view === 'contacts' && (
         <section className="appt-section">
           <div className="clients-search">
             <Search size={15} strokeWidth={1.9} />
@@ -544,35 +558,55 @@ export function AgendaScreen({
               onChange={(e) => setClientQuery(e.target.value)}
             />
           </div>
+          {/* Filtre par statut (même patron que la chip « Mes RDV ») :
+              re-tap sur la chip active = retour à tous. */}
+          <div className="chip-row contacts-filter">
+            {(['rdv_pris', 'a_revoir'] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={`chip ${contactFilter === s ? 'is-active' : ''}`}
+                style={{ ['--chip' as string]: STATUS_BY_VALUE[s].color }}
+                onClick={() => setContactFilter(contactFilter === s ? null : s)}
+              >
+                {STATUS_BY_VALUE[s].label}
+              </button>
+            ))}
+          </div>
           <p className="eyebrow section-title">
-            {clients.length} client{clients.length > 1 ? 's' : ''}
+            {shownContacts.length} contact{shownContacts.length > 1 ? 's' : ''}
           </p>
-          {clients.length === 0 ? (
+          {shownContacts.length === 0 ? (
             <div className="empty-state">
               <CalendarClock size={26} strokeWidth={1.5} />
-              <p>{clientQuery.trim() ? 'Aucun client ne correspond.' : 'Aucun rendez-vous pris pour l’instant.'}</p>
+              <p>
+                {clientQuery.trim() || contactFilter
+                  ? 'Aucun contact ne correspond.'
+                  : 'Aucun contact — les points « RDV pris » et « À revoir » apparaîtront ici.'}
+              </p>
             </div>
           ) : (
-            clients.map(({ rep, count }) => {
-              const meta = APPOINTMENT_STATUS_META[rep.status]
-              const title = rep.client_name ?? rep.address ?? 'Client'
+            shownContacts.map(({ p }) => {
+              const status = STATUS_BY_VALUE[p.status]
+              const rdv = p.status === 'rdv_pris' ? nextRdvByPoint[p.id] : undefined
               return (
                 <button
-                  key={rep.id}
+                  key={p.id}
                   type="button"
                   className="home-row"
-                  onClick={() => setClientAppt(rep)}
+                  onClick={() => setContactOpen(p)}
                 >
-                  <span className="status-dot" style={{ background: meta.color }} />
+                  <span className="status-dot" style={{ background: status.color }} />
                   <span className="home-row-main">
-                    <span className="home-row-title">{title}</span>
+                    <span className="home-row-title">{p.client_name ?? p.address ?? 'Contact'}</span>
                     <span className="home-row-sub">
-                      {rep.client_name && rep.address ? `${rep.address} · ` : ''}
-                      {meta.label}
-                      {count > 1 ? ` · ${count} RDV` : ''}
+                      {p.client_name && p.address ? `${p.address} · ` : ''}
+                      {status.label}
                     </span>
                   </span>
-                  <span className="home-row-when tnum">{fmt(rep.scheduled_at)}</span>
+                  <span className="home-row-when tnum">
+                    {rdv ? fmt(rdv.scheduled_at) : p.revisit_at ? fmtDateOnly(p.revisit_at) : ''}
+                  </span>
                 </button>
               )
             })
@@ -733,6 +767,16 @@ export function AgendaScreen({
           }}
           onShowOnMap={onShowOnMap}
           onChanged={reload}
+        />
+      )}
+
+      {contactOpen && (
+        <ContactSheet
+          point={contactOpen}
+          profile={profile}
+          nextRdv={nextRdvByPoint[contactOpen.id] ?? null}
+          onOpenChange={(o) => !o && setContactOpen(null)}
+          onShowOnMap={onShowOnMap}
         />
       )}
 

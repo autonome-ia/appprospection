@@ -709,6 +709,10 @@
   position: relative;
   margin-bottom: 12px;
 }
+/* Filtre de la vue Contacts (chips RDV pris / À revoir) sous la recherche. */
+.contacts-filter {
+  margin-bottom: 14px;
+}
 .clients-search svg {
   position: absolute;
   left: 12px;

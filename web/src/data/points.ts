@@ -325,6 +325,20 @@ export async function fetchRevisits(): Promise<MapPoint[]> {
   return (data ?? []).map(rowToPoint)
 }
 
+/** Prospects de la vue « Contacts » (agenda, 27/07) : les portes encore en
+    jeu — « RDV pris » (la vente ou l'annulation les fait sortir par le
+    changement de statut du point) et « À revoir », daté ou non. Tri par
+    échéance et filtre « chacun ses contacts » (manager : tous) côté écran. */
+export async function fetchContacts(): Promise<MapPoint[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('points')
+    .select(COLS)
+    .in('status', ['rdv_pris', 'a_revoir'])
+  if (error) throw error
+  return (data ?? []).map(rowToPoint)
+}
+
 /** Une entrée du journal de notes d'une maison (table point_notes). */
 export interface PointNote {
   id: string
