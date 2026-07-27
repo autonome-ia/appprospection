@@ -76,7 +76,9 @@ function HeroDelta({ value, period }: { value: number; period: Period }) {
 // taux « métier » assumé, qui remplace la cohorte du 25/07 à l'affichage.
 const STEPS: { key: keyof CommercialStats; label: string; from?: keyof CommercialStats }[] = [
   { key: 'portes', label: 'Portes' },
-  { key: 'rdv_pris', label: 'RDV pris' },
+  // Taux de prise AFFICHÉ (retour briac 27/07) mais hors logique de blocage :
+  // 5-30 % est structurel au porte-à-porte, il serait rouge en permanence.
+  { key: 'rdv_pris', label: 'RDV pris', from: 'portes' },
   { key: 'rdv_effectues', label: 'Effectués', from: 'rdv_pris' },
   { key: 'ventes', label: 'Ventes', from: 'rdv_effectues' },
 ]
@@ -133,6 +135,7 @@ const DAY_INITIALS = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
 
 function Chart({ daily, days }: { daily: Record<string, number>; days: string[] }) {
   const max = Math.max(1, ...days.map((d) => daily[d] ?? 0))
+  const total = days.reduce((s, d) => s + (daily[d] ?? 0), 0)
   // Étiquettes sous les barres (audit UX A26) : barres anonymes, impossible
   // de distinguer mercredi de samedi (le jour vivait dans un title, mort au
   // tactile). Semaine : initiales ; Mois : 1 · 8 · 15 · 22 · 29.
@@ -146,16 +149,25 @@ function Chart({ daily, days }: { daily: Record<string, number>; days: string[] 
   }
   return (
     <div className="card">
-      <p className="eyebrow">Portes toquées par jour</p>
+      {/* Les chiffres, pas que des barres (retour briac 27/07) : total de la
+          période dans l'en-tête + valeur au-dessus de chaque barre en vue
+          Semaine (en Mois, 31 barres — les chiffres ne rentrent pas). */}
+      <div className="chart-head">
+        <p className="eyebrow">Portes toquées par jour</p>
+        <span className="chart-total tnum">{total}</span>
+      </div>
       <div className="chart-bars">
         {days.map((d) => {
           const v = daily[d] ?? 0
           return (
             <div key={d} className="chart-col" title={`${d} : ${v}`}>
-              <div
-                className={`chart-bar ${d === todayKey ? 'is-today' : ''}`}
-                style={{ height: `${(v / max) * 100}%` }}
-              />
+              {!isMonth && <span className="chart-val tnum">{v > 0 ? v : ''}</span>}
+              <div className="chart-stick">
+                <div
+                  className={`chart-bar ${d === todayKey ? 'is-today' : ''}`}
+                  style={{ height: `${(v / max) * 100}%` }}
+                />
+              </div>
               <span className="chart-day">{labelOf(d)}</span>
             </div>
           )

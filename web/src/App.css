@@ -1189,16 +1189,40 @@
   font-size: 12px;
 }
 /* --- Stats : graphe activité --- */
+.chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.chart-head .eyebrow {
+  margin: 0;
+}
+.chart-total {
+  font-size: 13px;
+  font-weight: 600;
+}
 .chart-bars {
   display: flex;
-  align-items: flex-end;
+  align-items: stretch;
   gap: 3px;
-  height: 90px;
+  height: 108px;
   margin-top: 10px;
 }
 .chart-col {
   flex: 1;
-  height: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.chart-val {
+  height: 15px;
+  font-size: 11px;
+  color: var(--ink-2);
+  text-align: center;
+}
+.chart-stick {
+  flex: 1;
   display: flex;
   align-items: flex-end;
 }
