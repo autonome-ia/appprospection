@@ -49,6 +49,15 @@ const HOUSE_LINE_LAYER = 'house-preview-line'
 const PANS_SRC = 'lidar-pans'
 const PANS_FILL_LAYER = 'lidar-pans-fill'
 const PANS_LINE_LAYER = 'lidar-pans-line'
+// Position de l'utilisateur : point vivant alimenté par watchPosition (le
+// GeolocateControl one-shot laissait le point planté — retour terrain 27/07).
+const USER_SRC = 'user-location'
+const USER_HALO_LAYER = 'user-location-halo'
+const USER_DOT_LAYER = 'user-location-dot'
+// Bleu « position » (convention cartos) — volontairement ≠ du bleu statut
+// « RDV pris » (#2f6bff) ; la forme (rond à liseré blanc vs goutte) fait le
+// reste de la distinction.
+const USER_BLUE = '#1a73e8'
 const NO_ID = '__none__'
 // Couleur de la DA (même valeur que --accent dans index.css : MapLibre ne
 // lit pas les variables CSS). DA « Encre & signal » : orange signal.
@@ -189,6 +198,13 @@ export function MapView({
   housePreviewRef.current = housePreview
   // Ouverture de fiche maison en attente (timer) : annulée par un double-tap.
   const pendingPreviewRef = useRef<number | null>(null)
+  // Pilotage du watchPosition (défini par l'effet d'init) : coupé hors de
+  // l'onglet Carte et en arrière-plan — GPS seulement quand la carte sert.
+  const watchCtlRef = useRef<{ start: () => void; stop: () => void } | null>(null)
+  useEffect(() => {
+    if (active) watchCtlRef.current?.start()
+    else watchCtlRef.current?.stop()
+  }, [active])
 
   // Quitter l'onglet Carte ferme ce qui est ouvert (les drawers sont portés
   // dans <body> et resteraient visibles par-dessus l'autre onglet).
@@ -214,23 +230,102 @@ export function MapView({
     })
     mapRef.current = map
 
-    const geolocate = new maplibregl.GeolocateControl({
-      positionOptions: { enableHighAccuracy: true },
-      // Localisation À LA DEMANDE (one-shot), PAS de mode suivi : en suivi
-      // (trackUserLocation), MapLibre re-centre la carte sur l'utilisateur à
-      // chaque fix GPS et un déplacement PROGRAMMATIQUE (recherche d'adresse,
-      // « Voir sur la carte ») ne désactive pas le suivi — seul un drag au
-      // doigt le fait. Résultat : on volait vers l'adresse cherchée puis le
-      // fix suivant ramenait à la position courante (bug briac).
-      trackUserLocation: false,
-      // Zoom « rue » quand on se localise (le défaut 15 est trop loin pour
-      // viser une maison).
-      fitBoundsOptions: { maxZoom: 17 },
-      // Pas de cercle de précision : le grand halo bleu pâle mange la carte
-      // (le point suffit sur le terrain).
-      showAccuracyCircle: false,
+    // --- Position vivante (retour terrain 27/07 : « le point ne me suit
+    // pas »). Le GeolocateControl de MapLibre couple le point et la caméra :
+    // en one-shot le point restait planté, en suivi la caméra volait vers la
+    // position après chaque recherche d'adresse (bug briac 25/07). On sépare
+    // les deux : un watchPosition alimente LE POINT en continu, la caméra ne
+    // bouge JAMAIS toute seule — le bouton ⌖ ne fait que la recentrer.
+    let lastFix: [number, number] | null = null
+    let watchId: number | null = null
+    let denied = false
+    const userFC = (): FeatureCollection<Point> =>
+      lastFix
+        ? {
+            type: 'FeatureCollection',
+            features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: lastFix }, properties: {} }],
+          }
+        : EMPTY_FC
+
+    const onFix = (pos: GeolocationPosition) => {
+      const first = lastFix === null
+      lastFix = [pos.coords.longitude, pos.coords.latitude]
+      const src = map.getSource(USER_SRC) as maplibregl.GeoJSONSource | undefined
+      src?.setData(userFC())
+      // Zoom d'accueil sur le 1er fix — seulement si l'utilisateur n'a pas
+      // déjà navigué (recherche, « Voir sur la carte ») : on ne vole pas la
+      // caméra à qui s'en sert (même garde que l'ancien one-shot).
+      if (first) {
+        const c = map.getCenter()
+        const untouched =
+          Math.abs(c.lng - FRANCE_CENTER[0]) < 1e-6 &&
+          Math.abs(c.lat - FRANCE_CENTER[1]) < 1e-6 &&
+          Math.abs(map.getZoom() - FRANCE_ZOOM) < 0.01
+        if (untouched) map.easeTo({ center: lastFix, zoom: 16, duration: 1200 })
+      }
+    }
+    const startWatch = () => {
+      if (watchId !== null || denied || !navigator.geolocation) return
+      watchId = navigator.geolocation.watchPosition(
+        onFix,
+        (err) => {
+          // Refus explicite : on arrête (sinon iOS relance l'erreur en
+          // boucle) — un tap sur ⌖ retentera et expliquera.
+          if (err.code === err.PERMISSION_DENIED) {
+            denied = true
+            stopWatch()
+          }
+        },
+        { enableHighAccuracy: true, maximumAge: 1000 },
+      )
+    }
+    const stopWatch = () => {
+      if (watchId !== null) {
+        navigator.geolocation?.clearWatch(watchId)
+        watchId = null
+      }
+    }
+    watchCtlRef.current = { start: startWatch, stop: stopWatch }
+    // Écran éteint / PWA en arrière-plan : GPS coupé (batterie) — le point
+    // se recale au premier fix du retour.
+    const onVisibility = () => {
+      if (document.hidden) stopWatch()
+      else if (activeRef.current) startWatch()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    if (activeRef.current) startWatch()
+
+    // Bouton ⌖ (même emplacement que l'ancien contrôle, mêmes styles
+    // .maplibregl-ctrl-group) : recentre la carte sur le point vivant.
+    const locateBtn = document.createElement('button')
+    locateBtn.type = 'button'
+    locateBtn.className = 'locate-btn'
+    locateBtn.setAttribute('aria-label', 'Ma position')
+    locateBtn.innerHTML =
+      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>'
+    locateBtn.addEventListener('click', () => {
+      if (lastFix) {
+        map.easeTo({ center: lastFix, zoom: Math.max(map.getZoom(), 17), duration: 900 })
+        return
+      }
+      // Pas encore de fix : on (re)tente — utile après un refus corrigé dans
+      // les réglages iOS, ou pendant l'attente du premier fix.
+      denied = false
+      startWatch()
+      toast.message('Recherche de votre position…', {
+        description: 'Autorisez la localisation si rien ne vient.',
+      })
     })
-    map.addControl(geolocate, 'top-right')
+    const locateCtl: maplibregl.IControl = {
+      onAdd: () => {
+        const div = document.createElement('div')
+        div.className = 'maplibregl-ctrl maplibregl-ctrl-group'
+        div.appendChild(locateBtn)
+        return div
+      },
+      onRemove: () => locateBtn.parentElement?.remove(),
+    }
+    map.addControl(locateCtl, 'top-right')
 
     map.on('load', () => {
       // Repère : premier calque de texte (labels) — l'ortho s'insère juste en
@@ -409,32 +504,32 @@ export function MapView({
         },
       })
 
-      setMapLoaded(true)
+      // Point de position AU-DESSUS des marqueurs (« où suis-je » doit rester
+      // trouvable) — un fix a pu arriver avant le chargement du style.
+      map.addSource(USER_SRC, { type: 'geojson', data: userFC() })
+      map.addLayer({
+        id: USER_HALO_LAYER,
+        type: 'circle',
+        source: USER_SRC,
+        paint: {
+          'circle-radius': 13,
+          'circle-color': USER_BLUE,
+          'circle-opacity': 0.18,
+        },
+      })
+      map.addLayer({
+        id: USER_DOT_LAYER,
+        type: 'circle',
+        source: USER_SRC,
+        paint: {
+          'circle-radius': 6.5,
+          'circle-color': USER_BLUE,
+          'circle-stroke-width': 2.5,
+          'circle-stroke-color': '#ffffff',
+        },
+      })
 
-      // Zoom automatique sur la position de l'utilisateur à l'ouverture —
-      // via l'API directement (pas geolocate.trigger()) : si le fix GPS
-      // arrive APRÈS que l'utilisateur a déjà navigué (recherche d'adresse,
-      // « Voir sur la carte »), on ne lui vole pas la caméra.
-      navigator.geolocation?.getCurrentPosition(
-        (pos) => {
-          const c = map.getCenter()
-          const untouched =
-            Math.abs(c.lng - FRANCE_CENTER[0]) < 1e-6 &&
-            Math.abs(c.lat - FRANCE_CENTER[1]) < 1e-6 &&
-            Math.abs(map.getZoom() - FRANCE_ZOOM) < 0.01
-          if (untouched) {
-            map.easeTo({
-              center: [pos.coords.longitude, pos.coords.latitude],
-              zoom: 16,
-              duration: 1200,
-            })
-          }
-        },
-        () => {
-          /* refus ou indisponible : on reste sur la vue France */
-        },
-        { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 },
-      )
+      setMapLoaded(true)
     })
 
     // Curseur "main" au survol des marqueurs (les donuts sont des éléments
@@ -508,6 +603,9 @@ export function MapView({
 
     return () => {
       cancelPendingPreview()
+      stopWatch()
+      document.removeEventListener('visibilitychange', onVisibility)
+      watchCtlRef.current = null
       map.remove()
       mapRef.current = null
     }
