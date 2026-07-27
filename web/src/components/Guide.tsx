@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Drawer } from 'vaul'
-import { Box, CalendarCheck, Crosshair, GraduationCap, X } from 'lucide-react'
+import { BellRing, Box, CalendarCheck, Crosshair, GraduationCap, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 // -----------------------------------------------------------------------------
@@ -24,8 +24,10 @@ interface Guide {
   steps: GuideStep[]
 }
 
-// 3 étapes MAX par tuto, une phrase par étape (retour briac 26/07 : trop
-// d'étapes tue le tuto — chaque capture doit porter UNE idée).
+// Refonte v2 (chantier 27/07, plan validé par briac — docs/plan-guides-v2.md) :
+// 4 guides courts qui suivent la boucle terrain (pose → relance → RDV → toit),
+// UNE idée par étape, la capture montre LITTÉRALEMENT ce que la phrase dit.
+// « ?v=2 » casse le cache navigateur des anciennes captures (mêmes noms).
 const GUIDES: Guide[] = [
   {
     id: 'pose',
@@ -33,63 +35,80 @@ const GUIDES: Guide[] = [
     icon: Crosshair,
     steps: [
       {
-        img: '/guide/pose-1.webp',
-        alt: 'Carte en mode visée : réticule au centre et choix du statut',
-        text: 'Appuyez sur « + » : placez la maison sous le viseur, choisissez le statut, puis « Poser ».',
+        img: '/guide/pose-1.webp?v=2',
+        alt: 'Carte avec le bouton « + » pour poser un point',
+        text: 'Tout part du bouton « + » en bas de la carte : touchez-le pour poser votre premier point.',
       },
       {
-        img: '/guide/pose-2.webp',
-        alt: 'Fiche du point ouverte après la pose',
-        text: 'La fiche s’ouvre : client, téléphone, note. Sur « À revoir », datez la relance — elle reviendra le jour venu.',
+        img: '/guide/pose-2.webp?v=2',
+        alt: 'Mode visée : réticule sur un toit et choix du statut',
+        text: 'Amenez la maison sous le viseur, choisissez le statut, puis « Poser ici ».',
       },
       {
-        img: '/guide/pose-3.webp',
-        alt: 'Déplacement d’un point par appui long',
-        text: 'Mal placé ? Appui long sur le point puis glissez-le : adresse, fiche et mesure du toit se recalculent.',
+        img: '/guide/pose-3.webp?v=2',
+        alt: 'Fiche du point : nom, téléphone et note renseignés',
+        text: 'Après la pose, la fiche s’ouvre : notez le nom, le téléphone, un mot — toute l’équipe le voit en temps réel.',
+      },
+    ],
+  },
+  {
+    id: 'relance',
+    title: 'Relancer une porte',
+    icon: BellRing,
+    steps: [
+      {
+        img: '/guide/relance-1.webp?v=2',
+        alt: 'Fiche « À revoir » avec la date de relance « Revoir le »',
+        text: 'Sur un point « À revoir », datez la relance dans « Revoir le » — une semaine plus tard est proposée d’office.',
+      },
+      {
+        img: '/guide/relance-2.webp?v=2',
+        alt: 'Accueil : la section « À relancer » du jour',
+        text: 'Le jour venu, la porte vous attend sur l’Accueil, dans « À relancer » — plus rien ne se perd.',
       },
     ],
   },
   {
     id: 'rdv',
-    title: 'Prendre un RDV et le solder',
+    title: 'Prendre un RDV',
     icon: CalendarCheck,
     steps: [
       {
-        img: '/guide/rdv-1.webp',
-        alt: 'Formulaire de prise de rendez-vous',
-        text: '« RDV pris » ouvre le formulaire : date, créneau, client — l’adresse se complète toute seule.',
+        img: '/guide/rdv-1.webp?v=2',
+        alt: 'Formulaire de RDV pré-rempli depuis le point',
+        text: 'Posez un point « RDV pris » : le formulaire s’ouvre tout seul, adresse, nom et téléphone déjà remplis.',
       },
       {
-        img: '/guide/rdv-2.webp',
-        alt: 'Agenda : grille du mois avec les RDV de l’équipe',
-        text: 'L’agenda est partagé : une couleur par commercial, chip « Mes RDV » pour filtrer. Tap sur un jour = son planning.',
+        img: '/guide/rdv-2.webp?v=2',
+        alt: 'Agenda du mois : une couleur par commercial',
+        text: 'L’agenda est partagé : une couleur par commercial — la chip « Mes RDV » n’affiche que les vôtres.',
       },
       {
-        img: '/guide/rdv-3.webp',
-        alt: 'Planning du jour avec les issues du RDV',
-        text: 'Le jour J, marquez l’issue en un tap. « Vendu » passe la maison en vert sur la carte.',
+        img: '/guide/rdv-3.webp?v=2',
+        alt: 'Planning du jour : les issues du RDV en un tap',
+        text: 'Le jour J, l’issue se donne en un tap depuis le planning du jour — « Vendu » repasse la maison en vert sur la carte.',
       },
     ],
   },
   {
     id: 'maison',
-    title: 'La fiche maison & le toit 3D',
+    title: 'Mesurer un toit',
     icon: Box,
     steps: [
       {
-        img: '/guide/maison-1.webp',
-        alt: 'Fiche maison : badges et pans mesurés sur la photo',
-        text: 'Tapez une maison, même sans point : année, matériau, DPE — et le toit se mesure au laser tout seul, pans dessinés sur la photo.',
+        img: '/guide/maison-1.webp?v=2',
+        alt: 'Fiche maison : année, matériau et toit mesuré au laser',
+        text: 'Touchez n’importe quelle maison, même sans point : sa fiche s’ouvre — année, matériau, et le toit déjà mesuré au laser.',
       },
       {
-        img: '/guide/maison-2.webp',
-        alt: 'Maquette 3D du toit manipulable au doigt',
-        text: 'En 3D, le toit se manipule au doigt. Touchez un pan pour l’inclure ou l’exclure du total, devant le client.',
+        img: '/guide/maison-2.webp?v=2',
+        alt: 'Maquette 3D : un pan exclu du total au tap',
+        text: 'Dépliez « Toiture mesurée » : la maquette 3D tourne au doigt, et un tap sur un pan l’ajoute ou le retire du total.',
       },
       {
-        img: '/guide/maison-3.webp',
-        alt: 'Rapport client avec plan coté et surfaces',
-        text: 'Le rapport client (chiffres + plan coté) se partage en une image — l’argumentaire posé sur la table.',
+        img: '/guide/maison-3.webp?v=2',
+        alt: 'Rapport de toiture : chiffres et plan coté à partager',
+        text: 'Le segment « Rapport » assemble surfaces et plan coté en une image : partagez-la, l’argumentaire est posé sur la table.',
       },
     ],
   },

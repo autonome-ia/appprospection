@@ -588,7 +588,9 @@
    aéré — les blocs se séparent par l'air, plus de cadre de carte. */
 .appt-item {
   display: grid;
-  grid-template-columns: 44px 3px minmax(0, 1fr);
+  /* 48px mini : « 11:00 » en mono 15px fait ~45px — à 44px l'heure cassait
+     sur deux lignes (« 11:0 / 0 », constat audit guides 27/07). */
+  grid-template-columns: 48px 3px minmax(0, 1fr);
   gap: 0 12px;
   padding: 4px 2px 18px;
 }
