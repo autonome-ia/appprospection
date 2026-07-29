@@ -22,7 +22,7 @@ import { fetchAppointments, updateAppointment } from '../data/appointments'
 import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
 import { STATUS_BY_VALUE } from '../domain/status'
 import { APPOINTMENT_STATUS_META, type Appointment } from '../domain/appointments'
-import { ClientSheet } from './ClientSheet'
+import { ProspectSheet } from './ProspectSheet'
 import { AppointmentForm } from './AppointmentForm'
 import { GuideSection } from './Guide'
 import type { MapPoint } from '../domain/types'
@@ -91,6 +91,8 @@ export function AccueilScreen({
   const themeChoice = useThemePref()
   const [clientAppt, setClientAppt] = useState<Appointment | null>(null)
   const [editing, setEditing] = useState<Appointment | null>(null)
+  // « Planifier » depuis la fiche prospect : point cible du nouveau RDV.
+  const [planning, setPlanning] = useState<MapPoint | null>(null)
   // Échec ≠ sections vides (audit UX A33) : un raté réseau faisait
   // disparaître relances et feed sans un mot.
   const [loadError, setLoadError] = useState(false)
@@ -499,17 +501,40 @@ export function AccueilScreen({
         </Drawer.Portal>
       </Drawer.Root>
 
+      {/* Fiche PROSPECT unifiée (fusion 29/07) : la même qu'agenda/Contacts. */}
       {clientAppt && profile && (
-        <ClientSheet
+        <ProspectSheet
           appt={clientAppt}
           profile={profile}
           onOpenChange={(o) => !o && setClientAppt(null)}
-          onEdit={(a) => {
+          onEditRdv={(a) => {
             setClientAppt(null)
             setEditing(a)
           }}
+          onPlanRdv={(p) => {
+            setClientAppt(null)
+            setPlanning(p)
+          }}
           onShowOnMap={onShowOnMap}
           onChanged={load}
+        />
+      )}
+      {/* « Planifier » depuis la fiche : RDV lié au point (mêmes défauts que
+          l'agenda — filet anti-« trou silencieux »). */}
+      {planning && profile && (
+        <AppointmentForm
+          open
+          onOpenChange={(o) => !o && setPlanning(null)}
+          profile={profile}
+          pointId={planning.id}
+          coords={{ lng: planning.lng, lat: planning.lat }}
+          pointNote={planning.note}
+          defaultClientName={planning.client_name}
+          defaultClientPhone={planning.client_phone}
+          onSaved={() => {
+            setPlanning(null)
+            load()
+          }}
         />
       )}
       {editing && profile && (

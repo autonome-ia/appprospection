@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
-import { X, Trash2, Clock, User, MapPin, CalendarClock, Pencil, Phone, CalendarPlus, Navigation } from 'lucide-react'
+import { X, Trash2, Clock, User, MapPin, Phone, CalendarPlus } from 'lucide-react'
 import {
   getPointDetail,
   fetchPointNotes,
@@ -10,9 +10,9 @@ import {
   type PointNote,
 } from '../data/points'
 import { fetchPointAppointments } from '../data/appointments'
-import { wazeUrl } from './ClientSheet'
 import { firstNameOf } from '../domain/names'
-import { APPOINTMENT_STATUS_META, type Appointment } from '../domain/appointments'
+import type { Appointment } from '../domain/appointments'
+import { RdvSection } from './RdvSection'
 import {
   lidarNeedsMeasure,
   suggestedWastePct,
@@ -74,18 +74,6 @@ function dayPlus(n: number): string {
   const d = new Date()
   d.setDate(d.getDate() + n)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-/** « Sam. 26 juil. · 16:00 » — l'heure séparée par un point médian. */
-function formatRdvWhen(iso: string): string {
-  const d = new Date(iso)
-  const day = new Intl.DateTimeFormat('fr-FR', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  }).format(d)
-  const time = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(d)
-  return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time}`
 }
 
 export function PointDetailSheet({
@@ -249,18 +237,13 @@ export function PointDetailSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [point?.id, open, apptsVersion])
 
-  // RDV mis en avant : le prochain « à venir » (1 h de grâce : un RDV en
-  // cours reste LE rendez-vous), sinon le plus récent avec son issue.
-  const shownRdv = useMemo(() => {
-    if (!appts?.length) return null
-    const upcoming = appts.find(
-      (a) => a.status === 'a_venir' && new Date(a.scheduled_at).getTime() >= Date.now() - 3_600_000,
-    )
-    return upcoming ?? appts[appts.length - 1]
-  }, [appts])
-  // RDV encore modifiable = « à venir » (même passé de date : un RDV oublié
-  // se DÉCALE, on n'en recrée pas un deuxième — piège corrigé le 29/07).
-  const editableRdv = shownRdv?.status === 'a_venir' ? shownRdv : null
+  // Un RDV s'affiche-t-il (section RDV) ? — pilote seulement le masquage du
+  // téléphone d'en-tête (doublon avec « Appeler », briac 25/07). La sélection
+  // du RDV mis en avant vit dans RdvSection (partagée, fusion 29/07).
+  const shownRdv = useMemo(() => (appts?.length ? appts[appts.length - 1] : null), [appts])
+  // Un RDV « à venir » existe : le « + RDV » de la ligne Client créerait un
+  // DOUBLON — le décalage passe par « Modifier » de la section RDV (29/07).
+  const hasUpcomingRdv = useMemo(() => appts?.some((a) => a.status === 'a_venir') ?? false, [appts])
 
   if (!point) return null
 
@@ -459,69 +442,21 @@ export function PointDetailSheet({
               défiler la sheet au lieu de la tirer (vaul volait le scroll —
               fermer reste possible par la poignée / l'en-tête). */}
           <div className="drawer-body" data-vaul-no-drag>
-          {/* Bloc « Rendez-vous » en tête (audit UX B1) : la fiche d'un point
-              « RDV pris » n'affichait ni date ni heure — il fallait fouiller
-              l'agenda pour savoir quand on est attendu. */}
-          {shownRdv && (
-            <div className="rdv-block">
-              <span className="rdv-block-head">
-                <span className="rdv-when">
-                  <CalendarClock size={15} strokeWidth={2} />
-                  {formatRdvWhen(shownRdv.scheduled_at)}
-                </span>
-                {shownRdv.status !== 'a_venir' && (
-                  <span
-                    className="rdv-outcome"
-                    style={{ color: APPOINTMENT_STATUS_META[shownRdv.status].color }}
-                  >
-                    {APPOINTMENT_STATUS_META[shownRdv.status].label}
-                  </span>
-                )}
-              </span>
-              <span className="rdv-actions">
-                {(shownRdv.client_phone ?? point.client_phone) && (
-                  <a className="text-btn" href={`tel:${shownRdv.client_phone ?? point.client_phone}`}>
-                    <Phone size={14} /> Appeler
-                  </a>
-                )}
-                {/* « Y aller » (Waze, coordonnées du point) — remplace « Voir
-                    dans l'agenda » (décision briac 25/07). */}
-                <a
-                  className="text-btn"
-                  href={wazeUrl(point, point.address)!}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Navigation size={14} /> Y aller
-                </a>
-                {/* Décaler le RDV là où sa date s'affiche (retour briac
-                    29/07) — édition, jamais un 2e RDV. */}
-                {editableRdv && onRdvNeeded && (
-                  <button
-                    type="button"
-                    className="text-btn"
-                    onClick={() => onRdvNeeded(point, editableRdv)}
-                  >
-                    <Pencil size={14} /> Modifier
-                  </button>
-                )}
-              </span>
-            </div>
+          {/* Bloc « Rendez-vous » en tête (audit UX B1) : SECTION STANDARD
+              partagée avec la fiche prospect (fusion 29/07 soir) — date +
+              issue, BOUTONS D'ISSUE dès le jour J (on peut enfin marquer
+              « Vendu » en sortant de chez le client, la carte ouverte),
+              Appeler / Y aller / Modifier, bandeau « Planifier ». */}
+          {me && (
+            <RdvSection
+              point={point}
+              appts={appts}
+              profile={me}
+              showNav
+              onEdit={onRdvNeeded ? (a) => onRdvNeeded(point, a) : undefined}
+              onPlan={onRdvNeeded ? () => onRdvNeeded(point) : undefined}
+            />
           )}
-          {/* Trou silencieux (audit UX B1) : un point « RDV pris » SANS RDV en
-              agenda (formulaire balayé à la pose) — personne ne s'y présente. */}
-          {appts !== null &&
-            point.status === 'rdv_pris' &&
-            !appts.some((a) => a.status === 'a_venir') && (
-              <div className="rdv-missing">
-                <span>Aucun RDV planifié pour ce point</span>
-                {onRdvNeeded && (
-                  <button type="button" className="text-btn" onClick={() => onRdvNeeded(point)}>
-                    <CalendarPlus size={14} /> Planifier
-                  </button>
-                )}
-              </div>
-            )}
           {/* Client d'abord (réorganisation briac 25/07) : le contexte —
               client puis maison — avant les actions d'édition. */}
           {(status === 'a_revoir' ||
@@ -535,7 +470,7 @@ export function PointDetailSheet({
                     MASQUÉ quand un RDV « à venir » existe : ce bouton créait
                     alors un DOUBLON — le décalage passe par « Modifier » du
                     bloc RDV (piège corrigé le 29/07). */}
-                {onRdvNeeded && isSupabaseConfigured && !point.id.startsWith('temp-') && !editableRdv && (
+                {onRdvNeeded && isSupabaseConfigured && !point.id.startsWith('temp-') && !hasUpcomingRdv && (
                   <button type="button" className="text-btn" onClick={() => onRdvNeeded(point)}>
                     <CalendarPlus size={14} /> RDV
                   </button>

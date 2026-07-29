@@ -1,6 +1,6 @@
 import { Drawer } from 'vaul'
 import { X, Home, Navigation } from 'lucide-react'
-import { wazeUrl } from './ClientSheet'
+import { wazeUrl } from '../lib/nav'
 import { StatusPicker } from './StatusPicker'
 import { HouseBadges } from './HouseBadges'
 import { RoofModule } from './RoofModule'

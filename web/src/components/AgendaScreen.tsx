@@ -22,8 +22,8 @@ import {
 import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
 import { fetchContacts, fetchRevisits, subscribePoints } from '../data/points'
 import { AppointmentForm } from './AppointmentForm'
-import { ClientSheet, wazeUrl } from './ClientSheet'
-import { ContactSheet } from './ContactSheet'
+import { ProspectSheet } from './ProspectSheet'
+import { wazeUrl } from '../lib/nav'
 import { ContactForm } from './ContactForm'
 import {
   APPOINTMENT_STATUS_META,
@@ -402,6 +402,8 @@ export function AgendaScreen({
   // le statut). ClientSheet reste la fiche du flux RDV (planning du jour).
   const [view, setView] = useState<'agenda' | 'contacts'>('agenda')
   const [clientAppt, setClientAppt] = useState<Appointment | null>(null)
+  // « Planifier » depuis la fiche prospect : point cible du nouveau RDV.
+  const [planning, setPlanning] = useState<MapPoint | null>(null)
   const [contacts, setContacts] = useState<MapPoint[]>([])
   const [contactOpen, setContactOpen] = useState<MapPoint | null>(null)
   // Filtre par statut : null = tous, sinon ne montre que ce statut.
@@ -873,14 +875,20 @@ export function AgendaScreen({
         />
       )}
 
+      {/* Fiche PROSPECT unifiée (fusion 29/07) : la même, ouverte depuis le
+          planning du jour (ancrée sur le RDV) ou la vue Contacts (le point). */}
       {clientAppt && (
-        <ClientSheet
+        <ProspectSheet
           appt={clientAppt}
           profile={profile}
           onOpenChange={(o) => !o && setClientAppt(null)}
-          onEdit={(a) => {
+          onEditRdv={(a) => {
             setClientAppt(null)
             setEditing(a)
+          }}
+          onPlanRdv={(p) => {
+            setClientAppt(null)
+            setPlanning(p)
           }}
           onShowOnMap={onShowOnMap}
           onChanged={reload}
@@ -888,10 +896,9 @@ export function AgendaScreen({
       )}
 
       {contactOpen && (
-        <ContactSheet
+        <ProspectSheet
           point={contactOpen}
           profile={profile}
-          nextRdv={nextRdvByPoint[contactOpen.id] ?? null}
           onOpenChange={(o) => !o && setContactOpen(null)}
           onShowOnMap={onShowOnMap}
           onEditRdv={(a) => {
@@ -899,6 +906,30 @@ export function AgendaScreen({
             // réutilise le circuit d'édition existant de l'agenda.
             setContactOpen(null)
             setEditing(a)
+          }}
+          onPlanRdv={(p) => {
+            setContactOpen(null)
+            setPlanning(p)
+          }}
+          onChanged={reload}
+        />
+      )}
+
+      {/* « Planifier » depuis la fiche prospect : RDV lié au point (le
+          formulaire hérite du client — filet anti-« trou silencieux »). */}
+      {planning && (
+        <AppointmentForm
+          open
+          onOpenChange={(o) => !o && setPlanning(null)}
+          profile={profile}
+          pointId={planning.id}
+          coords={{ lng: planning.lng, lat: planning.lat }}
+          pointNote={planning.note}
+          defaultClientName={planning.client_name}
+          defaultClientPhone={planning.client_phone}
+          onSaved={() => {
+            setPlanning(null)
+            reload()
           }}
         />
       )}
