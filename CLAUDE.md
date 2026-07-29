@@ -74,6 +74,17 @@ DA **« Encre & signal »** (choisie par briac le 26/07/2026 sur prototypes comp
 - **Vaul** (bottom sheets / drawers), **Sonner** (toasts), **Motion** (animations).
 - Tokens CSS dans `web/src/index.css` ; DA aussi cuite en TS : `config/markers.ts` (marqueurs/clusters),
   `MapView.tsx` (ACCENT halos/réticule), `lib/report-image.ts` (rapport client) — à garder alignés.
+- **Mode sombre optionnel (29/07/2026, variante « Ligné » choisie sur planches)** : `[data-theme="dark"]`
+  sur `<html>` — tokens dans `index.css`, préférence localStorage (`lib/theme.ts`), sélecteur
+  Clair · Sombre · Auto dans la sheet « Profil & réglages » de l'Accueil (roue dentée + avatar), script
+  inline `index.html` avant le premier rendu (pas de flash). **Clair = défaut, attribut ABSENT : aucun
+  pixel du clair ne doit jamais bouger** (diff strict par les sondes). En sombre, le relief passe des
+  ombres aux **bordures** (hairlines + anneau 1 px dans les tokens d'ombre) ; boutons à fond `var(--ink)`
+  → blanc pur + texte nuit ; « Refus »/« Hors cible » éclaircis en sombre seulement (teinte inchangée).
+  Règles : le **rapport client reste PAPIER** (tokens clairs re-déclarés sur `.roof-report-overlay`) ;
+  tout élément posé sur la photo ou un canvas (pastilles m², boutons du viewer 3D) = **encre littérale
+  #111113, jamais `var(--ink)`** ; marqueurs, clusters, halos MapView, rapport canvas : inchangés.
+  Sondes des deux thèmes : `THEME=dark node check-accueil.mjs` / `check-stats.mjs`, `probe-theme.mjs`.
 - Prototypage DA : `tools/screenshots/da-shots.mjs` (injection de tokens + captures comparées).
 - Ne jamais retomber dans le look « IA générée » (emojis, composants basiques, styles génériques).
 

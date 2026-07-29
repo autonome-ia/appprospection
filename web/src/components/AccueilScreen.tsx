@@ -8,6 +8,7 @@ import {
   BellRing,
   CalendarClock,
   Phone,
+  Settings,
   X,
 } from 'lucide-react'
 import { useSession } from '../lib/session'
@@ -174,6 +175,16 @@ export function AccueilScreen({
           </h1>
           <span className="accueil-role">{role}</span>
         </div>
+        {/* Réglages VISIBLES (retour briac 29/07) : l'avatar seul ne se
+            devinait pas — même sheet, entrée explicite. */}
+        <button
+          type="button"
+          className="icon-btn accueil-settings"
+          onClick={() => setProfileOpen(true)}
+          aria-label="Réglages"
+        >
+          <Settings size={19} strokeWidth={1.8} />
+        </button>
       </motion.header>
 
       {loadError && (
@@ -326,7 +337,7 @@ export function AccueilScreen({
           <Drawer.Content className="drawer-content">
             <div className="drawer-grip" />
             <div className="drawer-header">
-              <span className="drawer-title">Profil</span>
+              <span className="drawer-title">Profil &amp; réglages</span>
               <button
                 type="button"
                 className="icon-btn"

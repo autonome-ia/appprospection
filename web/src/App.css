@@ -1610,6 +1610,18 @@
   gap: 12px;
   margin: 8px 0 14px;
 }
+/* Entrée réglages explicite (retour briac 29/07) : l'avatar ouvre toujours
+   la sheet, mais la roue dentée la rend trouvable. */
+.accueil-settings {
+  margin-left: auto;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  box-shadow: var(--shadow-sm);
+}
 .avatar-btn {
   border: none;
   padding: 0;
@@ -1942,7 +1954,11 @@
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  color: var(--ink);
+  /* Pastille BLANCHE dans les deux thèmes (elle vit sur la photo ou le
+     canvas 3D) : encre littérale, pas var(--ink) — en sombre l'encre
+     devient claire et les chiffres disparaissaient (retour briac 29/07).
+     Même valeur que l'encre claire : zéro pixel ne bouge en clair. */
+  color: #111113;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
   white-space: nowrap;
   pointer-events: none;
@@ -2001,6 +2017,7 @@
   width: 44px;
   height: 44px;
   background: rgba(255, 255, 255, 0.92);
+  color: #5c5c63; /* littéral : bouton blanc sur canvas, encre stable */
   box-shadow: var(--shadow-sm);
 }
 /* Pastille m² projetée SUR le pan (position pilotée par la boucle de rendu). */
@@ -2161,7 +2178,7 @@
 }
 /* Surface de commande (sélection + chutes) : informatif, non cochable. */
 .roof3d-waste {
-  color: var(--ink-2);
+  color: #5c5c63; /* littéral : pastille blanche, encre stable (cf. .pan-chip) */
   border-style: dashed;
 }
 /* Longueurs par type d'arête (faîtage, noues, rives…) sous la légende. */
@@ -2967,4 +2984,36 @@ select.field-input {
 }
 [data-theme='dark'] .drawer-overlay {
   background: rgba(0, 0, 0, 0.6);
+}
+/* Le rapport client reste un DOCUMENT PAPIER quel que soit le thème
+   (décision chantier : même logique que lib/report-image.ts, l'image
+   partagée est claire — l'aperçu à l'écran et l'impression doivent lui
+   ressembler). On re-déclare les tokens clairs sur le sous-arbre. */
+[data-theme='dark'] .roof-report-overlay {
+  color-scheme: light;
+  --bg: #f6f6f5;
+  --surface: #ffffff;
+  --surface-2: #eeeeec;
+  --ink: #111113;
+  --ink-2: #5c5c63;
+  --ink-3: #8b8b93;
+  --line: #e4e4e1;
+  --line-strong: #d2d2ce;
+  --shadow-sm: 0 1px 2px rgba(17, 17, 19, 0.07), 0 2px 8px rgba(17, 17, 19, 0.06);
+  color: var(--ink);
+}
+/* Plan coté : le halo des cotes est la couleur du fond du schéma — blanc
+   en clair (inchangé), nuit en sombre, sinon le halo mangeait le chiffre. */
+[data-theme='dark'] .roof-diagram-cote {
+  stroke: rgba(18, 18, 20, 0.85);
+}
+/* …sauf dans le rapport, resté papier : halo blanc d'origine. */
+[data-theme='dark'] .roof-report-overlay .roof-diagram-cote {
+  stroke: rgba(255, 255, 255, 0.85);
+}
+/* Boutons du rapport : encre noire sur papier, comme en clair (le patch
+   « encre inversée » sombre n'a pas cours dans le document). */
+[data-theme='dark'] .roof-report-overlay .btn-primary {
+  background: var(--ink);
+  color: #ffffff;
 }
