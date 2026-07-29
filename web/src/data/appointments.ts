@@ -185,7 +185,9 @@ export async function setAppointmentOutcome(
   let pointSynced = true
   const pointPatch: Record<string, unknown> | null =
     outcome === 'vendu'
-      ? { status: 'vendu' }
+      ? // revisit_at effacé : la réponse d'un « En attente » est tombée, la
+        // maison ne doit pas traîner dans « À relancer » (état ouvert 29/07).
+        { status: 'vendu', revisit_at: null }
       : outcome === 'effectue'
         ? { status: 'a_revoir', revisit_at: localDayPlus(7) }
         : outcome === 'refus'

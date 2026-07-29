@@ -29,6 +29,7 @@ import { ContactForm } from './ContactForm'
 import {
   APPOINTMENT_STATUS_META,
   APPOINTMENT_OUTCOMES,
+  FOLLOW_UP_OUTCOMES,
   outcomeToastMessage,
   type Appointment,
   type AppointmentKind,
@@ -88,6 +89,14 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
   // la vente DEUX fois dans les stats (audit).
   const [busy, setBusy] = useState(false)
   const waze = wazeUrl(appt.point, appt.address)
+  // Même règle que RdvSection (la fiche) : toutes les issues dès le jour J,
+  // Vendu / Refus tant que le RDV est « En attente ».
+  const railOutcomes =
+    appt.status === 'a_venir' && Date.parse(appt.scheduled_at) <= endOfToday()
+      ? APPOINTMENT_OUTCOMES
+      : appt.status === 'effectue'
+        ? FOLLOW_UP_OUTCOMES
+        : null
 
   return (
     <div className={`appt-item ${done ? 'is-task-done' : ''}`} style={{ ['--who' as string]: color }}>
@@ -182,10 +191,11 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
 
         {/* Issues visibles seulement le jour venu (audit UX A11) : à J-15, un
             tap de scroll raté écrivait des stats fausses. Jamais sur une
-            tâche : Vendu/Effectué/Manqué n'ont pas de sens pour un acompte. */}
-        {!isTache && appt.status === 'a_venir' && Date.parse(appt.scheduled_at) <= endOfToday() && (
+            tâche. « En attente » = état OUVERT (29/07 soir) : Vendu / Refus
+            restent proposés sans limite de date — même règle que la fiche. */}
+        {!isTache && railOutcomes && (
           <div className="appt-outcomes">
-            {APPOINTMENT_OUTCOMES.map((o) => {
+            {railOutcomes.map((o) => {
               const m = APPOINTMENT_STATUS_META[o]
               return (
                 <button

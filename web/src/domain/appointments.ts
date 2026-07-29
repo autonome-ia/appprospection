@@ -44,6 +44,10 @@ export const APPOINTMENT_STATUS_META: Record<AppointmentStatus, AppointmentStatu
 /** Issues qu'un commercial peut donner à un RDV planifié. */
 export const APPOINTMENT_OUTCOMES: AppointmentStatus[] = ['vendu', 'effectue', 'refus', 'annule']
 
+/** « En attente » est un état OUVERT (29/07 soir) : la réponse du prospect
+    se donne plus tard, sur le MÊME RDV — vente différée comptée. */
+export const FOLLOW_UP_OUTCOMES: AppointmentStatus[] = ['vendu', 'refus']
+
 /** Confirmation d'une issue : dire la CONSÉQUENCE, pas répéter le bouton. */
 export function outcomeToastMessage(outcome: AppointmentStatus): string {
   switch (outcome) {

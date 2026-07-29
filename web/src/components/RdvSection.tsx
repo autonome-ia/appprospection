@@ -5,6 +5,7 @@ import { setAppointmentOutcome } from '../data/appointments'
 import {
   APPOINTMENT_OUTCOMES,
   APPOINTMENT_STATUS_META,
+  FOLLOW_UP_OUTCOMES,
   outcomeToastMessage,
   type Appointment,
   type AppointmentStatus,
@@ -105,6 +106,17 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
   const editable = shownStatus === 'a_venir' ? shownRdv : null
   const phone = shownRdv.client_phone ?? point?.client_phone ?? null
   const waze = wazeUrl(point ?? shownRdv.point, shownRdv.address ?? point?.address ?? null)
+  // Issues proposées : toutes dès le jour J sur un RDV « à venir » ; et
+  // « EN ATTENTE » EST UN ÉTAT OUVERT (retour briac 29/07 soir) — le
+  // prospect réfléchit, « Vendu » / « Refus » restent proposés SANS limite
+  // de date (la relance J+7 de l'Accueil ramène ici, un tap conclut, la
+  // vente différée est comptée sur CE RDV). Vendu / Refus / Annulé = fins.
+  const outcomes =
+    shownStatus === 'a_venir' && Date.parse(shownRdv.scheduled_at) <= endOfToday()
+      ? APPOINTMENT_OUTCOMES
+      : shownStatus === 'effectue'
+        ? FOLLOW_UP_OUTCOMES
+        : null
 
   return (
     <>
@@ -126,9 +138,9 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
 
       {/* Solder SANS retraverser l'app (audit fusion) : mêmes issues, même
           règle jour J, quel que soit l'écran d'où la fiche est ouverte. */}
-      {shownStatus === 'a_venir' && Date.parse(shownRdv.scheduled_at) <= endOfToday() && (
+      {outcomes && (
         <div className="appt-outcomes">
-          {APPOINTMENT_OUTCOMES.map((o) => {
+          {outcomes.map((o) => {
             const m = APPOINTMENT_STATUS_META[o]
             return (
               <button

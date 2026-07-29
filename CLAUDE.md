@@ -97,9 +97,11 @@ DA **« Encre & signal »** (choisie par briac le 26/07/2026 sur prototypes comp
 - **Issues de RDV (refonte 29/07 soir)** : chaque issue fait suivre LE POINT — « Vendu » → Client
   (`vendu`, LA vente du tunnel), « En attente » (valeur `effectue`) → À revoir + relance J+7,
   « Refus » (`refus`, db/0017) → Refus, « Annulé » → rien + bouton « Replanifier ». « Manqué » retiré
-  des boutons (valeur conservée pour l'historique). La vente compte AUSSI par bascule manuelle
-  « RDV pris » → « Client » (écrit `vendu` + synchronise le RDV lié). Stats : « RDV effectués » =
-  en attente + vendus + refusés (RDV tenus) ; les annulés ne comptent nulle part.
+  des boutons (valeur conservée pour l'historique). **« En attente » est un état OUVERT** : le RDV
+  continue de proposer « Vendu » / « Refus » sans limite de date (la réponse du prospect se donne
+  sur le MÊME RDV — vente différée comptée ; « Vendu » efface la relance). La vente compte AUSSI
+  par bascule manuelle « RDV pris » → « Client » (écrit `vendu` + synchronise le RDV lié). Stats :
+  « RDV effectués » = en attente + vendus + refusés (RDV tenus) ; les annulés ne comptent nulle part.
 
 ## État actuel
 Voir **`docs/roadmap.md`**. En résumé : les 4 onglets (Accueil · Carte · Agenda · Stats) fonctionnent,
