@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react'
 import { useSession } from '../lib/session'
+import { setThemePref, useThemePref, type ThemePref } from '../lib/theme'
 import { fetchRelances, localDayKey } from '../data/points'
 import { fetchStats, type StatsResult } from '../data/stats'
 import { fetchAppointments } from '../data/appointments'
@@ -40,6 +41,12 @@ function initials(name: string | null | undefined, fallback: string): string {
 const fmtTime = (iso: string) =>
   new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
 
+const THEMES: { value: ThemePref; label: string }[] = [
+  { value: 'light', label: 'Clair' },
+  { value: 'dark', label: 'Sombre' },
+  { value: 'system', label: 'Auto' },
+]
+
 const fade = {
   hidden: { opacity: 0, y: 8 },
   show: (i: number) => ({
@@ -68,6 +75,7 @@ export function AccueilScreen({
   const [todayAppts, setTodayAppts] = useState<Appointment[]>([])
   // Profil + déconnexion derrière l'avatar (sheet), plus en premier niveau.
   const [profileOpen, setProfileOpen] = useState(false)
+  const themeChoice = useThemePref()
   const [clientAppt, setClientAppt] = useState<Appointment | null>(null)
   const [editing, setEditing] = useState<Appointment | null>(null)
   // Échec ≠ sections vides (audit UX A33) : un raté réseau faisait
@@ -338,6 +346,25 @@ export function AccueilScreen({
                     {session?.user.email ? ` · ${session.user.email}` : ''}
                   </span>
                 </div>
+              </div>
+              {/* Thème : préférence de l'appareil (localStorage), appliquée
+                  à chaud — « Auto » suit le réglage du téléphone. */}
+              <div className="theme-pick">
+                <span className="eyebrow">Thème</span>
+                <div className="seg">
+                  {THEMES.map((t) => (
+                    <button
+                      key={t.value}
+                      type="button"
+                      className={`seg-btn ${themeChoice === t.value ? 'is-active' : ''}`}
+                      onClick={() => setThemePref(t.value)}
+                    >
+                      {themeChoice === t.value && <span className="seg-ind" />}
+                      <span className="seg-text">{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="theme-hint">Auto : suit le réglage du téléphone.</p>
               </div>
               {session && (
                 <button

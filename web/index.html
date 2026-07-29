@@ -9,6 +9,25 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
     <meta name="theme-color" content="#ffffff" />
+    <script>
+      // Thème sombre appliqué AVANT le premier rendu (pas de flash blanc au
+      // lancement de la PWA). La logique vivante est dans src/lib/theme.ts.
+      ;(function () {
+        try {
+          var t = localStorage.getItem('theme')
+          if (
+            t === 'dark' ||
+            (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+          ) {
+            document.documentElement.dataset.theme = 'dark'
+            var m = document.querySelector('meta[name="theme-color"]')
+            if (m) m.setAttribute('content', '#121214')
+          }
+        } catch (e) {
+          /* stockage indisponible : clair par défaut */
+        }
+      })()
+    </script>
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />

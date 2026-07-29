@@ -1,5 +1,6 @@
 // Contrôle visuel rapide : Accueil connecté (section Guide avec covers) +
 // sheet du 1er tuto ouverte. Lecture seule.
+// THEME=dark node check-accueil.mjs → mode sombre (suffixe -sombre).
 import { chromium, devices } from 'playwright'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -15,10 +16,13 @@ const env = Object.fromEntries(
 )
 mkdirSync(OUT, { recursive: true })
 
+const DARK = process.env.THEME === 'dark'
+const SUF = DARK ? '-sombre' : ''
 const browser = await chromium.launch()
 const page = await (
   await browser.newContext({ ...devices['iPhone 13'], locale: 'fr-FR', timezoneId: 'Europe/Paris' })
 ).newPage()
+if (DARK) await page.addInitScript(() => localStorage.setItem('theme', 'dark'))
 await page.goto(process.env.BASE_URL ?? 'http://localhost:5173', { waitUntil: 'networkidle' })
 await page.getByPlaceholder('Email').fill(env.GUIDE_EMAIL)
 await page.getByPlaceholder('Mot de passe').fill(env.GUIDE_PASSWORD)
@@ -27,10 +31,10 @@ await page.waitForSelector('canvas', { timeout: 20000 })
 await page.getByRole('button', { name: 'Accueil' }).click()
 await page.waitForSelector('.guide-card', { timeout: 15000 })
 await page.waitForTimeout(2500)
-await page.screenshot({ path: resolve(OUT, 'accueil.png') })
-console.log('✔ accueil.png')
+await page.screenshot({ path: resolve(OUT, `accueil${SUF}.png`) })
+console.log(`✔ accueil${SUF}.png`)
 await page.locator('.guide-card').first().click()
 await page.waitForTimeout(1500)
-await page.screenshot({ path: resolve(OUT, 'tuto-sheet.png') })
-console.log('✔ tuto-sheet.png')
+await page.screenshot({ path: resolve(OUT, `tuto-sheet${SUF}.png`) })
+console.log(`✔ tuto-sheet${SUF}.png`)
 await browser.close()

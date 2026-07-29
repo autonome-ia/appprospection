@@ -1,0 +1,41 @@
+/* Variante SOMBRE A — « Étagé » : l'encre et le papier s'inversent
+   (#111113 devient le fond), le relief vient de la LUMINOSITÉ des
+   surfaces (les cartes sont nettement plus claires que le fond, comme
+   elles étaient plus blanches que le papier). Hairlines discrètes,
+   ombres noires conservées pour asseoir les sheets. Accent inchangé. */
+:root {
+  color-scheme: dark;
+
+  --bg: #101012;
+  --surface: #1b1b1f;
+  --surface-2: #26262b;
+  --ink: #f3f3f1;
+  --ink-2: #a9a9b0;
+  --ink-3: #7f7f88;
+
+  --line: #2a2a2f;
+  --line-strong: #3b3b41;
+
+  --accent: #f54e00;
+  --accent-ink: #ffffff;
+  --accent-weak: rgba(245, 78, 0, 0.16);
+  --accent-ring: rgba(245, 78, 0, 0.4);
+
+  --danger: #f2555a;
+  --danger-weak: rgba(242, 85, 90, 0.14);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.7);
+}
+
+/* Boutons « encre inversée » (fond var(--ink), désormais clair) : le
+   texte repasse côté nuit. */
+.btn-primary,
+.head-action,
+.brand-mark {
+  color: #111113;
+}
+.drawer-overlay {
+  background: rgba(0, 0, 0, 0.6);
+}

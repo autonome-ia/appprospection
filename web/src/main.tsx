@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import '@fontsource-variable/geist'
 import '@fontsource-variable/geist-mono'
 import './index.css'
+import './lib/theme' // écoute « Auto » (prefers-color-scheme) dès le boot
 import App from './App.tsx'
 
 // Après un déploiement Render, une PWA restée ouverte référence des chunks

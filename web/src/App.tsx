@@ -8,6 +8,7 @@ import { AgendaScreen } from './components/AgendaScreen'
 import { StatsScreen } from './components/StatsScreen'
 import { ScreenBoundary } from './components/ScreenBoundary'
 import { SessionProvider, useSession } from './lib/session'
+import { useIsDark } from './lib/theme'
 import { isSupabaseConfigured } from './lib/supabase'
 import './App.css'
 
@@ -88,11 +89,15 @@ function AppInner() {
 }
 
 export default function App() {
+  // Sonner peint ses toasts hors tokens CSS : on lui passe le thème effectif
+  // (réactif : bascule dans la sheet de profil comme réglage téléphone en Auto).
+  const dark = useIsDark()
   return (
     <SessionProvider>
       <AppInner />
       <Toaster
         position="top-center"
+        theme={dark ? 'dark' : 'light'}
         toastOptions={{
           style: {
             fontFamily: 'var(--font-sans)',

@@ -1,0 +1,41 @@
+/* Variante SOMBRE B — « Ligné » : surfaces presque au niveau du fond,
+   le relief vient des BORDURES nettement plus présentes (hairlines
+   contrastées, anneau 1px intégré aux tokens d'ombre pour que les
+   cartes sans bordure gardent un contour). Plus graphique, plus plat.
+   Accent inchangé. */
+:root {
+  color-scheme: dark;
+
+  --bg: #121214;
+  --surface: #17171a;
+  --surface-2: #212125;
+  --ink: #f3f3f1;
+  --ink-2: #a9a9b0;
+  --ink-3: #7f7f88;
+
+  --line: #35353b;
+  --line-strong: #4a4a51;
+
+  --accent: #f54e00;
+  --accent-ink: #ffffff;
+  --accent-weak: rgba(245, 78, 0, 0.16);
+  --accent-ring: rgba(245, 78, 0, 0.4);
+
+  --danger: #f2555a;
+  --danger-weak: rgba(242, 85, 90, 0.14);
+
+  --shadow-sm: 0 0 0 1px #35353b;
+  --shadow-md: 0 0 0 1px #35353b, 0 12px 32px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 0 0 1px #4a4a51, 0 24px 56px rgba(0, 0, 0, 0.6);
+}
+
+/* Boutons « encre inversée » (fond var(--ink), désormais clair) : le
+   texte repasse côté nuit. */
+.btn-primary,
+.head-action,
+.brand-mark {
+  color: #111113;
+}
+.drawer-overlay {
+  background: rgba(0, 0, 0, 0.6);
+}
