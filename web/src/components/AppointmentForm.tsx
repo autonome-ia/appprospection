@@ -81,11 +81,13 @@ export function AppointmentForm({
   const [addrFocus, setAddrFocus] = useState(false)
   const [addrResults, setAddrResults] = useState<AddressResult[]>([])
   const [addrOpen, setAddrOpen] = useState(false)
-  // Suppression d'une TÂCHE : elle n'a pas de fiche client (où vit le
-  // « Supprimer le RDV ») — le lien danger 2 taps vit donc dans l'édition.
+  // Suppression (RDV comme tâche) : le lien danger 2 taps vit dans
+  // l'édition depuis la convergence 29/07 (l'ancienne fiche client, qui le
+  // portait, a disparu — un seul endroit, cohérent). Titulaire/manager
+  // seulement : la RLS refuse les autres, on ne leur propose pas.
   const [confirmDel, setConfirmDel] = useState(false)
   const canDelete =
-    isTache && !!existing && (profile.role === 'manager' || existing.commercial_id === profile.id)
+    !!existing && (profile.role === 'manager' || existing.commercial_id === profile.id)
 
   useEffect(() => {
     if (!addrFocus) return
@@ -370,11 +372,11 @@ export function AppointmentForm({
                 setSaving(true)
                 try {
                   await deleteAppointment(existing!.id)
-                  toast('Tâche supprimée')
+                  toast(isTache ? 'Tâche supprimée' : 'RDV supprimé')
                   onOpenChange(false)
                   onSaved()
                 } catch (e) {
-                  console.error('Suppression de la tâche :', e)
+                  console.error('Suppression :', e)
                   toast.error('Suppression impossible — vérifiez le réseau')
                 } finally {
                   setSaving(false)
@@ -382,7 +384,11 @@ export function AppointmentForm({
               }}
             >
               <Trash2 size={14} strokeWidth={1.8} />{' '}
-              {confirmDel ? 'Confirmer la suppression ?' : 'Supprimer la tâche'}
+              {confirmDel
+                ? 'Confirmer la suppression ?'
+                : isTache
+                  ? 'Supprimer la tâche'
+                  : 'Supprimer le RDV'}
             </button>
           )}
 

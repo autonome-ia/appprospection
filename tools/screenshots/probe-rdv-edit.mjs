@@ -46,16 +46,23 @@ if (!(await modif.count())) {
   await page.getByRole('button', { name: 'Annuler', exact: true }).click()
   await page.waitForTimeout(700)
 }
+// Convergence 29/07 : la fiche reste ouverte SOUS le formulaire (comme sur
+// la carte) — on la referme avant de continuer.
+{
+  const close = page.locator('.drawer-content').getByRole('button', { name: 'Fermer' })
+  if (await close.count()) await close.first().click()
+  await page.waitForTimeout(700)
+}
 
 // --- 2. Depuis la fiche POINT (carte) --------------------------------------
 // Le tap au jugé rate les marqueurs (coordonnées ≠ adresse BAN dans ces
-// données) : on passe par « Voir sur la carte » du CONTACT — le focus ouvre
-// la fiche du point directement (App.tsx → MapView setSelectedId).
+// données) : on passe par « Carte » au pied de la fiche du CONTACT — le
+// focus ouvre la fiche du point directement (App.tsx → MapView setSelectedId).
 await page.getByRole('button', { name: 'Contacts' }).click()
 await page.waitForTimeout(800)
 await page.locator('.home-row', { hasText: 'Jean Massé' }).first().click() // RDV 30/07
 await page.waitForTimeout(1500)
-await page.getByRole('button', { name: 'Voir sur la carte' }).click()
+await page.locator('.drawer-content').getByRole('button', { name: 'Carte', exact: true }).click()
 await page.waitForTimeout(4000) // bascule Carte + flyTo + fiche + RDV du point
 const sheet = page.locator('.drawer-content')
 if (await sheet.locator('.rdv-block').count()) {

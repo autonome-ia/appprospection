@@ -11,8 +11,9 @@ import {
 } from '../data/points'
 import { fetchPointAppointments } from '../data/appointments'
 import { firstNameOf } from '../domain/names'
-import type { Appointment } from '../domain/appointments'
+import { APPOINTMENT_STATUS_META, type Appointment } from '../domain/appointments'
 import { RdvSection } from './RdvSection'
+import { wazeUrl } from '../lib/nav'
 import {
   lidarNeedsMeasure,
   suggestedWastePct,
@@ -57,6 +58,8 @@ interface Props {
   /** Incrémenté quand un RDV vient d'être enregistré (formulaire par-dessus
       la fiche) : le bloc « Rendez-vous » se rafraîchit sans rouvrir. */
   apptsVersion?: number
+  /** Hors carte (convergence 29/07) : « Carte » au pied de la fiche. */
+  onShowOnMap?: (target: { pointId: string; lng: number; lat: number }) => void
 }
 
 function formatDate(iso: string): string {
@@ -85,6 +88,7 @@ export function PointDetailSheet({
   onDelete,
   onRdvNeeded,
   apptsVersion,
+  onShowOnMap,
 }: Props) {
   const { profile: me } = useSession()
   const [detail, setDetail] = useState<PointDetail | null>(null)
@@ -408,10 +412,17 @@ export function PointDetailSheet({
 
           {(detail || point.address) && (
             <div className="drawer-meta">
+              {/* Adresse cliquable → Waze (convergence 29/07 : la fiche vit
+                  aussi hors carte, où « y aller » est LE geste). */}
               {point.address && (
-                <span>
+                <a
+                  href={wazeUrl(point, point.address)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Itinéraire en voiture (Waze)"
+                >
                   <MapPin size={13} /> {point.address}
-                </span>
+                </a>
               )}
               {/* Dernière VISITE, libellée (audit UX A30) : la date de pose
                   brute trompait sur « je retente ou pas ? » d'un point revisité. */}
@@ -538,6 +549,33 @@ export function PointDetailSheet({
             />
           )}
 
+          {/* Historique des RDV (rapatrié de la fiche prospect, convergence
+              29/07) : la section RDV ne montre que le dernier — les
+              précédents et leurs issues racontent le client. */}
+          {(appts?.length ?? 0) > 1 && (
+            <>
+              <p className="eyebrow field-label">RDV passés</p>
+              <div className="rdv-history">
+                {[...(appts ?? [])]
+                  .sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at))
+                  .map((h) => {
+                    const hm = APPOINTMENT_STATUS_META[h.status]
+                    return (
+                      <div key={h.id} className="rdv-history-row">
+                        <span className="rdv-history-when tnum">{formatDate(h.scheduled_at)}</span>
+                        <span
+                          className="badge"
+                          style={{ color: hm.color, background: `${hm.color}1a` }}
+                        >
+                          {hm.label}
+                        </span>
+                      </div>
+                    )
+                  })}
+              </div>
+            </>
+          )}
+
           {/* Notes : saisies à CHAQUE visite (audit UX A12). */}
           <p className="eyebrow field-label">Notes</p>
           {shownNotes.length > 0 && (
@@ -624,6 +662,20 @@ export function PointDetailSheet({
           {/* Sticky : l'action de tous les jours reste visible sans scroller
               (le bas de fiche partait sous le pli dès que la 3D était ouverte). */}
           <div className="drawer-footer">
+            {/* Hors carte (convergence 29/07) : rejoindre le point sur la
+                carte — absent sur la carte elle-même, on y est déjà. */}
+            {onShowOnMap && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => {
+                  onOpenChange(false)
+                  onShowOnMap({ pointId: point.id, lng: point.lng, lat: point.lat })
+                }}
+              >
+                <MapPin size={15} strokeWidth={1.9} /> Carte
+              </button>
+            )}
             <button type="button" className="btn btn-primary" onClick={save} disabled={saving || !dirty}>
               {saving ? 'Enregistrement…' : 'Enregistrer'}
             </button>

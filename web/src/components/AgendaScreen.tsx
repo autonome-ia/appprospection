@@ -22,7 +22,7 @@ import {
 import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
 import { fetchContacts, fetchRevisits, subscribePoints } from '../data/points'
 import { AppointmentForm } from './AppointmentForm'
-import { ProspectSheet } from './ProspectSheet'
+import { PointSheet } from './PointSheet'
 import { wazeUrl } from '../lib/nav'
 import { ContactForm } from './ContactForm'
 import {
@@ -402,8 +402,6 @@ export function AgendaScreen({
   // le statut). ClientSheet reste la fiche du flux RDV (planning du jour).
   const [view, setView] = useState<'agenda' | 'contacts'>('agenda')
   const [clientAppt, setClientAppt] = useState<Appointment | null>(null)
-  // « Planifier » depuis la fiche prospect : point cible du nouveau RDV.
-  const [planning, setPlanning] = useState<MapPoint | null>(null)
   const [contacts, setContacts] = useState<MapPoint[]>([])
   const [contactOpen, setContactOpen] = useState<MapPoint | null>(null)
   // Filtre par statut : null = tous, sinon ne montre que ce statut.
@@ -848,8 +846,9 @@ export function AgendaScreen({
           onChanged={reload}
           onOpenClient={(a) => {
             setDaySheet(null)
-            // Une tâche n'a pas de fiche client : le tap ouvre l'édition.
-            if (a.kind === 'tache') setEditing(a)
+            // Tâche ou RDV libre SANS point (créé à la main dans l'agenda) :
+            // pas de fiche du point possible — le tap ouvre l'édition.
+            if (a.kind === 'tache' || !a.point) setEditing(a)
             else setClientAppt(a)
           }}
           onShowOnMap={
@@ -875,62 +874,27 @@ export function AgendaScreen({
         />
       )}
 
-      {/* Fiche PROSPECT unifiée (fusion 29/07) : la même, ouverte depuis le
-          planning du jour (ancrée sur le RDV) ou la vue Contacts (le point). */}
-      {clientAppt && (
-        <ProspectSheet
-          appt={clientAppt}
+      {/* LA fiche du point, identique à la carte (convergence 29/07) —
+          depuis le planning du jour (RDV lié) comme depuis Contacts. Elle
+          monte elle-même le formulaire RDV (Modifier / Planifier / + RDV). */}
+      {clientAppt?.point && (
+        <PointSheet
+          pointId={clientAppt.point.id}
           profile={profile}
           onOpenChange={(o) => !o && setClientAppt(null)}
-          onEditRdv={(a) => {
-            setClientAppt(null)
-            setEditing(a)
-          }}
-          onPlanRdv={(p) => {
-            setClientAppt(null)
-            setPlanning(p)
-          }}
           onShowOnMap={onShowOnMap}
           onChanged={reload}
         />
       )}
 
       {contactOpen && (
-        <ProspectSheet
-          point={contactOpen}
+        <PointSheet
+          pointId={contactOpen.id}
+          initial={contactOpen}
           profile={profile}
           onOpenChange={(o) => !o && setContactOpen(null)}
           onShowOnMap={onShowOnMap}
-          onEditRdv={(a) => {
-            // Ferme la fiche AVANT le formulaire (règle vaul iOS), puis
-            // réutilise le circuit d'édition existant de l'agenda.
-            setContactOpen(null)
-            setEditing(a)
-          }}
-          onPlanRdv={(p) => {
-            setContactOpen(null)
-            setPlanning(p)
-          }}
           onChanged={reload}
-        />
-      )}
-
-      {/* « Planifier » depuis la fiche prospect : RDV lié au point (le
-          formulaire hérite du client — filet anti-« trou silencieux »). */}
-      {planning && (
-        <AppointmentForm
-          open
-          onOpenChange={(o) => !o && setPlanning(null)}
-          profile={profile}
-          pointId={planning.id}
-          coords={{ lng: planning.lng, lat: planning.lat }}
-          pointNote={planning.note}
-          defaultClientName={planning.client_name}
-          defaultClientPhone={planning.client_phone}
-          onSaved={() => {
-            setPlanning(null)
-            reload()
-          }}
         />
       )}
 

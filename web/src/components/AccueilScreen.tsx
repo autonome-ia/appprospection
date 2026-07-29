@@ -22,7 +22,7 @@ import { fetchAppointments, updateAppointment } from '../data/appointments'
 import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
 import { STATUS_BY_VALUE } from '../domain/status'
 import { APPOINTMENT_STATUS_META, type Appointment } from '../domain/appointments'
-import { ProspectSheet } from './ProspectSheet'
+import { PointSheet } from './PointSheet'
 import { AppointmentForm } from './AppointmentForm'
 import { GuideSection } from './Guide'
 import type { MapPoint } from '../domain/types'
@@ -91,8 +91,6 @@ export function AccueilScreen({
   const themeChoice = useThemePref()
   const [clientAppt, setClientAppt] = useState<Appointment | null>(null)
   const [editing, setEditing] = useState<Appointment | null>(null)
-  // « Planifier » depuis la fiche prospect : point cible du nouveau RDV.
-  const [planning, setPlanning] = useState<MapPoint | null>(null)
   // Échec ≠ sections vides (audit UX A33) : un raté réseau faisait
   // disparaître relances et feed sans un mot.
   const [loadError, setLoadError] = useState(false)
@@ -368,7 +366,13 @@ export function AccueilScreen({
                   </button>
                 </div>
               ) : (
-                <button key={a.id} type="button" className="home-row" onClick={() => setClientAppt(a)}>
+                <button
+                  key={a.id}
+                  type="button"
+                  className="home-row"
+                  // RDV libre sans point : pas de fiche du point — édition.
+                  onClick={() => (a.point ? setClientAppt(a) : setEditing(a))}
+                >
                   <span
                     className="status-dot"
                     style={{ background: APPOINTMENT_STATUS_META[a.status].color }}
@@ -501,40 +505,15 @@ export function AccueilScreen({
         </Drawer.Portal>
       </Drawer.Root>
 
-      {/* Fiche PROSPECT unifiée (fusion 29/07) : la même qu'agenda/Contacts. */}
-      {clientAppt && profile && (
-        <ProspectSheet
-          appt={clientAppt}
+      {/* LA fiche du point, identique à la carte (convergence 29/07). Elle
+          monte elle-même le formulaire RDV (Modifier / Planifier / + RDV). */}
+      {clientAppt?.point && profile && (
+        <PointSheet
+          pointId={clientAppt.point.id}
           profile={profile}
           onOpenChange={(o) => !o && setClientAppt(null)}
-          onEditRdv={(a) => {
-            setClientAppt(null)
-            setEditing(a)
-          }}
-          onPlanRdv={(p) => {
-            setClientAppt(null)
-            setPlanning(p)
-          }}
           onShowOnMap={onShowOnMap}
           onChanged={load}
-        />
-      )}
-      {/* « Planifier » depuis la fiche : RDV lié au point (mêmes défauts que
-          l'agenda — filet anti-« trou silencieux »). */}
-      {planning && profile && (
-        <AppointmentForm
-          open
-          onOpenChange={(o) => !o && setPlanning(null)}
-          profile={profile}
-          pointId={planning.id}
-          coords={{ lng: planning.lng, lat: planning.lat }}
-          pointNote={planning.note}
-          defaultClientName={planning.client_name}
-          defaultClientPhone={planning.client_phone}
-          onSaved={() => {
-            setPlanning(null)
-            load()
-          }}
         />
       )}
       {editing && profile && (
