@@ -1220,6 +1220,7 @@ export function MapView({
         <HousePreviewSheet
           open
           address={houseAddress}
+          coords={housePreview}
           info={houseInfo}
           lidar={houseLidar}
           activeStatus={activeStatus}

@@ -1,5 +1,6 @@
 import { Drawer } from 'vaul'
-import { X, Home } from 'lucide-react'
+import { X, Home, Navigation } from 'lucide-react'
+import { wazeUrl } from './ClientSheet'
 import { StatusPicker } from './StatusPicker'
 import { HouseBadges } from './HouseBadges'
 import { RoofModule } from './RoofModule'
@@ -12,6 +13,9 @@ interface Props {
   open: boolean
   /** Adresse (géocodage inverse), null pendant le chargement. */
   address: string | null
+  /** Coordonnées de la maison tapée — Waze y va au mètre (les coordonnées
+      priment sur l'adresse texte, même règle que les fiches point/client). */
+  coords: { lng: number; lat: number }
   /** Infos maison, null pendant le chargement. */
   info: HouseInfo | null
   /** Mesure LiDAR de la toiture, null pendant le calcul. */
@@ -31,6 +35,7 @@ interface Props {
 export function HousePreviewSheet({
   open,
   address,
+  coords,
   info,
   lidar,
   activeStatus,
@@ -117,6 +122,17 @@ export function HousePreviewSheet({
           <p className="data-attribution">Données IGN (BD TOPO, LiDAR HD) · BDNB (CSTB)</p>
 
           <div className="drawer-footer">
+            {/* « Y aller » AVANT tout point posé (demande briac 29/07) :
+                repérer une maison sur la carte et s'y rendre — gabarit à
+                deux boutons des autres fiches, libellé Waze de l'app. */}
+            <a
+              className="btn btn-ghost"
+              href={wazeUrl(coords, address)!}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Navigation size={15} strokeWidth={1.9} /> Y aller
+            </a>
             {/* Libellé dynamique (audit UX A2) : le bouton disait « Poser le
                 point » sans refléter le statut — risque de poser le statut
                 resté actif de la maison précédente. */}

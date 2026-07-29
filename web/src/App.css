@@ -2690,6 +2690,9 @@ select.field-input {
   padding: 12px 14px;
   font-size: 15px;
   font-weight: 600;
+  /* Un <a> peut porter .btn (« Y aller » de la fiche maison) : pas de
+     soulignement de lien sur un bouton. */
+  text-decoration: none;
   transition: opacity 0.15s var(--ease-out), background 0.15s var(--ease-out), transform 0.1s var(--ease-out);
 }
 .btn:active {
