@@ -346,6 +346,45 @@
   width: 44px;
   height: 44px;
 }
+/* Stats — « Points posés » (29/07) : une ligne par statut, barre
+   proportionnelle à la couleur SÉMANTIQUE, compte en mono à droite. */
+.statmix {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 10px;
+}
+.statmix-row {
+  display: grid;
+  grid-template-columns: 118px 1fr 34px;
+  gap: 10px;
+  align-items: center;
+}
+.statmix-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.statmix-track {
+  height: 10px;
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.statmix-bar {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-full);
+}
+.statmix-value {
+  font-size: 13px;
+  font-weight: 650;
+  text-align: right;
+}
+
 /* Bouton ⌖ « Ma position » (contrôle custom — le GeolocateControl a été
    remplacé par le point vivant, 27/07) : icône centrée, encre DA. */
 .maplibregl-ctrl-group button.locate-btn {

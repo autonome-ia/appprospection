@@ -13,6 +13,7 @@ import {
 } from '../data/stats'
 import { fetchOrgProfiles, updateWeeklyTarget, type OrgProfile } from '../data/profiles'
 import { colorForCommercial } from '../domain/colors'
+import { STATUSES } from '../domain/status'
 import type { Profile } from '../domain/types'
 
 const PERIODS: { value: Period; label: string }[] = [
@@ -31,6 +32,7 @@ const EMPTY: CommercialStats = {
   rdv_planifies: 0,
   rdv_effectues: 0,
   ventes: 0,
+  parStatut: {},
 }
 
 function pad(n: number) {
@@ -127,6 +129,41 @@ function Funnel({ s }: { s: CommercialStats }) {
         </span>
       </div>
     </div>
+  )
+}
+
+/** Répartition des poses par statut (demande briac 29/07) : combien de
+    chaque type de point sur la période — barres proportionnelles aux
+    couleurs SÉMANTIQUES des statuts (couleur = statut, jamais l'accent),
+    ordre stable de la palette pour comparer d'une période à l'autre. */
+function StatusBreakdown({ s }: { s: CommercialStats }) {
+  const rows = STATUSES.map((st) => ({ st, v: s.parStatut[st.value] ?? 0 })).filter((r) => r.v > 0)
+  const max = Math.max(1, ...rows.map((r) => r.v))
+  return (
+    <section className="card">
+      <p className="eyebrow">Points posés</p>
+      {rows.length === 0 ? (
+        <p className="screen-empty">Aucun point posé sur la période.</p>
+      ) : (
+        <div className="statmix">
+          {rows.map(({ st, v }) => (
+            <div key={st.value} className="statmix-row">
+              <span className="statmix-label">
+                <span className="status-dot" style={{ background: st.color }} />
+                {st.label}
+              </span>
+              <div className="statmix-track">
+                <span
+                  className="statmix-bar"
+                  style={{ width: `${Math.max(3, (v / max) * 100)}%`, background: st.color }}
+                />
+              </div>
+              <span className="statmix-value tnum">{v}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -487,6 +524,9 @@ export function StatsScreen({
       )}
 
       {showChart && <Chart daily={daily} days={days} />}
+
+      {/* Répartition par statut SOUS le graphe des portes (placement briac). */}
+      {data && <StatusBreakdown s={cur} />}
 
       {/* Manager : classement complet (cliquable). Commercial : sa position. */}
       {data && isManager && !drillId && (

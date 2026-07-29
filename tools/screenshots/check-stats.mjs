@@ -27,4 +27,13 @@ await page.waitForSelector('.stats-hero', { timeout: 15000 }).catch(() => {})
 await page.waitForTimeout(1800)
 await page.screenshot({ path: resolve(OUT, 'check-stats.png') })
 console.log('✔ check-stats.png')
+// Bas de l'écran (graphe + « Points posés » + classement) : l'écran défile.
+await page.evaluate(() => {
+  const el = document.querySelector('.screen')
+  if (el) el.scrollTop = el.scrollHeight
+  else window.scrollTo(0, document.body.scrollHeight)
+})
+await page.waitForTimeout(800)
+await page.screenshot({ path: resolve(OUT, 'check-stats-bas.png') })
+console.log('✔ check-stats-bas.png')
 await browser.close()

@@ -91,6 +91,9 @@ export interface CommercialStats {
   rdv_planifies: number
   rdv_effectues: number
   ventes: number
+  /** Poses par statut sur la période (section « Points posés », 29/07) —
+      la somme des valeurs = `portes`. */
+  parStatut: Partial<Record<PointStatus, number>>
 }
 
 export interface StatsResult {
@@ -103,7 +106,7 @@ export interface StatsResult {
 }
 
 function emptyStats(id: string): CommercialStats {
-  return { commercial_id: id, portes: 0, absents: 0, rdv_pris: 0, rdv_planifies: 0, rdv_effectues: 0, ventes: 0 }
+  return { commercial_id: id, portes: 0, absents: 0, rdv_pris: 0, rdv_planifies: 0, rdv_effectues: 0, ventes: 0, parStatut: {} }
 }
 
 async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
@@ -125,9 +128,19 @@ async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
     ;(result.team[key] as number) += n
   }
 
+  // Répartition par statut (mêmes règles d'attribution que `portes`).
+  const bumpStatut = (id: string | null, status: PointStatus) => {
+    if (!id) return
+    if (!result.byCommercial[id]) result.byCommercial[id] = emptyStats(id)
+    const mine = result.byCommercial[id].parStatut
+    mine[status] = (mine[status] ?? 0) + 1
+    result.team.parStatut[status] = (result.team.parStatut[status] ?? 0) + 1
+  }
+
   for (const ev of events ?? []) {
     const e = ev as { author_id: string | null; status: PointStatus; occurred_at: string }
     bump(e.author_id, 'portes')
+    bumpStatut(e.author_id, e.status)
     if (e.status === 'absent') bump(e.author_id, 'absents')
     if (e.status === 'rdv_pris') bump(e.author_id, 'rdv_pris')
     if (e.status === 'vendu') bump(e.author_id, 'ventes')
