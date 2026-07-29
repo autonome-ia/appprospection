@@ -791,6 +791,12 @@ export function AgendaScreen({
           nextRdv={nextRdvByPoint[contactOpen.id] ?? null}
           onOpenChange={(o) => !o && setContactOpen(null)}
           onShowOnMap={onShowOnMap}
+          onEditRdv={(a) => {
+            // Ferme la fiche AVANT le formulaire (règle vaul iOS), puis
+            // réutilise le circuit d'édition existant de l'agenda.
+            setContactOpen(null)
+            setEditing(a)
+          }}
         />
       )}
 

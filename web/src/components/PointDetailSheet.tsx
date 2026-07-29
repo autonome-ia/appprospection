@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
-import { X, Trash2, Clock, User, MapPin, CalendarClock, Phone, CalendarPlus, Navigation } from 'lucide-react'
+import { X, Trash2, Clock, User, MapPin, CalendarClock, Pencil, Phone, CalendarPlus, Navigation } from 'lucide-react'
 import {
   getPointDetail,
   fetchPointNotes,
@@ -46,7 +46,9 @@ interface Props {
   /** Ajoute une note au journal de la maison (jamais d'écrasement). */
   onAddNote: (id: string, body: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
-  onRdvNeeded?: (point: MapPoint) => void
+  /** Ouvre le formulaire de RDV : création (pas de 2e argument) ou ÉDITION
+      du RDV « à venir » passé en 2e argument (décaler une date, 29/07). */
+  onRdvNeeded?: (point: MapPoint, existing?: Appointment) => void
   /** Incrémenté quand un RDV vient d'être enregistré (formulaire par-dessus
       la fiche) : le bloc « Rendez-vous » se rafraîchit sans rouvrir. */
   apptsVersion?: number
@@ -251,6 +253,9 @@ export function PointDetailSheet({
     )
     return upcoming ?? appts[appts.length - 1]
   }, [appts])
+  // RDV encore modifiable = « à venir » (même passé de date : un RDV oublié
+  // se DÉCALE, on n'en recrée pas un deuxième — piège corrigé le 29/07).
+  const editableRdv = shownRdv?.status === 'a_venir' ? shownRdv : null
 
   if (!point) return null
 
@@ -484,6 +489,17 @@ export function PointDetailSheet({
                 >
                   <Navigation size={14} /> Y aller
                 </a>
+                {/* Décaler le RDV là où sa date s'affiche (retour briac
+                    29/07) — édition, jamais un 2e RDV. */}
+                {editableRdv && onRdvNeeded && (
+                  <button
+                    type="button"
+                    className="text-btn"
+                    onClick={() => onRdvNeeded(point, editableRdv)}
+                  >
+                    <Pencil size={14} /> Modifier
+                  </button>
+                )}
               </span>
             </div>
           )}
@@ -507,8 +523,11 @@ export function PointDetailSheet({
             <>
               <div className="field-label-row">
                 <p className="eyebrow field-label">Client</p>
-                {/* RDV sans le détour statut → Enregistrer (audit UX B1). */}
-                {onRdvNeeded && isSupabaseConfigured && !point.id.startsWith('temp-') && (
+                {/* RDV sans le détour statut → Enregistrer (audit UX B1).
+                    MASQUÉ quand un RDV « à venir » existe : ce bouton créait
+                    alors un DOUBLON — le décalage passe par « Modifier » du
+                    bloc RDV (piège corrigé le 29/07). */}
+                {onRdvNeeded && isSupabaseConfigured && !point.id.startsWith('temp-') && !editableRdv && (
                   <button type="button" className="text-btn" onClick={() => onRdvNeeded(point)}>
                     <CalendarPlus size={14} /> RDV
                   </button>

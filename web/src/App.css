@@ -2202,6 +2202,11 @@
   color: var(--ink-2);
   line-height: 1.35;
 }
+/* Action en bout de ligne (« Modifier » le RDV depuis la fiche contact). */
+.client-row-action {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
 /* Appeler / itinéraire = actions n°1 avant un RDV : cible tactile ≥ 44 px
    (le numéro était un texte de ~19 px de haut). */
 .client-row a {

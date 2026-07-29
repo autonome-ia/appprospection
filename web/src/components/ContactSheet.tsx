@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Drawer } from 'vaul'
-import { CalendarClock, History, MapPin, Navigation, Phone, StickyNote, X } from 'lucide-react'
+import { CalendarClock, History, MapPin, Navigation, Pencil, Phone, StickyNote, X } from 'lucide-react'
 import { fetchPointNotes, fetchPointPans, type PointNote } from '../data/points'
 import { lidarNeedsMeasure, suggestedWastePct, type RoofData } from '../domain/house'
 import type { LidarResult } from '../data/lidar'
@@ -27,6 +27,9 @@ interface Props {
   nextRdv: Appointment | null
   onOpenChange: (open: boolean) => void
   onShowOnMap?: (target: { pointId: string; lng: number; lat: number }) => void
+  /** Décaler le RDV depuis le contact (client plus dispo) : le parent ferme
+      cette sheet PUIS ouvre le formulaire en édition (pas d'empilement vaul). */
+  onEditRdv?: (a: Appointment) => void
 }
 
 const fmtFull = (iso: string) =>
@@ -52,7 +55,14 @@ const fmtShort = (iso: string) =>
     minute: '2-digit',
   }).format(new Date(iso))
 
-export function ContactSheet({ point, profile, nextRdv, onOpenChange, onShowOnMap }: Props) {
+export function ContactSheet({
+  point,
+  profile,
+  nextRdv,
+  onOpenChange,
+  onShowOnMap,
+  onEditRdv,
+}: Props) {
   const [notes, setNotes] = useState<PointNote[]>([])
   const [pans, setPans] = useState<RoofData | null>(null)
   const [liveLidar, setLiveLidar] = useState<LidarResult | null>(null)
@@ -151,6 +161,17 @@ export function ContactSheet({ point, profile, nextRdv, onOpenChange, onShowOnMa
                       {status.label}
                     </span>
                   </span>
+                  {/* Décaler la date sans partir à la chasse dans la grille
+                      du mois (retour briac 29/07). */}
+                  {onEditRdv && (
+                    <button
+                      type="button"
+                      className="text-btn client-row-action"
+                      onClick={() => onEditRdv(nextRdv)}
+                    >
+                      <Pencil size={14} /> Modifier
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="client-row">

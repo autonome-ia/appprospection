@@ -35,6 +35,7 @@ import { BellRing, Plus, SlidersHorizontal } from 'lucide-react'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { usePoints } from '../hooks/usePoints'
 import type { MapPoint, Profile } from '../domain/types'
+import type { Appointment } from '../domain/appointments'
 import type { FeatureCollection, Point } from 'geojson'
 
 const POINTS_SOURCE = 'points'
@@ -129,8 +130,13 @@ export function MapView({
   const [activeStatus, setActiveStatus] = useState<PointStatus>('absent')
   const [mapLoaded, setMapLoaded] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  // Point pour lequel on saisit un RDV (après avoir posé/marqué "RDV pris").
-  const [rdvPoint, setRdvPoint] = useState<MapPoint | null>(null)
+  // Point pour lequel on saisit un RDV (après avoir posé/marqué "RDV pris"),
+  // avec le RDV « à venir » à ÉDITER le cas échéant (décaler une date sans
+  // créer de doublon — 29/07).
+  const [rdvTarget, setRdvTarget] = useState<{
+    point: MapPoint
+    existing: Appointment | null
+  } | null>(null)
   // Incrémenté à chaque RDV enregistré : le bloc « Rendez-vous » de la fiche
   // (ouverte dessous) se rafraîchit sans rouvrir (audit UX B1).
   const [apptSeq, setApptSeq] = useState(0)
@@ -211,7 +217,7 @@ export function MapView({
   useEffect(() => {
     if (!active) {
       setSelectedId(null)
-      setRdvPoint(null)
+      setRdvTarget(null)
       setPlacing(false)
       setHousePreview(null)
     }
@@ -658,7 +664,8 @@ export function MapView({
       // L'insert peut se confirmer APRÈS un changement d'onglet : ne pas
       // faire surgir le formulaire RDV par-dessus l'Agenda (audit).
       if (!activeRef.current) return
-      if (status === 'rdv_pris' && isSupabaseConfigured) setRdvPoint(created)
+      if (status === 'rdv_pris' && isSupabaseConfigured)
+        setRdvTarget({ point: created, existing: null })
     })
   }
 
@@ -1232,22 +1239,27 @@ export function MapView({
         onUpdate={updatePoint}
         onAddNote={addNote}
         onDelete={removePoint}
-        onRdvNeeded={(p) => isSupabaseConfigured && setRdvPoint(p)}
+        onRdvNeeded={(p, existing) =>
+          isSupabaseConfigured && setRdvTarget({ point: p, existing: existing ?? null })
+        }
         apptsVersion={apptSeq}
       />
 
-      {rdvPoint && profile && (
+      {rdvTarget && profile && (
         <AppointmentForm
           open
-          onOpenChange={(o) => !o && setRdvPoint(null)}
+          onOpenChange={(o) => !o && setRdvTarget(null)}
           profile={profile}
-          pointId={rdvPoint.id}
-          coords={{ lng: rdvPoint.lng, lat: rdvPoint.lat }}
-          pointNote={rdvPoint.note}
-          defaultClientName={rdvPoint.client_name}
-          defaultClientPhone={rdvPoint.client_phone}
+          // Mode ÉDITION quand la fiche a demandé un décalage (« Modifier »
+          // du bloc RDV) — sinon création liée au point, comme avant.
+          existing={rdvTarget.existing ?? undefined}
+          pointId={rdvTarget.point.id}
+          coords={{ lng: rdvTarget.point.lng, lat: rdvTarget.point.lat }}
+          pointNote={rdvTarget.point.note}
+          defaultClientName={rdvTarget.point.client_name}
+          defaultClientPhone={rdvTarget.point.client_phone}
           onSaved={() => {
-            setRdvPoint(null)
+            setRdvTarget(null)
             setApptSeq((s) => s + 1)
           }}
         />
