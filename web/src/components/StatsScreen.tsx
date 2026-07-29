@@ -13,7 +13,7 @@ import {
 } from '../data/stats'
 import { fetchOrgProfiles, updateWeeklyTarget, type OrgProfile } from '../data/profiles'
 import { colorForCommercial } from '../domain/colors'
-import { STATUSES } from '../domain/status'
+import { CLIENT_STATUSES, DISPLAY_STATUSES, isClientStatus } from '../domain/status'
 import { markerDataUrl } from '../config/markers'
 import type { Profile } from '../domain/types'
 
@@ -138,7 +138,14 @@ function Funnel({ s }: { s: CommercialStats }) {
     couleurs SÉMANTIQUES des statuts (couleur = statut, jamais l'accent),
     ordre stable de la palette pour comparer d'une période à l'autre. */
 function StatusBreakdown({ s }: { s: CommercialStats }) {
-  const rows = STATUSES.map((st) => ({ st, v: s.parStatut[st.value] ?? 0 })).filter((r) => r.v > 0)
+  // Une seule ligne « Client » (fusion 29/07) : somme des deux valeurs —
+  // le tunnel garde les VENTES à part (événements `vendu` uniquement).
+  const rows = DISPLAY_STATUSES.map((st) => ({
+    st,
+    v: isClientStatus(st.value)
+      ? CLIENT_STATUSES.reduce((n, v) => n + (s.parStatut[v] ?? 0), 0)
+      : (s.parStatut[st.value] ?? 0),
+  })).filter((r) => r.v > 0)
   const max = Math.max(1, ...rows.map((r) => r.v))
   return (
     <section className="card">

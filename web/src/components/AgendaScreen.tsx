@@ -14,7 +14,7 @@ import { ClientSheet, wazeUrl } from './ClientSheet'
 import { ContactSheet } from './ContactSheet'
 import { ContactForm } from './ContactForm'
 import { APPOINTMENT_STATUS_META, APPOINTMENT_OUTCOMES, type Appointment } from '../domain/appointments'
-import { STATUS_BY_VALUE } from '../domain/status'
+import { STATUS_BY_VALUE, sameDisplayStatus } from '../domain/status'
 import { colorForCommercial } from '../domain/colors'
 import type { MapPoint, Profile } from '../domain/types'
 
@@ -494,7 +494,9 @@ export function AgendaScreen({
       return p.revisit_at ? Date.parse(p.revisit_at) : null
     }
     return contacts
-      .filter((p) => (contactFilter ? p.status === contactFilter : true))
+      // La chip « Client » (valeur ancien_client) matche aussi les points
+      // `vendu` — même statut à l'écran (fusion 29/07).
+      .filter((p) => (contactFilter ? sameDisplayStatus(p.status, contactFilter) : true))
       .filter(
         (p) =>
           !q ||

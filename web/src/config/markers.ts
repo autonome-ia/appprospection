@@ -52,7 +52,8 @@ function drawGlyph(
   ctx.lineJoin = 'round'
   ctx.beginPath()
   switch (status) {
-    case 'vendu': // check ✓
+    case 'vendu': // check ✓ — statut affiché « Client » (fusion 29/07)
+    case 'ancien_client': // même glyphe : un seul statut aux yeux du terrain
       ctx.moveTo(cx - 9, cy + 1)
       ctx.lineTo(cx - 3, cy + 8)
       ctx.lineTo(cx + 10, cy - 8)
@@ -103,22 +104,6 @@ function drawGlyph(
       ctx.moveTo(cx + 4, cy - 9)
       ctx.lineTo(cx + 4, cy - 5)
       ctx.stroke()
-      break
-    }
-    case 'ancien_client': { // étoile ★ (maison-référence : on y a déjà vendu)
-      const spikes = 5
-      const outer = 10
-      const inner = 4.5
-      for (let i = 0; i < spikes * 2; i++) {
-        const angle = (i * Math.PI) / spikes - Math.PI / 2
-        const rad = i % 2 === 0 ? outer : inner
-        const x = cx + Math.cos(angle) * rad
-        const y = cy + Math.sin(angle) * rad
-        if (i === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
-      }
-      ctx.closePath()
-      ctx.fill()
       break
     }
   }

@@ -25,7 +25,12 @@ import { RoofModule } from './RoofModule'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useSession } from '../lib/session'
 import { markerDataUrl } from '../config/markers'
-import { STATUSES, STATUS_BY_VALUE, type PointStatus } from '../domain/status'
+import {
+  DISPLAY_STATUSES,
+  STATUS_BY_VALUE,
+  sameDisplayStatus,
+  type PointStatus,
+} from '../domain/status'
 import type { MapPoint } from '../domain/types'
 
 interface Props {
@@ -640,14 +645,17 @@ export function PointDetailSheet({
             <>
               <p className="eyebrow field-label">Statut</p>
               <div className="chip-row">
-                {STATUSES.map((s) => (
+                {DISPLAY_STATUSES.map((s) => (
                   <button
                     key={s.value}
                     type="button"
-                    className={`chip ${status === s.value ? 'is-active' : ''}`}
+                    className={`chip ${sameDisplayStatus(status, s.value) ? 'is-active' : ''}`}
                     style={{ ['--chip' as string]: s.color }}
                     onClick={() => {
-                      setStatus(s.value)
+                      // Re-taper « Client » sur un point déjà client (vendu
+                      // OU ancien_client) ne réécrit pas la valeur : le
+                      // journal garde vente vs ancien client (fusion 29/07).
+                      setStatus(sameDisplayStatus(status, s.value) ? status : s.value)
                       // « À revoir » sans date ne remonte JAMAIS dans les
                       // relances : J+7 pré-rempli (modifiable) — audit UX A4.
                       if (s.value === 'a_revoir' && !revisitAt) setRevisitAt(dayPlus(7))

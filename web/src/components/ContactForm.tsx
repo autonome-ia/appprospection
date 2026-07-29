@@ -235,8 +235,9 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
             )}
 
             <p className="eyebrow field-label">Statut</p>
-            {/* « Ancien client » (29/07) : ressaisir les maisons déjà vendues
-                depuis le canapé — ni RDV ni relance, juste les coordonnées. */}
+            {/* « Client » (fusion 29/07, valeur `ancien_client` — jamais une
+                vente au tunnel) : ressaisir les maisons déjà vendues depuis
+                le canapé — ni RDV ni relance, juste les coordonnées. */}
             <div className="chip-row">
               {(['rdv_pris', 'a_revoir', 'ancien_client'] as const).map((s) => (
                 <button

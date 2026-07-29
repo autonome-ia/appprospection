@@ -19,7 +19,14 @@ import {
 import { createClusterBadge, type ClusterProps } from '../config/clusters'
 import { PAN_COLORS } from '../domain/colors'
 import { toast } from 'sonner'
-import { STATUSES, STATUS_BY_VALUE, statusColorExpression, type PointStatus } from '../domain/status'
+import {
+  CLIENT_STATUSES,
+  DISPLAY_STATUSES,
+  STATUS_BY_VALUE,
+  isClientStatus,
+  statusColorExpression,
+  type PointStatus,
+} from '../domain/status'
 import { StatusPicker } from './StatusPicker'
 import { PointDetailSheet } from './PointDetailSheet'
 import { HousePreviewSheet } from './HousePreviewSheet'
@@ -639,9 +646,10 @@ export function MapView({
     // un « Absent », ×40-60 par tournée) — le toast sert de filet : Annuler,
     // et « + Note » pour ouvrir la fiche seulement quand on a quelque chose
     // à dire. DEUX exceptions enchaînent d'office : « RDV pris » (formulaire
-    // RDV — un RDV sans date ne sert à rien) et « Ancien client » (fiche du
-    // point sur la section Client — le statut n'a aucun intérêt sans le nom
-    // et la note, retour briac 29/07).
+    // RDV — un RDV sans date ne sert à rien) et « Client » (fiche du point
+    // sur la section Client — le statut n'a aucun intérêt sans le nom et la
+    // note, retour briac 29/07 ; la pose écrit `ancien_client`, jamais
+    // `vendu` — la vente n'arrive que par l'issue RDV).
     const chained = status === 'rdv_pris' || status === 'ancien_client'
     toast.success(`Point posé — ${STATUS_BY_VALUE[status].label}`, {
       cancel: {
@@ -1080,7 +1088,7 @@ export function MapView({
           {filtersOpen && (
           <div className="map-filterbar">
             <div className="map-filterrow">
-              {STATUSES.map((s) => (
+              {DISPLAY_STATUSES.map((s) => (
                 <button
                   key={s.value}
                   type="button"
@@ -1089,8 +1097,12 @@ export function MapView({
                   onClick={() =>
                     setStatusFilter((prev) => {
                       const next = new Set(prev)
-                      if (next.has(s.value)) next.delete(s.value)
-                      else next.add(s.value)
+                      // La chip « Client » couvre les DEUX valeurs (fusion
+                      // 29/07) : vendu et ancien_client entrent/sortent
+                      // ensemble, le test `.has(p.status)` reste trivial.
+                      const vals = isClientStatus(s.value) ? CLIENT_STATUSES : [s.value]
+                      if (next.has(s.value)) vals.forEach((v) => next.delete(v))
+                      else vals.forEach((v) => next.add(v))
                       return next
                     })
                   }

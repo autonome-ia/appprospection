@@ -326,22 +326,23 @@ export async function fetchRevisits(): Promise<MapPoint[]> {
 }
 
 /** Contacts de la vue « Contacts » (agenda, 27/07) : les portes encore en
-    jeu — « RDV pris » (la vente ou l'annulation les fait sortir par le
-    changement de statut du point), « À revoir » (daté ou non) — et les
-    « Anciens clients » (29/07 : le carnet des maisons déjà vendues, sans
-    échéance ils se rangent en fin de liste). Tri par échéance et filtre
-    « chacun ses contacts » (manager : tous) côté écran. */
+    jeu — « RDV pris », « À revoir » (daté ou non) — et les « Clients »
+    (fusion 29/07 : `vendu` ET `ancien_client` — un client reste un contact,
+    SAV/parrainage/référence de rue ; « vendre fait sortir le contact » ne
+    vaut plus, seule l'annulation fait sortir un RDV pris). Sans échéance
+    ils se rangent en fin de liste. Tri par échéance et filtre « chacun ses
+    contacts » (manager : tous) côté écran. */
 export async function fetchContacts(): Promise<MapPoint[]> {
   if (!supabase) return []
   const query = (statuts: string[]) =>
     supabase!.from('points').select(COLS).in('status', statuts)
-  let { data, error } = await query(['rdv_pris', 'a_revoir', 'ancien_client'])
+  let { data, error } = await query(['rdv_pris', 'a_revoir', 'vendu', 'ancien_client'])
   // Migration db/0015 pas encore passée : Postgres rejette la valeur d'enum
   // inconnue et VIDAIT toute la liste (constaté à la sonde du 29/07) — on
   // se replie sur les statuts sûrs plutôt que de casser l'écran.
   if (error && /invalid input value for enum/i.test(error.message)) {
     console.warn('Statut ancien_client absent de la base — exécuter db/0015_ancien_client.sql')
-    ;({ data, error } = await query(['rdv_pris', 'a_revoir']))
+    ;({ data, error } = await query(['rdv_pris', 'a_revoir', 'vendu']))
   }
   if (error) throw error
   return (data ?? []).map(rowToPoint)

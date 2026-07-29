@@ -1,4 +1,4 @@
-import { STATUSES, type PointStatus } from '../domain/status'
+import { DISPLAY_STATUSES, type PointStatus } from '../domain/status'
 import { markerDataUrl } from '../config/markers'
 
 interface Props {
@@ -14,7 +14,7 @@ interface Props {
 export function StatusPicker({ active, onChange }: Props) {
   return (
     <div className="status-picker">
-      {STATUSES.map((s) => (
+      {DISPLAY_STATUSES.map((s) => (
         <button
           key={s.value}
           type="button"
