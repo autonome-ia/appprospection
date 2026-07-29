@@ -58,3 +58,5 @@
 ## I. Mesure de toiture (LiDAR)
 
 26. 🔴 **Pourcentages de chutes** : l'app affiche désormais « surface de commande = mesure + X % de chutes » (10 % base, 15 % ardoise, +5 % si noues — standards US type EagleView). Il nous faut **2-3 factures VENTILÉES** (m² par poste, % de chutes réellement compté) pour caler ces pourcentages sur ta pratique — c'est aussi la clé de l'écart Deschard (−15 % : facturé ≈ géométrique + chutes).
+
+27. 🟡 **Contacts saisis à la main et statistiques** : depuis le 27/07, un contact peut être créé manuellement (bouton « + » de la vue Contacts) — il pose un point et est donc **compté comme une porte frappée** dans les stats. OK si c'est la ressaisie d'une vraie tournée ; à revoir si vous importez d'anciens contacts en masse (on ajouterait alors un marquage pour les exclure du comptage).

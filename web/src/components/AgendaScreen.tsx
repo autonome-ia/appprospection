@@ -12,6 +12,7 @@ import { fetchContacts, fetchRevisits, subscribePoints } from '../data/points'
 import { AppointmentForm } from './AppointmentForm'
 import { ClientSheet, wazeUrl } from './ClientSheet'
 import { ContactSheet } from './ContactSheet'
+import { ContactForm } from './ContactForm'
 import { APPOINTMENT_STATUS_META, APPOINTMENT_OUTCOMES, type Appointment } from '../domain/appointments'
 import { STATUS_BY_VALUE } from '../domain/status'
 import { colorForCommercial } from '../domain/colors'
@@ -335,6 +336,10 @@ export function AgendaScreen({
   // Filtre par statut : null = tous, sinon ne montre que ce statut.
   const [contactFilter, setContactFilter] = useState<'rdv_pris' | 'a_revoir' | null>(null)
   const [clientQuery, setClientQuery] = useState('')
+  // Saisie manuelle (bouton « + ») : formulaire, puis RDV enchaîné si le
+  // contact créé est « RDV pris » (même règle que la pose sur la carte).
+  const [addingContact, setAddingContact] = useState(false)
+  const [rdvForPoint, setRdvForPoint] = useState<MapPoint | null>(null)
   // Agenda PARTAGÉ par défaut (décision chef des ventes, 25/07) : chip
   // « Mes RDV » pour ne voir que les siens.
   const [onlyMine, setOnlyMine] = useState(false)
@@ -548,15 +553,25 @@ export function AgendaScreen({
 
       {view === 'contacts' && (
         <section className="appt-section">
-          <div className="clients-search">
-            <Search size={15} strokeWidth={1.9} />
-            <input
-              className="field-input"
-              type="search"
-              placeholder="Rechercher (nom, adresse)…"
-              value={clientQuery}
-              onChange={(e) => setClientQuery(e.target.value)}
-            />
+          <div className="contacts-bar">
+            <div className="clients-search">
+              <Search size={15} strokeWidth={1.9} />
+              <input
+                className="field-input"
+                type="search"
+                placeholder="Rechercher (nom, adresse)…"
+                value={clientQuery}
+                onChange={(e) => setClientQuery(e.target.value)}
+              />
+            </div>
+            <button
+              type="button"
+              className="contacts-add"
+              aria-label="Nouveau contact"
+              onClick={() => setAddingContact(true)}
+            >
+              <Plus size={20} strokeWidth={2.2} />
+            </button>
           </div>
           {/* Filtre par statut (même patron que la chip « Mes RDV ») :
               re-tap sur la chip active = retour à tous. */}
@@ -777,6 +792,57 @@ export function AgendaScreen({
           nextRdv={nextRdvByPoint[contactOpen.id] ?? null}
           onOpenChange={(o) => !o && setContactOpen(null)}
           onShowOnMap={onShowOnMap}
+        />
+      )}
+
+      {addingContact && (
+        <ContactForm
+          profile={profile}
+          onOpenChange={(o) => !o && setAddingContact(false)}
+          onShowOnMap={onShowOnMap}
+          onCreated={(point, status) => {
+            setAddingContact(false)
+            reload()
+            if (status === 'rdv_pris') {
+              // Même règle que la pose carte : un « RDV pris » sans RDV en
+              // agenda est un trou silencieux — on enchaîne sur le formulaire.
+              setRdvForPoint(point)
+            } else {
+              toast.success('Contact créé', {
+                action: onShowOnMap
+                  ? {
+                      label: 'Voir sur la carte',
+                      onClick: () =>
+                        onShowOnMap({ pointId: point.id, lng: point.lng, lat: point.lat }),
+                    }
+                  : undefined,
+              })
+            }
+          }}
+        />
+      )}
+
+      {rdvForPoint && (
+        <AppointmentForm
+          open
+          onOpenChange={(o) => {
+            if (!o) {
+              // Formulaire balayé sans enregistrer : le point reste « RDV
+              // pris » sans RDV — la fiche du point propose « Planifier ».
+              setRdvForPoint(null)
+              reload()
+            }
+          }}
+          profile={profile}
+          pointId={rdvForPoint.id}
+          coords={{ lng: rdvForPoint.lng, lat: rdvForPoint.lat }}
+          pointNote={rdvForPoint.note}
+          defaultClientName={rdvForPoint.client_name}
+          defaultClientPhone={rdvForPoint.client_phone}
+          onSaved={() => {
+            setRdvForPoint(null)
+            reload()
+          }}
         />
       )}
 

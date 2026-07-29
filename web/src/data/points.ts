@@ -339,6 +339,16 @@ export async function fetchContacts(): Promise<MapPoint[]> {
   return (data ?? []).map(rowToPoint)
 }
 
+/** Garde anti-doublon de la saisie manuelle de contact (27/07) : un point
+    existe-t-il déjà à cette adresse EXACTE (libellé BAN) ? Tous statuts —
+    une maison vendue ou en refus ne doit pas être re-créée en contact. */
+export async function findPointByAddress(label: string): Promise<MapPoint | null> {
+  if (!supabase) return null
+  const { data, error } = await supabase.from('points').select(COLS).eq('address', label).limit(1)
+  if (error) throw error
+  return data?.length ? rowToPoint(data[0] as Record<string, unknown>) : null
+}
+
 /** Une entrée du journal de notes d'une maison (table point_notes). */
 export interface PointNote {
   id: string
