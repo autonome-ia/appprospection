@@ -638,7 +638,11 @@ export function MapView({
     // La fiche ne s'ouvre PLUS après chaque pose (audit UX A1 : 3 taps pour
     // un « Absent », ×40-60 par tournée) — le toast sert de filet : Annuler,
     // et « + Note » pour ouvrir la fiche seulement quand on a quelque chose
-    // à dire. « RDV pris » garde son enchaînement (formulaire RDV).
+    // à dire. DEUX exceptions enchaînent d'office : « RDV pris » (formulaire
+    // RDV — un RDV sans date ne sert à rien) et « Ancien client » (fiche du
+    // point sur la section Client — le statut n'a aucun intérêt sans le nom
+    // et la note, retour briac 29/07).
+    const chained = status === 'rdv_pris' || status === 'ancien_client'
     toast.success(`Point posé — ${STATUS_BY_VALUE[status].label}`, {
       cancel: {
         label: 'Annuler',
@@ -648,16 +652,15 @@ export function MapView({
             toast.error('Annulation impossible — vérifiez le réseau')
           }),
       },
-      action:
-        status === 'rdv_pris'
-          ? undefined
-          : {
-              label: '+ Note',
-              onClick: () =>
-                void saved.then((created) => {
-                  if (created && activeRef.current) setSelectedId(created.id)
-                }),
-            },
+      action: chained
+        ? undefined
+        : {
+            label: '+ Note',
+            onClick: () =>
+              void saved.then((created) => {
+                if (created && activeRef.current) setSelectedId(created.id)
+              }),
+          },
     })
     void saved.then((created) => {
       if (!created) return
@@ -666,6 +669,7 @@ export function MapView({
       if (!activeRef.current) return
       if (status === 'rdv_pris' && isSupabaseConfigured)
         setRdvTarget({ point: created, existing: null })
+      if (status === 'ancien_client') setSelectedId(created.id)
     })
   }
 
