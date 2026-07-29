@@ -5,7 +5,16 @@ import type { Appointment, AppointmentStatus } from '../domain/appointments'
 // `point:points(...)` = jointure PostgREST sur le point lié : contexte
 // terrain (note de la maison) + coordonnées pour « Voir sur la carte ».
 const COLS =
-  'id, point_id, commercial_id, scheduled_at, address, client_name, client_phone, status, notes, point:points(id, lng, lat, notes)'
+  'id, point_id, commercial_id, scheduled_at, address, client_name, client_phone, status, notes, kind, point:points(id, lng, lat, notes)'
+// Migration db/0016 (colonne kind) pas encore passée : repli sans la colonne
+// (tout est alors un RDV) plutôt qu'un agenda cassé — même filet que
+// fetchContacts pour db/0015.
+const COLS_LEGACY = COLS.replace('kind, ', '')
+const missingKind = (msg: string) => /kind/.test(msg) && /column|schema/i.test(msg)
+const warnKind = () =>
+  console.warn('Colonne kind absente — exécuter db/0016_appointment_kind.sql')
+const withKind = (rows: unknown[]): Appointment[] =>
+  (rows as Appointment[]).map((a) => ({ ...a, kind: a.kind ?? 'rdv' }))
 
 export interface NewAppointment {
   point_id?: string | null
@@ -14,6 +23,8 @@ export interface NewAppointment {
   client_name?: string | null
   client_phone?: string | null
   notes?: string | null
+  /** Tâche d'agenda (29/07) : entrée libre sans point ni issues. */
+  kind?: 'rdv' | 'tache'
 }
 
 export async function fetchAppointments(): Promise<Appointment[]> {
@@ -23,10 +34,11 @@ export async function fetchAppointments(): Promise<Appointment[]> {
   // 1 000 RDV (audit) : on pagine, comme fetchPoints.
   const PAGE = 1000
   const all: Appointment[] = []
+  let cols = COLS
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('appointments')
-      .select(COLS)
+      .select(cols)
       // Tie-breaker unique : les RDV sont posés sur des créneaux :00/:30,
       // les ex æquo de scheduled_at sont la norme — sans lui, l'ordre entre
       // égaux change d'une requête à l'autre et un RDV peut être dupliqué
@@ -34,11 +46,21 @@ export async function fetchAppointments(): Promise<Appointment[]> {
       .order('scheduled_at')
       .order('id')
       .range(from, from + PAGE - 1)
+    if (error && missingKind(error.message)) {
+      warnKind()
+      cols = COLS_LEGACY
+      ;({ data, error } = await supabase
+        .from('appointments')
+        .select(cols)
+        .order('scheduled_at')
+        .order('id')
+        .range(from, from + PAGE - 1))
+    }
     if (error) throw error
     const rows = data ?? []
     // Cast via unknown : l'embed `point` est typé tableau par le client (FK
     // inconnu sans types générés) mais PostgREST renvoie un objet (many-to-one).
-    all.push(...(rows as unknown as Appointment[]))
+    all.push(...withKind(rows as unknown[]))
     if (rows.length < PAGE) return all
   }
 }
@@ -47,14 +69,15 @@ export async function fetchAppointments(): Promise<Appointment[]> {
     Triés par date croissante ; un point n'a jamais qu'une poignée de RDV. */
 export async function fetchPointAppointments(pointId: string): Promise<Appointment[]> {
   if (!supabase) return []
-  const { data, error } = await supabase
-    .from('appointments')
-    .select(COLS)
-    .eq('point_id', pointId)
-    .order('scheduled_at')
-    .order('id')
+  const query = (cols: string) =>
+    supabase!.from('appointments').select(cols).eq('point_id', pointId).order('scheduled_at').order('id')
+  let { data, error } = await query(COLS)
+  if (error && missingKind(error.message)) {
+    warnKind()
+    ;({ data, error } = await query(COLS_LEGACY))
+  }
   if (error) throw error
-  return (data ?? []) as unknown as Appointment[]
+  return withKind((data ?? []) as unknown[])
 }
 
 export async function createAppointment(
@@ -62,24 +85,34 @@ export async function createAppointment(
   appt: NewAppointment,
 ): Promise<Appointment> {
   if (!supabase) throw new Error('Supabase non configuré')
-  const { data, error } = await supabase
-    .from('appointments')
-    .insert({
-      organization_id: profile.organization_id,
-      created_by: profile.id,
-      commercial_id: profile.id,
-      point_id: appt.point_id ?? null,
-      scheduled_at: appt.scheduled_at,
-      address: appt.address ?? null,
-      client_name: appt.client_name ?? null,
-      client_phone: appt.client_phone ?? null,
-      notes: appt.notes ?? null,
-      status: 'a_venir',
-    })
-    .select(COLS)
-    .single()
+  const payload = {
+    organization_id: profile.organization_id,
+    created_by: profile.id,
+    commercial_id: profile.id,
+    point_id: appt.point_id ?? null,
+    scheduled_at: appt.scheduled_at,
+    address: appt.address ?? null,
+    client_name: appt.client_name ?? null,
+    client_phone: appt.client_phone ?? null,
+    notes: appt.notes ?? null,
+    status: 'a_venir',
+    // Omise pour un RDV (défaut SQL) : la création de RDV survit à une
+    // base pas encore migrée en 0016 — seule une tâche l'exige.
+    ...(appt.kind === 'tache' ? { kind: 'tache' } : {}),
+  }
+  let { data, error } = await supabase.from('appointments').insert(payload).select(COLS).single()
+  // Base pas migrée (0016) : on rejoue sans la colonne — SAUF pour une
+  // tâche, qui serait silencieusement créée en RDV : l'erreur remonte.
+  if (error && appt.kind !== 'tache' && missingKind(error.message)) {
+    warnKind()
+    ;({ data, error } = await supabase
+      .from('appointments')
+      .insert(payload)
+      .select(COLS_LEGACY)
+      .single())
+  }
   if (error) throw error
-  return data as unknown as Appointment
+  return withKind([data])[0]
 }
 
 export async function updateAppointment(
@@ -87,9 +120,18 @@ export async function updateAppointment(
   changes: Partial<Pick<Appointment, 'scheduled_at' | 'client_name' | 'client_phone' | 'address' | 'notes' | 'status'>>,
 ): Promise<Appointment> {
   if (!supabase) throw new Error('Supabase non configuré')
-  const { data, error } = await supabase.from('appointments').update(changes).eq('id', id).select(COLS).single()
+  let { data, error } = await supabase.from('appointments').update(changes).eq('id', id).select(COLS).single()
+  if (error && missingKind(error.message)) {
+    warnKind()
+    ;({ data, error } = await supabase
+      .from('appointments')
+      .update(changes)
+      .eq('id', id)
+      .select(COLS_LEGACY)
+      .single())
+  }
   if (error) throw error
-  return data as unknown as Appointment
+  return withKind([data])[0]
 }
 
 export async function deleteAppointment(id: string): Promise<void> {

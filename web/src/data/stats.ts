@@ -118,7 +118,15 @@ async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
 
   const [events, appts] = await Promise.all([
     fetchAllRows('point_events', 'author_id, status, occurred_at', 'occurred_at', startISO, endISO),
-    fetchAllRows('appointments', 'commercial_id, status, scheduled_at', 'scheduled_at', startISO, endISO),
+    // `kind` : les TÂCHES d'agenda (db/0016) ne comptent dans aucun taux —
+    // repli sans la colonne si la migration n'est pas passée (tout est RDV).
+    fetchAllRows('appointments', 'commercial_id, status, scheduled_at, kind', 'scheduled_at', startISO, endISO).catch(
+      (e: Error) => {
+        if (!(/kind/.test(e.message) && /column|schema/i.test(e.message))) throw e
+        console.warn('Colonne kind absente — exécuter db/0016_appointment_kind.sql')
+        return fetchAllRows('appointments', 'commercial_id, status, scheduled_at', 'scheduled_at', startISO, endISO)
+      },
+    ),
   ])
 
   const bump = (id: string | null, key: keyof CommercialStats, n = 1) => {
@@ -155,7 +163,8 @@ async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
 
   const now = Date.now()
   for (const ap of appts ?? []) {
-    const a = ap as { commercial_id: string | null; status: string; scheduled_at: string }
+    const a = ap as { commercial_id: string | null; status: string; scheduled_at: string; kind?: string }
+    if (a.kind === 'tache') continue // tâche d'agenda : hors tunnel
     // « Planifiés » = RDV de la période déjà échus OU déjà soldés : un RDV
     // de demain encore « à venir » n'est pas un RDV non honoré. Comme les
     // effectués sont un sous-ensemble des échus, le taux reste ≤ 100 %.

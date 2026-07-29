@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
-import { Plus, Phone, CalendarClock, ChevronLeft, ChevronRight, Navigation, Search, X } from 'lucide-react'
+import {
+  Plus,
+  Phone,
+  CalendarClock,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Navigation,
+  Search,
+  X,
+} from 'lucide-react'
 import {
   fetchAppointments,
   setAppointmentOutcome,
@@ -13,7 +23,12 @@ import { AppointmentForm } from './AppointmentForm'
 import { ClientSheet, wazeUrl } from './ClientSheet'
 import { ContactSheet } from './ContactSheet'
 import { ContactForm } from './ContactForm'
-import { APPOINTMENT_STATUS_META, APPOINTMENT_OUTCOMES, type Appointment } from '../domain/appointments'
+import {
+  APPOINTMENT_STATUS_META,
+  APPOINTMENT_OUTCOMES,
+  type Appointment,
+  type AppointmentKind,
+} from '../domain/appointments'
 import { STATUS_BY_VALUE, sameDisplayStatus } from '../domain/status'
 import { colorForCommercial } from '../domain/colors'
 import type { MapPoint, Profile } from '../domain/types'
@@ -57,6 +72,9 @@ interface CardProps {
 function AppointmentCard({ appt, who, profile, onChanged, onOpenClient }: CardProps) {
   const meta = APPOINTMENT_STATUS_META[appt.status]
   const color = who ? colorForCommercial(who.id, who.color) : '#98a2b3'
+  // Tâche d'agenda (29/07) : sa note est son TITRE, client/adresse en
+  // secondaire, ni issues ni fiche client (le tap ouvre l'édition).
+  const isTache = appt.kind === 'tache'
   // Un appel en vol désactive les boutons : un double tap « Vendu » comptait
   // la vente DEUX fois dans les stats (audit).
   const [busy, setBusy] = useState(false)
@@ -70,7 +88,12 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient }: CardPr
         {/* Tout le bloc lecture est tappable → fiche client (audit UX A6). */}
         <button type="button" className="appt-main" onClick={() => onOpenClient(appt)}>
           <span className="appt-name-row">
-            <span className="appt-name">{appt.client_name ?? appt.address ?? 'Rendez-vous'}</span>
+            {isTache && <ClipboardList size={14} strokeWidth={1.9} className="appt-task-icon" />}
+            <span className="appt-name">
+              {isTache
+                ? (appt.notes ?? 'Tâche')
+                : (appt.client_name ?? appt.address ?? 'Rendez-vous')}
+            </span>
             {/* Le statut ne s'affiche que s'il dit quelque chose : « À venir »
                 sur chaque RDV était du bruit. */}
             {appt.status !== 'a_venir' && (
@@ -82,9 +105,13 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient }: CardPr
             <ChevronRight size={15} strokeWidth={1.9} className="row-chevron" />
           </span>
           {/* Pas de doublon : sans nom client, l'adresse sert déjà de titre. */}
-          {appt.client_name && appt.address && (
-            <span className="appt-addr">{appt.address}</span>
-          )}
+          {isTache
+            ? (appt.client_name || appt.address) && (
+                <span className="appt-addr">
+                  {[appt.client_name, appt.address].filter(Boolean).join(' · ')}
+                </span>
+              )
+            : appt.client_name && appt.address && <span className="appt-addr">{appt.address}</span>}
           {/* Prénom du commercial seulement si ≠ soi (même règle que les
               notes, retour briac 25/07) — la barre porte déjà sa couleur. */}
           {who && who.id !== profile.id && (
@@ -92,8 +119,9 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient }: CardPr
           )}
           {/* Les notes sont LE contexte du commercial : toujours visibles.
               Filet neutre = note du RDV, filet accent = note terrain du
-              point (masquée si elle répète la note du RDV). */}
-          {appt.notes && <span className="appt-quote">{appt.notes}</span>}
+              point (masquée si elle répète la note du RDV). Pour une tâche,
+              la note est déjà le titre. */}
+          {!isTache && appt.notes && <span className="appt-quote">{appt.notes}</span>}
           {appt.point?.notes && appt.point.notes.trim() !== (appt.notes ?? '').trim() && (
             <span className="appt-quote is-context">{appt.point.notes}</span>
           )}
@@ -115,8 +143,9 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient }: CardPr
         )}
 
         {/* Issues visibles seulement le jour venu (audit UX A11) : à J-15, un
-            tap de scroll raté écrivait des stats fausses. */}
-        {appt.status === 'a_venir' && Date.parse(appt.scheduled_at) <= endOfToday() && (
+            tap de scroll raté écrivait des stats fausses. Jamais sur une
+            tâche : Vendu/Effectué/Manqué n'ont pas de sens pour un acompte. */}
+        {!isTache && appt.status === 'a_venir' && Date.parse(appt.scheduled_at) <= endOfToday() && (
           <div className="appt-outcomes">
             {APPOINTMENT_OUTCOMES.map((o) => {
               const m = APPOINTMENT_STATUS_META[o]
@@ -214,6 +243,8 @@ interface DaySheetProps {
   onOpenClient: (a: Appointment) => void
   onShowOnMap?: (target: { pointId: string; lng: number; lat: number }) => void
   onCreate: () => void
+  /** Tâche libre pré-datée sur ce jour (29/07) : acompte, panneau… */
+  onCreateTask: () => void
 }
 
 function DaySheet({
@@ -227,6 +258,7 @@ function DaySheet({
   onOpenClient,
   onShowOnMap,
   onCreate,
+  onCreateTask,
 }: DaySheetProps) {
   const dayLabel = capitalize(
     new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(date),
@@ -297,6 +329,11 @@ function DaySheet({
             )}
 
             <div className="drawer-footer">
+              {/* Tâche libre (29/07, demande chef des ventes) : même jour,
+                  même formulaire — la note devient le titre, hors stats. */}
+              <button type="button" className="btn btn-ghost" onClick={onCreateTask}>
+                <ClipboardList size={15} strokeWidth={1.9} /> Tâche
+              </button>
               <button type="button" className="btn btn-primary" onClick={onCreate}>
                 <Plus size={15} strokeWidth={2.2} /> RDV ce jour
               </button>
@@ -319,8 +356,8 @@ export function AgendaScreen({
   const [revisits, setRevisits] = useState<MapPoint[]>([])
   const [profiles, setProfiles] = useState<OrgProfile[]>([])
   // Création : depuis l'en-tête (heure par défaut) ou depuis la sheet du jour
-  // (pré-datée sur ce jour).
-  const [creating, setCreating] = useState<{ at: Date | null } | null>(null)
+  // (pré-datée sur ce jour). `kind` : RDV ou tâche libre (29/07).
+  const [creating, setCreating] = useState<{ at: Date | null; kind?: AppointmentKind } | null>(null)
   const [editing, setEditing] = useState<Appointment | null>(null)
   const [monthDate, setMonthDate] = useState(() => startOfMonth(new Date()))
   // Jour ouvert en sheet (refonte 26/07 : le mois plein écran est la vue,
@@ -700,7 +737,11 @@ export function AgendaScreen({
               // un agenda partagé, « qui a ce RDV » prime — le statut se lit
               // dans le planning du jour. Ambre = maison à revoir.
               ...dayAppts.map((a) => ({
-                label: a.client_name ?? a.address ?? 'RDV',
+                // Tâche : l'objet (« récupérer l'acompte ») EST le titre.
+                label:
+                  a.kind === 'tache'
+                    ? (a.notes ?? 'Tâche')
+                    : (a.client_name ?? a.address ?? 'RDV'),
                 color: a.commercial_id
                   ? colorForCommercial(a.commercial_id, whoById[a.commercial_id]?.color)
                   : '#98a2b3',
@@ -755,7 +796,9 @@ export function AgendaScreen({
           onChanged={reload}
           onOpenClient={(a) => {
             setDaySheet(null)
-            setClientAppt(a)
+            // Une tâche n'a pas de fiche client : le tap ouvre l'édition.
+            if (a.kind === 'tache') setEditing(a)
+            else setClientAppt(a)
           }}
           onShowOnMap={
             onShowOnMap
@@ -770,6 +813,12 @@ export function AgendaScreen({
             at.setHours(9, 0, 0, 0)
             setDaySheet(null)
             setCreating({ at })
+          }}
+          onCreateTask={() => {
+            const at = new Date(daySheet)
+            at.setHours(9, 0, 0, 0)
+            setDaySheet(null)
+            setCreating({ at, kind: 'tache' })
           }}
         />
       )}
@@ -822,6 +871,7 @@ export function AgendaScreen({
           onOpenChange={(o) => !o && setCreating(null)}
           profile={profile}
           defaultAt={creating.at}
+          kind={creating.kind}
           onSaved={() => {
             setCreating(null)
             reload()

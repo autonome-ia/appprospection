@@ -7,6 +7,7 @@ import {
   ChevronRight,
   BellRing,
   CalendarClock,
+  ClipboardList,
   Phone,
   Settings,
   X,
@@ -220,7 +221,11 @@ export function AccueilScreen({
               <span className="today-cap">{isManager ? 'portes équipe' : 'portes toquées'}</span>
             </div>
             <div className="today-figure">
-              <span className="today-num tnum">{todayAppts.length}</span>
+              {/* Les tâches d'agenda (29/07) restent dans la LISTE du jour
+                  mais hors compteur : « RDV du jour » = des vrais RDV. */}
+              <span className="today-num tnum">
+                {todayAppts.filter((a) => a.kind !== 'tache').length}
+              </span>
               <span className="today-cap">RDV du jour</span>
             </div>
             <div className="today-figure">
@@ -263,22 +268,40 @@ export function AccueilScreen({
                 : '.'}
             </p>
           ) : (
-            todayAppts.map((a) => (
-              <button key={a.id} type="button" className="home-row" onClick={() => setClientAppt(a)}>
-                <span
-                  className="status-dot"
-                  style={{ background: APPOINTMENT_STATUS_META[a.status].color }}
-                />
-                <span className="rdv-row-time tnum">{fmtTime(a.scheduled_at)}</span>
-                <span className="home-row-main">
-                  <span className="home-row-title">{a.client_name ?? a.address ?? 'RDV'}</span>
-                  {a.client_name && a.address && (
-                    <span className="home-row-sub">{a.address}</span>
-                  )}
-                </span>
-                <ChevronRight size={15} strokeWidth={1.9} className="row-chevron" />
-              </button>
-            ))
+            todayAppts.map((a) =>
+              a.kind === 'tache' ? (
+                // Tâche : l'objet est le titre, tap → édition (pas de fiche
+                // client) — même règle que la sheet du jour de l'agenda.
+                <button key={a.id} type="button" className="home-row" onClick={() => setEditing(a)}>
+                  <ClipboardList size={15} strokeWidth={1.9} className="appt-task-icon" />
+                  <span className="rdv-row-time tnum">{fmtTime(a.scheduled_at)}</span>
+                  <span className="home-row-main">
+                    <span className="home-row-title">{a.notes ?? 'Tâche'}</span>
+                    {(a.client_name || a.address) && (
+                      <span className="home-row-sub">
+                        {[a.client_name, a.address].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
+                  </span>
+                  <ChevronRight size={15} strokeWidth={1.9} className="row-chevron" />
+                </button>
+              ) : (
+                <button key={a.id} type="button" className="home-row" onClick={() => setClientAppt(a)}>
+                  <span
+                    className="status-dot"
+                    style={{ background: APPOINTMENT_STATUS_META[a.status].color }}
+                  />
+                  <span className="rdv-row-time tnum">{fmtTime(a.scheduled_at)}</span>
+                  <span className="home-row-main">
+                    <span className="home-row-title">{a.client_name ?? a.address ?? 'RDV'}</span>
+                    {a.client_name && a.address && (
+                      <span className="home-row-sub">{a.address}</span>
+                    )}
+                  </span>
+                  <ChevronRight size={15} strokeWidth={1.9} className="row-chevron" />
+                </button>
+              ),
+            )
           )}
         </motion.section>
       )}

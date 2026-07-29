@@ -91,7 +91,9 @@ DA **« Encre & signal »** (choisie par briac le 26/07/2026 sur prototypes comp
 ## Architecture data (rappel)
 - `points` = état **actuel** d'une maison (ce qu'on affiche sur la carte).
 - `point_events` = **journal horodaté** de chaque visite → **source des statistiques**.
-- `appointments` = agenda partagé (RDV). Poser/éditer un statut écrit dans **points ET point_events**.
+- `appointments` = agenda partagé : **RDV et tâches libres** (colonne `kind`, db/0016 — une tâche
+  « aller chercher l'acompte » n'a ni point, ni issues, et ne compte dans AUCUNE stat ; sa note est
+  son titre). Poser/éditer un statut écrit dans **points ET point_events**.
 - Un RDV marqué « Vendu » rebascule le point en `vendu`.
 
 ## État actuel

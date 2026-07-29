@@ -1,5 +1,10 @@
 export type AppointmentStatus = 'a_venir' | 'effectue' | 'vendu' | 'manque' | 'annule'
 
+/** Nature de l'entrée d'agenda (db/0016) : RDV de prospection, ou TÂCHE
+    libre (« aller chercher l'acompte ») — datée, sans point sur la carte,
+    sans issues, exclue des stats. Sa note est son titre. */
+export type AppointmentKind = 'rdv' | 'tache'
+
 export interface Appointment {
   id: string
   point_id: string | null
@@ -10,6 +15,7 @@ export interface Appointment {
   client_phone: string | null
   status: AppointmentStatus
   notes: string | null
+  kind: AppointmentKind
   /** Point lié (jointure PostgREST) : contexte terrain + accès carte. */
   point: { id: string; lng: number; lat: number; notes: string | null } | null
 }

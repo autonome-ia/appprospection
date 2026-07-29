@@ -674,6 +674,12 @@
   align-items: center;
   gap: 8px;
 }
+/* Tâche d'agenda (29/07) : petit marqueur « liste » devant l'objet — la
+   barre garde la couleur du commercial, l'icône dit « pas un RDV client ». */
+.appt-task-icon {
+  flex: 0 0 auto;
+  color: var(--ink-3);
+}
 .appt-name {
   flex: 1;
   min-width: 0;

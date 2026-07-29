@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
-import { MapPin, X } from 'lucide-react'
-import { createAppointment, updateAppointment } from '../data/appointments'
+import { MapPin, Trash2, X } from 'lucide-react'
+import { createAppointment, deleteAppointment, updateAppointment } from '../data/appointments'
 import { addPointNote, syncPointClient } from '../data/points'
 import { searchAddresses, type AddressResult } from './AddressSearch'
-import type { Appointment } from '../domain/appointments'
+import type { Appointment, AppointmentKind } from '../domain/appointments'
 import type { Profile } from '../domain/types'
 
 interface Props {
@@ -24,6 +24,10 @@ interface Props {
   defaultClientPhone?: string | null
   /** Date/heure proposée à la création (sheet du jour : RDV pré-daté). */
   defaultAt?: Date | null
+  /** Tâche d'agenda (29/07) : la note devient le titre (« quoi faire »),
+      client/adresse facultatifs, ni point ni issues, hors stats. En
+      édition, la nature vient de `existing.kind`. */
+  kind?: AppointmentKind
   onSaved: () => void
 }
 
@@ -58,8 +62,10 @@ export function AppointmentForm({
   defaultClientName,
   defaultClientPhone,
   defaultAt,
+  kind = 'rdv',
   onSaved,
 }: Props) {
+  const isTache = (existing?.kind ?? kind) === 'tache'
   const init = existing ? new Date(existing.scheduled_at) : (defaultAt ?? defaultDate())
   const [dateStr, setDateStr] = useState(toDateInput(init))
   const [timeStr, setTimeStr] = useState(toTimeInput(init))
@@ -75,6 +81,11 @@ export function AppointmentForm({
   const [addrFocus, setAddrFocus] = useState(false)
   const [addrResults, setAddrResults] = useState<AddressResult[]>([])
   const [addrOpen, setAddrOpen] = useState(false)
+  // Suppression d'une TÂCHE : elle n'a pas de fiche client (où vit le
+  // « Supprimer le RDV ») — le lien danger 2 taps vit donc dans l'édition.
+  const [confirmDel, setConfirmDel] = useState(false)
+  const canDelete =
+    isTache && !!existing && (profile.role === 'manager' || existing.commercial_id === profile.id)
 
   useEffect(() => {
     if (!addrFocus) return
@@ -147,7 +158,12 @@ export function AppointmentForm({
         if (payload.notes !== (existing.notes ?? null)) changes.notes = payload.notes
         if (Object.keys(changes).length) await updateAppointment(existing.id, changes)
       } else {
-        await createAppointment(profile, { point_id: pointId ?? null, scheduled_at, ...payload })
+        await createAppointment(profile, {
+          point_id: pointId ?? null,
+          scheduled_at,
+          ...payload,
+          ...(isTache ? { kind: 'tache' as const } : {}),
+        })
       }
       // Le point lié hérite du contexte saisi ici (fiche maison cohérente) :
       // nom du client synchronisé, note du RDV ajoutée au journal de la
@@ -179,10 +195,12 @@ export function AppointmentForm({
       }
       onOpenChange(false)
       onSaved()
-      toast.success(existing ? 'RDV modifié' : 'RDV enregistré')
+      toast.success(
+        isTache ? (existing ? 'Tâche modifiée' : 'Tâche enregistrée') : existing ? 'RDV modifié' : 'RDV enregistré',
+      )
     } catch (e) {
       console.error('Enregistrement RDV :', e)
-      toast.error('Erreur lors de l’enregistrement du RDV')
+      toast.error(isTache ? 'Erreur lors de l’enregistrement de la tâche' : 'Erreur lors de l’enregistrement du RDV')
     } finally {
       setSaving(false)
     }
@@ -197,13 +215,35 @@ export function AppointmentForm({
           <div className="drawer-grip" />
 
           <div className="drawer-header">
-            <span className="drawer-title">{existing ? 'Modifier le RDV' : 'Nouveau rendez-vous'}</span>
+            <span className="drawer-title">
+              {isTache
+                ? existing
+                  ? 'Modifier la tâche'
+                  : 'Nouvelle tâche'
+                : existing
+                  ? 'Modifier le RDV'
+                  : 'Nouveau rendez-vous'}
+            </span>
             <button type="button" className="icon-btn" onClick={() => onOpenChange(false)} aria-label="Fermer">
               <X size={18} />
             </button>
           </div>
 
           <div className="drawer-body" data-vaul-no-drag>
+          {/* Tâche : la note EST le titre — elle ouvre le formulaire et
+              s'affiche en gras dans l'agenda. */}
+          {isTache && (
+            <>
+              <p className="eyebrow field-label">Quoi faire</p>
+              <textarea
+                className="field-input"
+                rows={2}
+                placeholder="Ex : aller chercher l’acompte, récupérer le panneau…"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </>
+          )}
           {/* Les presets « Demain / Après-demain / Samedi » (A15) ont été
               RETIRÉS (décision briac 25/07) : de la place pour rien — la
               roue iOS suffit. */}
@@ -242,7 +282,7 @@ export function AppointmentForm({
               <input
                 className="field-input"
                 type="text"
-                placeholder="Nom"
+                placeholder={isTache ? 'Nom (facultatif)' : 'Nom'}
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
               />
@@ -303,20 +343,59 @@ export function AppointmentForm({
             </>
           )}
 
-          <p className="eyebrow field-label">Note du RDV</p>
-          <textarea
-            className="field-input"
-            rows={2}
-            placeholder="Ex : sonner 2 fois, passer par l’arrière, devis à préparer…"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
+          {!isTache && (
+            <>
+              <p className="eyebrow field-label">Note du RDV</p>
+              <textarea
+                className="field-input"
+                rows={2}
+                placeholder="Ex : sonner 2 fois, passer par l’arrière, devis à préparer…"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </>
+          )}
+
+          {canDelete && (
+            <button
+              type="button"
+              className="text-btn danger drawer-delete"
+              disabled={saving}
+              onClick={async () => {
+                if (!confirmDel) {
+                  setConfirmDel(true)
+                  window.setTimeout(() => setConfirmDel(false), 4000)
+                  return
+                }
+                setSaving(true)
+                try {
+                  await deleteAppointment(existing!.id)
+                  toast('Tâche supprimée')
+                  onOpenChange(false)
+                  onSaved()
+                } catch (e) {
+                  console.error('Suppression de la tâche :', e)
+                  toast.error('Suppression impossible — vérifiez le réseau')
+                } finally {
+                  setSaving(false)
+                }
+              }}
+            >
+              <Trash2 size={14} strokeWidth={1.8} />{' '}
+              {confirmDel ? 'Confirmer la suppression ?' : 'Supprimer la tâche'}
+            </button>
+          )}
 
           <div className="drawer-footer">
             <button type="button" className="btn btn-ghost" onClick={() => onOpenChange(false)} disabled={saving}>
               Annuler
             </button>
-            <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={save}
+              disabled={saving || (isTache && !notes.trim())}
+            >
               {saving ? 'Enregistrement…' : 'Enregistrer'}
             </button>
           </div>
