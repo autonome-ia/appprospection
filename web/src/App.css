@@ -889,6 +889,17 @@
 .agenda-mine {
   margin: 0 2px 10px;
 }
+/* « + Tâche » en 1 tap depuis le mois (29/07) : action → accent (jamais
+   pour de la donnée), poussé à droite de la chip « Mes RDV ». */
+.agenda-add-task {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+  border-color: var(--accent-ring);
+  font-weight: 600;
+}
 .cal-today {
   color: var(--accent);
   font-weight: 600;

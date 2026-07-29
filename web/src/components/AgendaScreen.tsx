@@ -715,6 +715,15 @@ export function AgendaScreen({
           >
             Mes RDV
           </button>
+          {/* Tâche en 1 tap depuis le mois (retour briac 29/07) : sans passer
+              par un jour — le formulaire propose la prochaine heure ronde. */}
+          <button
+            type="button"
+            className="chip agenda-add-task"
+            onClick={() => setCreating({ at: null, kind: 'tache' })}
+          >
+            <Plus size={14} strokeWidth={2.2} /> Tâche
+          </button>
         </div>
 
         <div className="cal-weekdays">
