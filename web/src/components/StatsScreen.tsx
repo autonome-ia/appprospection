@@ -14,6 +14,7 @@ import {
 import { fetchOrgProfiles, updateWeeklyTarget, type OrgProfile } from '../data/profiles'
 import { colorForCommercial } from '../domain/colors'
 import { STATUSES } from '../domain/status'
+import { markerDataUrl } from '../config/markers'
 import type { Profile } from '../domain/types'
 
 const PERIODS: { value: Period; label: string }[] = [
@@ -149,7 +150,9 @@ function StatusBreakdown({ s }: { s: CommercialStats }) {
           {rows.map(({ st, v }) => (
             <div key={st.value} className="statmix-row">
               <span className="statmix-label">
-                <span className="status-dot" style={{ background: st.color }} />
+                {/* Le VRAI marqueur, pas un rond plat (retour briac 29/07 —
+                    même convention que les chips de statut et les filtres). */}
+                <img className="chip-marker" src={markerDataUrl(st.value)} alt="" />
                 {st.label}
               </span>
               <div className="statmix-track">
