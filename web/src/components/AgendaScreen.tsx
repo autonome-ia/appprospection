@@ -336,10 +336,9 @@ export function AgendaScreen({
   // Filtre par statut : null = tous, sinon ne montre que ce statut.
   const [contactFilter, setContactFilter] = useState<'rdv_pris' | 'a_revoir' | null>(null)
   const [clientQuery, setClientQuery] = useState('')
-  // Saisie manuelle (bouton « + ») : formulaire, puis RDV enchaîné si le
-  // contact créé est « RDV pris » (même règle que la pose sur la carte).
+  // Saisie manuelle (bouton « + ») : le formulaire crée point ET RDV en une
+  // fois (retour briac 27/07 : plus de second modal qui redemandait tout).
   const [addingContact, setAddingContact] = useState(false)
-  const [rdvForPoint, setRdvForPoint] = useState<MapPoint | null>(null)
   // Agenda PARTAGÉ par défaut (décision chef des ventes, 25/07) : chip
   // « Mes RDV » pour ne voir que les siens.
   const [onlyMine, setOnlyMine] = useState(false)
@@ -800,47 +799,8 @@ export function AgendaScreen({
           profile={profile}
           onOpenChange={(o) => !o && setAddingContact(false)}
           onShowOnMap={onShowOnMap}
-          onCreated={(point, status) => {
+          onCreated={() => {
             setAddingContact(false)
-            reload()
-            if (status === 'rdv_pris') {
-              // Même règle que la pose carte : un « RDV pris » sans RDV en
-              // agenda est un trou silencieux — on enchaîne sur le formulaire.
-              setRdvForPoint(point)
-            } else {
-              toast.success('Contact créé', {
-                action: onShowOnMap
-                  ? {
-                      label: 'Voir sur la carte',
-                      onClick: () =>
-                        onShowOnMap({ pointId: point.id, lng: point.lng, lat: point.lat }),
-                    }
-                  : undefined,
-              })
-            }
-          }}
-        />
-      )}
-
-      {rdvForPoint && (
-        <AppointmentForm
-          open
-          onOpenChange={(o) => {
-            if (!o) {
-              // Formulaire balayé sans enregistrer : le point reste « RDV
-              // pris » sans RDV — la fiche du point propose « Planifier ».
-              setRdvForPoint(null)
-              reload()
-            }
-          }}
-          profile={profile}
-          pointId={rdvForPoint.id}
-          coords={{ lng: rdvForPoint.lng, lat: rdvForPoint.lat }}
-          pointNote={rdvForPoint.note}
-          defaultClientName={rdvForPoint.client_name}
-          defaultClientPhone={rdvForPoint.client_phone}
-          onSaved={() => {
-            setRdvForPoint(null)
             reload()
           }}
         />

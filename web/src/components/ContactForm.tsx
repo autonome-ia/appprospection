@@ -3,7 +3,9 @@ import { Drawer } from 'vaul'
 import { toast } from 'sonner'
 import { MapPin, X } from 'lucide-react'
 import { searchAddresses, type AddressResult } from './AddressSearch'
+import { TIME_SLOTS } from './AppointmentForm'
 import { findPointByAddress, insertPoint, updatePoint } from '../data/points'
+import { createAppointment } from '../data/appointments'
 import { STATUS_BY_VALUE } from '../domain/status'
 import { markerDataUrl } from '../config/markers'
 import type { MapPoint, Profile } from '../domain/types'
@@ -20,18 +22,29 @@ import type { MapPoint, Profile } from '../domain/types'
 interface Props {
   profile: Profile
   onOpenChange: (open: boolean) => void
-  /** Point créé — le parent recharge, ferme, et enchaîne (RDV si RDV pris). */
-  onCreated: (point: MapPoint, status: 'rdv_pris' | 'a_revoir') => void
+  /** Point créé (RDV éventuel compris) — le parent recharge et ferme. */
+  onCreated: (point: MapPoint) => void
   /** « Voir » le point existant quand l'adresse est déjà prise. */
   onShowOnMap?: (target: { pointId: string; lng: number; lat: number }) => void
 }
 
 const pad = (n: number) => String(n).padStart(2, '0')
+const toDateInput = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 /** J+7 par défaut pour la relance (même convention que la fiche point). */
 function defaultRevisit(): string {
   const d = new Date()
   d.setDate(d.getDate() + 7)
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  return toDateInput(d)
+}
+/** Défaut du RDV : prochaine heure pile — repli 09:00 du lendemain quand la
+    prochaine heure sort des créneaux (soirée). */
+function defaultRdv(): { date: string; time: string } {
+  const d = new Date()
+  d.setHours(d.getHours() + 1, 0, 0, 0)
+  const time = `${pad(d.getHours())}:00`
+  if (TIME_SLOTS.includes(time)) return { date: toDateInput(d), time }
+  d.setDate(d.getDate() + 1)
+  return { date: toDateInput(d), time: '09:00' }
 }
 
 export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: Props) {
@@ -40,6 +53,9 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
   const [phone, setPhone] = useState('')
   const [note, setNote] = useState('')
   const [revisitAt, setRevisitAt] = useState(defaultRevisit)
+  const [rdvDefaults] = useState(defaultRdv)
+  const [rdvDate, setRdvDate] = useState(rdvDefaults.date)
+  const [rdvTime, setRdvTime] = useState(rdvDefaults.time)
   // Adresse : le texte ET la suggestion BAN choisie (les coordonnées) — toute
   // retouche du texte invalide le choix, sans coordonnées on ne crée rien.
   const [address, setAddress] = useState('')
@@ -116,10 +132,39 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
         console.error('Infos client du contact :', e)
         toast.error('Contact créé, mais infos client non enregistrées — complétez sa fiche')
       }
-      onCreated(
-        { ...point, client_name: name.trim() || null, client_phone: phone.trim() || null },
-        status,
-      )
+      // RDV créé DANS LE MÊME formulaire (retour briac 27/07 : le second
+      // modal redemandait ce qui venait d'être saisi). La note reste sur le
+      // point (note terrain) : l'agenda l'affiche déjà en contexte.
+      let rdvOk = true
+      if (status === 'rdv_pris') {
+        try {
+          await createAppointment(profile, {
+            point_id: point.id,
+            scheduled_at: new Date(`${rdvDate}T${rdvTime}`).toISOString(),
+            address: chosen.label,
+            client_name: name.trim() || null,
+            client_phone: phone.trim() || null,
+            notes: null,
+          })
+        } catch (e) {
+          rdvOk = false
+          console.error('RDV du contact :', e)
+          // Filet existant : la fiche d'un « RDV pris » sans RDV propose
+          // « Planifier » — le trou n'est pas silencieux.
+          toast.error('Contact créé, mais RDV non enregistré — ouvrez sa fiche pour planifier')
+        }
+      }
+      if (status !== 'rdv_pris' || rdvOk) {
+        toast.success(status === 'rdv_pris' ? 'Contact créé, RDV à l’agenda' : 'Contact créé', {
+          action: onShowOnMap
+            ? {
+                label: 'Voir sur la carte',
+                onClick: () => onShowOnMap({ pointId: point.id, lng: point.lng, lat: point.lat }),
+              }
+            : undefined,
+        })
+      }
+      onCreated({ ...point, client_name: name.trim() || null, client_phone: phone.trim() || null })
     } catch (e) {
       console.error('Création du contact :', e)
       toast.error('Création impossible — vérifiez le réseau')
@@ -240,6 +285,34 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
               </>
             )}
 
+            {status === 'rdv_pris' && (
+              <div className="field-grid">
+                <div>
+                  <p className="eyebrow field-label">RDV le</p>
+                  <input
+                    className="field-input"
+                    type="date"
+                    value={rdvDate}
+                    onChange={(e) => setRdvDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <p className="eyebrow field-label">Heure</p>
+                  <select
+                    className="field-input"
+                    value={rdvTime}
+                    onChange={(e) => setRdvTime(e.target.value)}
+                  >
+                    {TIME_SLOTS.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
             <p className="eyebrow field-label">Note</p>
             <textarea
               className="field-input"
@@ -256,7 +329,9 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
               <button
                 type="button"
                 className="btn btn-primary"
-                disabled={!chosen || saving}
+                // Date de RDV vidée à la main : sans elle le RDV serait
+                // invalide — on verrouille plutôt que d'échouer à moitié.
+                disabled={!chosen || saving || (status === 'rdv_pris' && !rdvDate)}
                 onClick={() => void save()}
               >
                 {saving ? 'Création…' : 'Créer le contact'}

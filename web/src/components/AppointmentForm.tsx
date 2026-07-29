@@ -40,7 +40,8 @@ function defaultDate(): Date {
 // Les RDV se prennent à l'heure pile ou à la demi-heure : un sélecteur de
 // CRÉNEAUX (7 h → 21 h) remplace la roue des minutes du datetime-local natif
 // (interminable au doigt, et iOS ignore l'attribut step). Un seul tap.
-const TIME_SLOTS: string[] = []
+// Exporté : le formulaire « Nouveau contact » propose les mêmes créneaux.
+export const TIME_SLOTS: string[] = []
 for (let h = 7; h <= 21; h++) {
   TIME_SLOTS.push(`${pad(h)}:00`)
   if (h < 21) TIME_SLOTS.push(`${pad(h)}:30`)
