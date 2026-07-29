@@ -519,7 +519,10 @@ export function PointDetailSheet({
             )}
           {/* Client d'abord (réorganisation briac 25/07) : le contexte —
               client puis maison — avant les actions d'édition. */}
-          {(status === 'a_revoir' || status === 'rdv_pris' || status === 'vendu') && (
+          {(status === 'a_revoir' ||
+            status === 'rdv_pris' ||
+            status === 'vendu' ||
+            status === 'ancien_client') && (
             <>
               <div className="field-label-row">
                 <p className="eyebrow field-label">Client</p>

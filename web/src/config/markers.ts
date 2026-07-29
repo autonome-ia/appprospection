@@ -105,6 +105,22 @@ function drawGlyph(
       ctx.stroke()
       break
     }
+    case 'ancien_client': { // étoile ★ (maison-référence : on y a déjà vendu)
+      const spikes = 5
+      const outer = 10
+      const inner = 4.5
+      for (let i = 0; i < spikes * 2; i++) {
+        const angle = (i * Math.PI) / spikes - Math.PI / 2
+        const rad = i % 2 === 0 ? outer : inner
+        const x = cx + Math.cos(angle) * rad
+        const y = cy + Math.sin(angle) * rad
+        if (i === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+      }
+      ctx.closePath()
+      ctx.fill()
+      break
+    }
   }
 }
 

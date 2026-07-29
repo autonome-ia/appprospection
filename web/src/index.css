@@ -35,6 +35,7 @@
   --st-hors-cible: #6d4fa1;
   --st-rdv: #2f6bff;
   --st-vendu: #17b26a;
+  --st-ancien-client: #0e9384; /* teal, à distance du vert « Vendu » */
 
   /* Sémantique */
   --danger: #e5484d;

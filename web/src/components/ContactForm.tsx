@@ -48,7 +48,7 @@ function defaultRdv(): { date: string; time: string } {
 }
 
 export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: Props) {
-  const [status, setStatus] = useState<'rdv_pris' | 'a_revoir'>('rdv_pris')
+  const [status, setStatus] = useState<'rdv_pris' | 'a_revoir' | 'ancien_client'>('rdv_pris')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [note, setNote] = useState('')
@@ -235,8 +235,10 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
             )}
 
             <p className="eyebrow field-label">Statut</p>
+            {/* « Ancien client » (29/07) : ressaisir les maisons déjà vendues
+                depuis le canapé — ni RDV ni relance, juste les coordonnées. */}
             <div className="chip-row">
-              {(['rdv_pris', 'a_revoir'] as const).map((s) => (
+              {(['rdv_pris', 'a_revoir', 'ancien_client'] as const).map((s) => (
                 <button
                   key={s}
                   type="button"

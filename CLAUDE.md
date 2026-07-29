@@ -48,7 +48,7 @@ Workflow type : coder → `npm run build` (vérifie) → commit → `git push` �
 
 ## Décisions actées (ne pas re-débattre)
 - **Multi-tenant** dès le départ (`organization_id` + RLS), MAIS pas d'inscription publique ni facturation au MVP.
-- **5 statuts figés** : `absent`, `a_revoir`, `impossible`, `rdv_pris`, `vendu`.
+- **7 statuts** : `absent`, `a_revoir`, `impossible` (libellé « Refus »), `hors_cible` (25/07), `rdv_pris`, `vendu`, `ancien_client` (29/07, teal ★ — maison déjà vendue avant la prospection, jamais compté comme vente). Ajouter un statut = migration enum (modèle `db/0013`/`0015`) + `domain/status.ts` + glyphe `config/markers.ts` + token `--st-*` (index.css), le reste suit.
 - **Pas de mode hors-ligne** (réseau supposé sur le terrain).
 - **Pas de vue rue / Street View** : testé puis abandonné (Mapillary trop juste en pavillonnaire ;
   3D photoréaliste Google bloquée pour les entités françaises).

@@ -334,7 +334,9 @@ export function AgendaScreen({
   const [contacts, setContacts] = useState<MapPoint[]>([])
   const [contactOpen, setContactOpen] = useState<MapPoint | null>(null)
   // Filtre par statut : null = tous, sinon ne montre que ce statut.
-  const [contactFilter, setContactFilter] = useState<'rdv_pris' | 'a_revoir' | null>(null)
+  const [contactFilter, setContactFilter] = useState<
+    'rdv_pris' | 'a_revoir' | 'ancien_client' | null
+  >(null)
   const [clientQuery, setClientQuery] = useState('')
   // Saisie manuelle (bouton « + ») : le formulaire crée point ET RDV en une
   // fois (retour briac 27/07 : plus de second modal qui redemandait tout).
@@ -575,7 +577,7 @@ export function AgendaScreen({
           {/* Filtre par statut (même patron que la chip « Mes RDV ») :
               re-tap sur la chip active = retour à tous. */}
           <div className="chip-row contacts-filter">
-            {(['rdv_pris', 'a_revoir'] as const).map((s) => (
+            {(['rdv_pris', 'a_revoir', 'ancien_client'] as const).map((s) => (
               <button
                 key={s}
                 type="button"

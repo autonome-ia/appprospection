@@ -1,6 +1,6 @@
 // Statuts d'un point de prospection (voir docs/SPEC.md §5).
 // Les valeurs correspondent exactement au type SQL `point_status`
-// (db/schema.sql + migration db/0013 pour hors_cible).
+// (db/schema.sql + migrations db/0013 hors_cible, db/0015 ancien_client).
 // « Refus » est le LIBELLÉ de la valeur SQL `impossible` (renommage métier
 // 25/07/2026 — la valeur en base ne change pas, historique intact).
 
@@ -11,6 +11,7 @@ export type PointStatus =
   | 'hors_cible'
   | 'rdv_pris'
   | 'vendu'
+  | 'ancien_client'
 
 export interface StatusMeta {
   value: PointStatus
@@ -30,6 +31,9 @@ export const STATUSES: StatusMeta[] = [
   { value: 'hors_cible', label: 'Hors cible', color: '#6d4fa1', description: 'Pas notre cible (locataire…)' },
   { value: 'rdv_pris', label: 'RDV pris', color: '#2f6bff', description: 'Rendez-vous obtenu' },
   { value: 'vendu', label: 'Vendu', color: '#17b26a', description: 'Vente conclue' },
+  // Teal volontairement à distance du vert « Vendu » (couleur = statut sur
+  // l'ortho) — glyphe étoile en renfort (markers.ts).
+  { value: 'ancien_client', label: 'Ancien client', color: '#0e9384', description: 'A déjà acheté chez nous' },
 ]
 
 export const STATUS_BY_VALUE: Record<PointStatus, StatusMeta> = Object.fromEntries(
