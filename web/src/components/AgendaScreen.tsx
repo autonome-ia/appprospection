@@ -5,6 +5,7 @@ import {
   Plus,
   Phone,
   CalendarClock,
+  Check,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
@@ -16,6 +17,7 @@ import {
   fetchAppointments,
   setAppointmentOutcome,
   subscribeAppointments,
+  updateAppointment,
 } from '../data/appointments'
 import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
 import { fetchContacts, fetchRevisits, subscribePoints } from '../data/points'
@@ -74,14 +76,17 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient }: CardPr
   const color = who ? colorForCommercial(who.id, who.color) : '#98a2b3'
   // Tâche d'agenda (29/07) : sa note est son TITRE, client/adresse en
   // secondaire, ni issues ni fiche client (le tap ouvre l'édition).
+  // `effectue` = FAITE (boucle « Fait ✓ », 29/07 soir) : titre barré,
+  // re-tap pour remettre à faire — hors stats quel que soit le statut.
   const isTache = appt.kind === 'tache'
+  const done = isTache && appt.status === 'effectue'
   // Un appel en vol désactive les boutons : un double tap « Vendu » comptait
   // la vente DEUX fois dans les stats (audit).
   const [busy, setBusy] = useState(false)
   const waze = wazeUrl(appt.point, appt.address)
 
   return (
-    <div className="appt-item" style={{ ['--who' as string]: color }}>
+    <div className={`appt-item ${done ? 'is-task-done' : ''}`} style={{ ['--who' as string]: color }}>
       <span className="appt-time">{fmt(appt.scheduled_at, true)}</span>
       <span className="appt-rail" aria-hidden="true" />
       <div className="appt-body">
@@ -95,8 +100,9 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient }: CardPr
                 : (appt.client_name ?? appt.address ?? 'Rendez-vous')}
             </span>
             {/* Le statut ne s'affiche que s'il dit quelque chose : « À venir »
-                sur chaque RDV était du bruit. */}
-            {appt.status !== 'a_venir' && (
+                sur chaque RDV était du bruit. Tâche : le bouton « Fait » et
+                le titre barré disent déjà tout. */}
+            {!isTache && appt.status !== 'a_venir' && (
               <span className="appt-status" style={{ color: meta.color }}>
                 <span className="status-dot" style={{ background: meta.color }} />
                 {meta.label}
@@ -139,6 +145,34 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient }: CardPr
                 <Navigation size={14} strokeWidth={1.9} /> Itinéraire
               </a>
             )}
+          </div>
+        )}
+
+        {/* Tâche : un seul contrôle « Fait ✓ » — toggle sans conséquence
+            stats (kind filtré partout), donc pas de garde « jour venu ». */}
+        {isTache && (
+          <div className="appt-outcomes">
+            <button
+              type="button"
+              className={`outcome-btn task-done-btn ${done ? 'is-done' : ''}`}
+              disabled={busy}
+              onClick={async () => {
+                if (busy) return
+                setBusy(true)
+                try {
+                  await updateAppointment(appt.id, { status: done ? 'a_venir' : 'effectue' })
+                  onChanged()
+                  toast.success(done ? 'Tâche remise à faire' : 'Tâche faite')
+                } catch (e) {
+                  console.error('Tâche faite :', e)
+                  toast.error('Impossible d’enregistrer — vérifiez le réseau')
+                } finally {
+                  setBusy(false)
+                }
+              }}
+            >
+              <Check size={14} strokeWidth={2.4} /> Fait
+            </button>
           </div>
         )}
 
@@ -746,7 +780,8 @@ export function AgendaScreen({
               // un agenda partagé, « qui a ce RDV » prime — le statut se lit
               // dans le planning du jour. Ambre = maison à revoir.
               ...dayAppts.map((a) => ({
-                // Tâche : l'objet (« récupérer l'acompte ») EST le titre.
+                // Tâche : l'objet (« récupérer l'acompte ») EST le titre ;
+                // faite = estompée (le mois montre ce qui RESTE à faire).
                 label:
                   a.kind === 'tache'
                     ? (a.notes ?? 'Tâche')
@@ -754,10 +789,12 @@ export function AgendaScreen({
                 color: a.commercial_id
                   ? colorForCommercial(a.commercial_id, whoById[a.commercial_id]?.color)
                   : '#98a2b3',
+                done: a.kind === 'tache' && a.status === 'effectue',
               })),
               ...dayRevisits.map((p) => ({
                 label: p.client_name ?? p.address ?? 'À revoir',
                 color: STATUS_BY_VALUE.a_revoir.color,
+                done: false,
               })),
             ]
             const shown = items.slice(0, 4)
@@ -777,7 +814,11 @@ export function AgendaScreen({
                 <span className="cal-daynum">{d.getDate()}</span>
                 <span className="cal-events">
                   {shown.map((it, i) => (
-                    <span key={i} className="cal-event" style={{ background: it.color }}>
+                    <span
+                      key={i}
+                      className={`cal-event ${it.done ? 'is-done' : ''}`}
+                      style={{ background: it.color }}
+                    >
                       {it.label}
                     </span>
                   ))}

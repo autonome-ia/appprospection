@@ -680,6 +680,26 @@
   flex: 0 0 auto;
   color: var(--ink-3);
 }
+/* Boucle « Fait ✓ » (29/07 soir) : toggle unique de la tâche — actif =
+   rempli teal (la couleur d'« Effectué », sa valeur en base). */
+.task-done-btn {
+  color: #12b3a6;
+  border-color: #12b3a655;
+}
+.task-done-btn.is-done {
+  background: #12b3a6;
+  border-color: #12b3a6;
+  color: #ffffff;
+}
+/* Tâche faite : l'objet se raye et s'éteint, la carte reste lisible. */
+.appt-item.is-task-done .appt-name {
+  text-decoration: line-through;
+  color: var(--ink-3);
+}
+.cal-event.is-done {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
 .appt-name {
   flex: 1;
   min-width: 0;
@@ -1911,6 +1931,24 @@
   border-radius: var(--r-md);
   background: var(--surface);
   color: var(--accent);
+}
+/* « Fait ✓ » d'une tâche sur l'Accueil (29/07 soir) : teal d'« Effectué »,
+   rempli quand la tâche est faite (re-tap = remise à faire). */
+.task-check {
+  color: #12b3a6;
+}
+.task-check.is-done {
+  background: #12b3a6;
+  border-color: #12b3a6;
+  color: #ffffff;
+}
+.task-late {
+  color: var(--st-revoir);
+  font-weight: 600;
+}
+.home-row-title.is-task-done {
+  text-decoration: line-through;
+  color: var(--ink-3);
 }
 
 /* Fiche maison enrichie (open data) : badges compacts sous l'en-tête */

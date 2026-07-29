@@ -7,6 +7,7 @@ import {
   ChevronRight,
   BellRing,
   CalendarClock,
+  Check,
   ClipboardList,
   Phone,
   Settings,
@@ -16,7 +17,8 @@ import { useSession } from '../lib/session'
 import { setThemePref, useThemePref, type ThemePref } from '../lib/theme'
 import { fetchRelances, localDayKey } from '../data/points'
 import { fetchStats, type StatsResult } from '../data/stats'
-import { fetchAppointments } from '../data/appointments'
+import { toast } from 'sonner'
+import { fetchAppointments, updateAppointment } from '../data/appointments'
 import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
 import { STATUS_BY_VALUE } from '../domain/status'
 import { APPOINTMENT_STATUS_META, type Appointment } from '../domain/appointments'
@@ -42,6 +44,10 @@ function initials(name: string | null | undefined, fallback: string): string {
 
 const fmtTime = (iso: string) =>
   new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
+
+/** Date compacte d'une tâche en retard (colonne heure) : « 28/07 ». */
+const fmtShortDay = (iso: string) =>
+  new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(new Date(iso))
 
 const THEMES: { value: ThemePref; label: string }[] = [
   { value: 'light', label: 'Clair' },
@@ -75,6 +81,11 @@ export function AccueilScreen({
   const [statsSemaine, setStatsSemaine] = useState<StatsResult | null>(null)
   const [orgProfiles, setOrgProfiles] = useState<OrgProfile[]>([])
   const [todayAppts, setTodayAppts] = useState<Appointment[]>([])
+  // Tâches passées NON faites (boucle « Fait ✓ », 29/07 soir) : elles
+  // remontent en tête du jour avec « en retard » — l'acompte d'hier ne
+  // s'évapore plus. Faite ou supprimée = disparaît.
+  const [lateTasks, setLateTasks] = useState<Appointment[]>([])
+  const [busyTask, setBusyTask] = useState<string | null>(null)
   // Profil + déconnexion derrière l'avatar (sheet), plus en premier niveau.
   const [profileOpen, setProfileOpen] = useState(false)
   const themeChoice = useThemePref()
@@ -116,6 +127,17 @@ export function AccueilScreen({
             )
             .sort((x, y) => x.scheduled_at.localeCompare(y.scheduled_at)),
         )
+        setLateTasks(
+          appts
+            .filter(
+              (ap) =>
+                ap.kind === 'tache' &&
+                ap.status === 'a_venir' &&
+                ap.commercial_id === profile?.id &&
+                localDayKey(new Date(ap.scheduled_at)) < today,
+            )
+            .sort((x, y) => x.scheduled_at.localeCompare(y.scheduled_at)),
+        )
         setLoadError(false)
       })
       .catch((e) => {
@@ -124,6 +146,22 @@ export function AccueilScreen({
       })
       .finally(() => setLoading(false))
   }, [profile?.role, profile?.id])
+  // Toggle « Fait ✓ » (aucun impact stats : kind='tache' filtré partout).
+  const toggleTaskDone = async (a: Appointment) => {
+    if (busyTask) return
+    setBusyTask(a.id)
+    try {
+      await updateAppointment(a.id, { status: a.status === 'effectue' ? 'a_venir' : 'effectue' })
+      toast.success(a.status === 'effectue' ? 'Tâche remise à faire' : 'Tâche faite')
+      load()
+    } catch (e) {
+      console.error('Tâche faite :', e)
+      toast.error('Impossible d’enregistrer — vérifiez le réseau')
+    } finally {
+      setBusyTask(null)
+    }
+  }
+
   useEffect(() => {
     load()
     // iOS restaure la PWA sans recharger : relances et feed restaient figés.
@@ -257,9 +295,37 @@ export function AccueilScreen({
         <motion.section className="home-section" variants={fade} custom={3} initial="hidden" animate="show">
           <p className="eyebrow section-title">
             <CalendarClock size={12} strokeWidth={2} /> Mes RDV aujourd’hui
-            {todayAppts.length > 0 && ` · ${todayAppts.length}`}
+            {todayAppts.length + lateTasks.length > 0 && ` · ${todayAppts.length + lateTasks.length}`}
           </p>
-          {todayAppts.length === 0 ? (
+          {/* Tâches passées non faites EN TÊTE (boucle « Fait ✓ ») : l'acompte
+              d'hier regarde le commercial en face au lieu de s'évaporer. */}
+          {lateTasks.map((a) => (
+            <div key={a.id} className="home-row-group">
+              <button type="button" className="home-row" onClick={() => setEditing(a)}>
+                <ClipboardList size={15} strokeWidth={1.9} className="appt-task-icon" />
+                <span className="rdv-row-time tnum">{fmtShortDay(a.scheduled_at)}</span>
+                <span className="home-row-main">
+                  <span className="home-row-title">{a.notes ?? 'Tâche'}</span>
+                  {(a.client_name || a.address) && (
+                    <span className="home-row-sub">
+                      {[a.client_name, a.address].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
+                </span>
+                <span className="home-row-when task-late">en retard</span>
+              </button>
+              <button
+                type="button"
+                className="home-row-call task-check"
+                onClick={() => toggleTaskDone(a)}
+                disabled={busyTask === a.id}
+                aria-label="Marquer la tâche faite"
+              >
+                <Check size={17} strokeWidth={2.2} />
+              </button>
+            </div>
+          ))}
+          {todayAppts.length === 0 && lateTasks.length === 0 ? (
             // État vide EXPLICITE (audit UX B4) : la journée reste guidée.
             <p className="screen-empty">
               Aucun RDV aujourd’hui
@@ -271,20 +337,34 @@ export function AccueilScreen({
             todayAppts.map((a) =>
               a.kind === 'tache' ? (
                 // Tâche : l'objet est le titre, tap → édition (pas de fiche
-                // client) — même règle que la sheet du jour de l'agenda.
-                <button key={a.id} type="button" className="home-row" onClick={() => setEditing(a)}>
-                  <ClipboardList size={15} strokeWidth={1.9} className="appt-task-icon" />
-                  <span className="rdv-row-time tnum">{fmtTime(a.scheduled_at)}</span>
-                  <span className="home-row-main">
-                    <span className="home-row-title">{a.notes ?? 'Tâche'}</span>
-                    {(a.client_name || a.address) && (
-                      <span className="home-row-sub">
-                        {[a.client_name, a.address].filter(Boolean).join(' · ')}
+                // client), « Fait ✓ » en bout de ligne — faite = barrée.
+                <div key={a.id} className="home-row-group">
+                  <button type="button" className="home-row" onClick={() => setEditing(a)}>
+                    <ClipboardList size={15} strokeWidth={1.9} className="appt-task-icon" />
+                    <span className="rdv-row-time tnum">{fmtTime(a.scheduled_at)}</span>
+                    <span className="home-row-main">
+                      <span
+                        className={`home-row-title ${a.status === 'effectue' ? 'is-task-done' : ''}`}
+                      >
+                        {a.notes ?? 'Tâche'}
                       </span>
-                    )}
-                  </span>
-                  <ChevronRight size={15} strokeWidth={1.9} className="row-chevron" />
-                </button>
+                      {(a.client_name || a.address) && (
+                        <span className="home-row-sub">
+                          {[a.client_name, a.address].filter(Boolean).join(' · ')}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`home-row-call task-check ${a.status === 'effectue' ? 'is-done' : ''}`}
+                    onClick={() => toggleTaskDone(a)}
+                    disabled={busyTask === a.id}
+                    aria-label={a.status === 'effectue' ? 'Remettre la tâche à faire' : 'Marquer la tâche faite'}
+                  >
+                    <Check size={17} strokeWidth={2.2} />
+                  </button>
+                </div>
               ) : (
                 <button key={a.id} type="button" className="home-row" onClick={() => setClientAppt(a)}>
                   <span
