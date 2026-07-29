@@ -5,6 +5,7 @@ import { setAppointmentOutcome } from '../data/appointments'
 import {
   APPOINTMENT_OUTCOMES,
   APPOINTMENT_STATUS_META,
+  outcomeToastMessage,
   type Appointment,
   type AppointmentStatus,
 } from '../domain/appointments'
@@ -89,7 +90,9 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
       <span>Aucun RDV planifié pour ce point</span>
       {onPlan && (
         <button type="button" className="text-btn" onClick={onPlan}>
-          <CalendarPlus size={14} /> Planifier
+          {/* « Replanifier » quand un ancien RDV existe (annulé, en attente…)
+              — le mot dit le geste (retour briac 29/07). */}
+          <CalendarPlus size={14} /> {appts?.length ? 'Replanifier' : 'Planifier'}
         </button>
       )}
     </div>
@@ -141,10 +144,10 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
                     const { pointSynced } = await setAppointmentOutcome(profile, shownRdv, o)
                     setOverride({ id: shownRdv.id, status: o })
                     onChanged?.()
-                    toast.success(`RDV marqué « ${m.label} »`)
-                    if (o === 'vendu' && shownRdv.point_id && !pointSynced) {
+                    toast.success(outcomeToastMessage(o))
+                    if (!pointSynced) {
                       toast.error(
-                        'La maison n’a pas pu passer en « Client » sur la carte — rouvrez sa fiche pour corriger',
+                        'La maison n’a pas pu être mise à jour sur la carte — rouvrez sa fiche pour corriger',
                       )
                     }
                   } catch (e) {

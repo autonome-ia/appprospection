@@ -158,9 +158,23 @@ export async function deleteAppointment(id: string): Promise<void> {
   }
 }
 
+/** Clé jour LOCALE à J+n (revisit_at attend YYYY-MM-DD). */
+function localDayPlus(n: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + n)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 /**
- * Donne une issue à un RDV. Si "vendu", bascule aussi le point lié en "vendu"
- * sur la carte (+ journal), pour garder carte et agenda cohérents.
+ * Donne une issue à un RDV — et fait suivre LE POINT (refonte 29/07 soir :
+ * chaque issue a une conséquence sur la carte, fini les culs-de-sac) :
+ *   vendu    → point « Client » (valeur vendu : LA vente du tunnel)
+ *   effectue → « En attente » : point « À revoir » + relance J+7 (le
+ *              système de relances de l'Accueil prend le relais)
+ *   refus    → point « Refus »
+ *   annule   → rien (le RDV n'a pas eu lieu — « Replanifier » est proposé)
+ * La visite est journalisée avec la bascule (le commercial était bien
+ * devant la porte : une issue = une porte ce jour-là, comme Vendu déjà).
  */
 export async function setAppointmentOutcome(
   profile: Profile,
@@ -169,18 +183,26 @@ export async function setAppointmentOutcome(
 ): Promise<{ appointment: Appointment; pointSynced: boolean }> {
   const updated = await updateAppointment(appt.id, { status: outcome })
   let pointSynced = true
-  if (outcome === 'vendu' && appt.point_id && supabase) {
+  const pointPatch: Record<string, unknown> | null =
+    outcome === 'vendu'
+      ? { status: 'vendu' }
+      : outcome === 'effectue'
+        ? { status: 'a_revoir', revisit_at: localDayPlus(7) }
+        : outcome === 'refus'
+          ? { status: 'impossible', revisit_at: null }
+          : null
+  if (pointPatch && appt.point_id && supabase) {
     // .select() : la RLS (point d'un collègue) filtre 0 ligne SANS erreur —
     // le point restait « rdv_pris » sur la carte de toute l'équipe alors que
-    // le RDV était vendu (audit). L'échec est désormais remonté à l'UI.
+    // le RDV était soldé (audit). L'échec est remonté à l'UI.
     const { data, error } = await supabase
       .from('points')
-      .update({ status: 'vendu', visited_at: new Date().toISOString() })
+      .update({ ...pointPatch, visited_at: new Date().toISOString() })
       .eq('id', appt.point_id)
       .select('id')
     if (error || !data?.length) {
       pointSynced = false
-      console.error('Bascule du point en vendu :', error?.message ?? 'refusée (RLS)')
+      console.error('Bascule du point :', error?.message ?? 'refusée (RLS)')
     } else {
       // Journalisée SEULEMENT si la bascule a réussi : en cas d'échec, l'UI
       // guide vers la correction par la fiche, qui journalise elle-même —
@@ -190,11 +212,11 @@ export async function setAppointmentOutcome(
         organization_id: profile.organization_id,
         point_id: appt.point_id,
         author_id: profile.id,
-        status: 'vendu',
+        status: pointPatch.status,
       })
       if (e2) {
         pointSynced = false
-        console.error('Journal de la vente :', e2.message)
+        console.error('Journal de la visite :', e2.message)
       }
     }
   }

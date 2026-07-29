@@ -87,6 +87,16 @@ export function PointSheet({
         }}
         onRdvNeeded={(p, existing) => setRdvTarget({ point: p, existing: existing ?? null })}
         apptsVersion={apptsVersion}
+        onApptsChanged={() => {
+          // Une issue vient de basculer le point (Client / À revoir / Refus) :
+          // la fiche re-lit son point — la carte, elle, a le temps réel.
+          void fetchPoint(pointId)
+            .then((p) => {
+              if (p) setPoint(p)
+            })
+            .catch((e) => console.error('Rafraîchissement du point :', e))
+          onChanged?.()
+        }}
       />
       {rdvTarget && (
         <AppointmentForm

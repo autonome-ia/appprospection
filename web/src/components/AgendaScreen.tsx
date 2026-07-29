@@ -5,6 +5,7 @@ import {
   Plus,
   Phone,
   CalendarClock,
+  CalendarPlus,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -28,6 +29,7 @@ import { ContactForm } from './ContactForm'
 import {
   APPOINTMENT_STATUS_META,
   APPOINTMENT_OUTCOMES,
+  outcomeToastMessage,
   type Appointment,
   type AppointmentKind,
 } from '../domain/appointments'
@@ -67,11 +69,13 @@ interface CardProps {
   /** Ouvre la fiche client complète (badges, 3D, rapport) — audit UX A6.
       Modifier / Supprimer / Carte vivent dans la fiche : le bloc reste léger. */
   onOpenClient: (a: Appointment) => void
+  /** RDV annulé → nouveau RDV pré-rempli du même point (refonte 29/07). */
+  onReplan?: (a: Appointment) => void
 }
 
 /** RDV en « rail horaire » (refonte 26/07) : heure mono à gauche, barre à la
     couleur du commercial, contenu aéré — plus de cadre de carte. */
-function AppointmentCard({ appt, who, profile, onChanged, onOpenClient }: CardProps) {
+function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan }: CardProps) {
   const meta = APPOINTMENT_STATUS_META[appt.status]
   const color = who ? colorForCommercial(who.id, who.color) : '#98a2b3'
   // Tâche d'agenda (29/07) : sa note est son TITRE, client/adresse en
@@ -196,10 +200,10 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient }: CardPr
                     try {
                       const { pointSynced } = await setAppointmentOutcome(profile, appt, o)
                       onChanged()
-                      toast.success(`RDV marqué « ${m.label} »`)
-                      if (o === 'vendu' && appt.point_id && !pointSynced) {
+                      toast.success(outcomeToastMessage(o))
+                      if (!pointSynced) {
                         toast.error(
-                          'La maison n’a pas pu passer en « vendu » sur la carte — rouvrez sa fiche pour corriger',
+                          'La maison n’a pas pu être mise à jour sur la carte — rouvrez sa fiche pour corriger',
                         )
                       }
                     } catch (e) {
@@ -214,6 +218,16 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient }: CardPr
                 </button>
               )
             })}
+          </div>
+        )}
+
+        {/* RDV annulé : la suite en 1 tap (refonte des issues 29/07) — un
+            NOUVEAU RDV pré-rempli, l'annulé reste dans l'historique. */}
+        {!isTache && appt.status === 'annule' && appt.point && onReplan && (
+          <div className="appt-outcomes">
+            <button type="button" className="outcome-btn" onClick={() => onReplan(appt)}>
+              <CalendarPlus size={14} strokeWidth={1.9} /> Replanifier
+            </button>
           </div>
         )}
       </div>
@@ -279,6 +293,8 @@ interface DaySheetProps {
   onCreate: () => void
   /** Tâche libre pré-datée sur ce jour (29/07) : acompte, panneau… */
   onCreateTask: () => void
+  /** RDV annulé → nouveau RDV pré-rempli (refonte des issues 29/07). */
+  onReplan: (a: Appointment) => void
 }
 
 function DaySheet({
@@ -293,6 +309,7 @@ function DaySheet({
   onShowOnMap,
   onCreate,
   onCreateTask,
+  onReplan,
 }: DaySheetProps) {
   const dayLabel = capitalize(
     new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(date),
@@ -332,6 +349,7 @@ function DaySheet({
                     profile={profile}
                     onChanged={onChanged}
                     onOpenClient={onOpenClient}
+                    onReplan={onReplan}
                   />
                 ))}
                 {/* Maisons « à revoir » planifiées ce jour (pas des RDV : un
@@ -402,6 +420,8 @@ export function AgendaScreen({
   // le statut). ClientSheet reste la fiche du flux RDV (planning du jour).
   const [view, setView] = useState<'agenda' | 'contacts'>('agenda')
   const [clientAppt, setClientAppt] = useState<Appointment | null>(null)
+  // « Replanifier » un RDV annulé : nouveau RDV pré-rempli du même point.
+  const [replan, setReplan] = useState<Appointment | null>(null)
   const [contacts, setContacts] = useState<MapPoint[]>([])
   const [contactOpen, setContactOpen] = useState<MapPoint | null>(null)
   // Filtre par statut : null = tous, sinon ne montre que ce statut.
@@ -871,6 +891,10 @@ export function AgendaScreen({
             setDaySheet(null)
             setCreating({ at, kind: 'tache' })
           }}
+          onReplan={(a) => {
+            setDaySheet(null)
+            setReplan(a)
+          }}
         />
       )}
 
@@ -895,6 +919,25 @@ export function AgendaScreen({
           onOpenChange={(o) => !o && setContactOpen(null)}
           onShowOnMap={onShowOnMap}
           onChanged={reload}
+        />
+      )}
+
+      {/* « Replanifier » (rail du jour) : création pré-remplie du même
+          point — le RDV annulé reste dans l'historique. */}
+      {replan?.point && (
+        <AppointmentForm
+          open
+          onOpenChange={(o) => !o && setReplan(null)}
+          profile={profile}
+          pointId={replan.point.id}
+          coords={{ lng: replan.point.lng, lat: replan.point.lat }}
+          pointNote={replan.point.notes}
+          defaultClientName={replan.client_name}
+          defaultClientPhone={replan.client_phone}
+          onSaved={() => {
+            setReplan(null)
+            reload()
+          }}
         />
       )}
 

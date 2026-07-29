@@ -48,7 +48,7 @@ Workflow type : coder → `npm run build` (vérifie) → commit → `git push` �
 
 ## Décisions actées (ne pas re-débattre)
 - **Multi-tenant** dès le départ (`organization_id` + RLS), MAIS pas d'inscription publique ni facturation au MVP.
-- **Statuts : 7 valeurs d'enum, 6 statuts AFFICHÉS** — `absent`, `a_revoir`, `impossible` (libellé « Refus »), `hors_cible` (25/07), `rdv_pris`, et la **fusion « Client »** (29/07 soir, retour chef des ventes) : `vendu` + `ancien_client` partagent libellé « Client », vert #17b26a et glyphe ✓ (`domain/status.ts` : `DISPLAY_STATUSES`, `sameDisplayStatus`). **La vente est un ÉVÉNEMENT, pas un état** : seule l'issue RDV « Vendu » écrit `vendu` (comptée au tunnel) ; pose, bascule manuelle et saisie Contacts écrivent `ancien_client` (une porte, jamais une vente — une vente conclue hors RDV n'est PAS comptée, assumé). L'enum reste double en base : le journal garde la vérité, fusion réversible. Ajouter un statut = migration enum (modèle `db/0013`/`0015`) + `domain/status.ts` + glyphe `config/markers.ts` + token `--st-*` (index.css), le reste suit.
+- **Statuts : 7 valeurs d'enum, 6 statuts AFFICHÉS** — `absent`, `a_revoir`, `impossible` (libellé « Refus »), `hors_cible` (25/07), `rdv_pris`, et la **fusion « Client »** (29/07 soir, retour chef des ventes) : `vendu` + `ancien_client` partagent libellé « Client », vert #17b26a et glyphe ✓ (`domain/status.ts` : `DISPLAY_STATUSES`, `sameDisplayStatus`). **La vente est un ÉVÉNEMENT, pas un état** : l'issue RDV « Vendu » OU la bascule manuelle « RDV pris » → « Client » écrivent `vendu` (comptées au tunnel — refonte 29/07 soir) ; pose directe, saisie Contacts et bascule depuis un autre statut écrivent `ancien_client` (une porte, jamais une vente). L'enum reste double en base : le journal garde la vérité, fusion réversible. Ajouter un statut = migration enum (modèle `db/0013`/`0015`) + `domain/status.ts` + glyphe `config/markers.ts` + token `--st-*` (index.css), le reste suit.
 - **Pas de mode hors-ligne** (réseau supposé sur le terrain).
 - **Pas de vue rue / Street View** : testé puis abandonné (Mapillary trop juste en pavillonnaire ;
   3D photoréaliste Google bloquée pour les entités françaises).
@@ -94,7 +94,12 @@ DA **« Encre & signal »** (choisie par briac le 26/07/2026 sur prototypes comp
 - `appointments` = agenda partagé : **RDV et tâches libres** (colonne `kind`, db/0016 — une tâche
   « aller chercher l'acompte » n'a ni point, ni issues, et ne compte dans AUCUNE stat ; sa note est
   son titre). Poser/éditer un statut écrit dans **points ET point_events**.
-- Un RDV marqué « Vendu » rebascule le point en `vendu`.
+- **Issues de RDV (refonte 29/07 soir)** : chaque issue fait suivre LE POINT — « Vendu » → Client
+  (`vendu`, LA vente du tunnel), « En attente » (valeur `effectue`) → À revoir + relance J+7,
+  « Refus » (`refus`, db/0017) → Refus, « Annulé » → rien + bouton « Replanifier ». « Manqué » retiré
+  des boutons (valeur conservée pour l'historique). La vente compte AUSSI par bascule manuelle
+  « RDV pris » → « Client » (écrit `vendu` + synchronise le RDV lié). Stats : « RDV effectués » =
+  en attente + vendus + refusés (RDV tenus) ; les annulés ne comptent nulle part.
 
 ## État actuel
 Voir **`docs/roadmap.md`**. En résumé : les 4 onglets (Accueil · Carte · Agenda · Stats) fonctionnent,

@@ -165,13 +165,19 @@ async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
   for (const ap of appts ?? []) {
     const a = ap as { commercial_id: string | null; status: string; scheduled_at: string; kind?: string }
     if (a.kind === 'tache') continue // tâche d'agenda : hors tunnel
+    // Un RDV ANNULÉ n'est pas un RDV raté (décision briac 29/07) : il sort
+    // des deux compteurs — il sera replanifié (et compté à sa vraie date).
+    if (a.status === 'annule') continue
     // « Planifiés » = RDV de la période déjà échus OU déjà soldés : un RDV
     // de demain encore « à venir » n'est pas un RDV non honoré. Comme les
     // effectués sont un sous-ensemble des échus, le taux reste ≤ 100 %.
     if (Date.parse(a.scheduled_at) <= now || a.status !== 'a_venir') {
       bump(a.commercial_id, 'rdv_planifies')
     }
-    if (a.status === 'effectue' || a.status === 'vendu') bump(a.commercial_id, 'rdv_effectues')
+    // « Effectués » = RDV TENUS : en attente (ex-Effectué), vendus, refusés
+    // (un refus est un RDV qui a eu lieu — refonte des issues 29/07).
+    if (a.status === 'effectue' || a.status === 'vendu' || a.status === 'refus')
+      bump(a.commercial_id, 'rdv_effectues')
   }
 
   return result

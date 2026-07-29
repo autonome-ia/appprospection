@@ -9,7 +9,7 @@ import {
   type PointDetail,
   type PointNote,
 } from '../data/points'
-import { fetchPointAppointments } from '../data/appointments'
+import { fetchPointAppointments, updateAppointment } from '../data/appointments'
 import { firstNameOf } from '../domain/names'
 import { APPOINTMENT_STATUS_META, type Appointment } from '../domain/appointments'
 import { RdvSection } from './RdvSection'
@@ -29,6 +29,7 @@ import { markerDataUrl } from '../config/markers'
 import {
   DISPLAY_STATUSES,
   STATUS_BY_VALUE,
+  isClientStatus,
   sameDisplayStatus,
   type PointStatus,
 } from '../domain/status'
@@ -60,6 +61,10 @@ interface Props {
   apptsVersion?: number
   /** Hors carte (convergence 29/07) : « Carte » au pied de la fiche. */
   onShowOnMap?: (target: { pointId: string; lng: number; lat: number }) => void
+  /** Une issue de RDV a été donnée (la bascule du point est faite côté
+      data) : hors carte, le parent re-lit le point — la carte, elle, a le
+      temps réel. */
+  onApptsChanged?: () => void
 }
 
 function formatDate(iso: string): string {
@@ -89,6 +94,7 @@ export function PointDetailSheet({
   onRdvNeeded,
   apptsVersion,
   onShowOnMap,
+  onApptsChanged,
 }: Props) {
   const { profile: me } = useSession()
   const [detail, setDetail] = useState<PointDetail | null>(null)
@@ -307,6 +313,15 @@ export function PointDetailSheet({
       changes.revisit_at = null
     }
     const becameRdv = changes.status === 'rdv_pris'
+    // VENTE PAR BASCULE (29/07 soir, décision briac) : « RDV pris » →
+    // « Client » à la main = une vente — on écrit `vendu` (compté au
+    // tunnel), pas `ancien_client`. Tout autre chemin vers « Client »
+    // reste `ancien_client` (une porte, jamais une vente).
+    const becameSale =
+      changes.status !== undefined &&
+      isClientStatus(changes.status) &&
+      initialRef.current.status === 'rdv_pris'
+    if (becameSale) changes.status = 'vendu'
     try {
       if (Object.keys(changes).length > 0) {
         await onUpdate(point.id, changes)
@@ -323,8 +338,18 @@ export function PointDetailSheet({
         }
       }
       if (newNote.trim()) await onAddNote(point.id, newNote.trim())
+      // La vente marque aussi le RDV « à venir » lié en « Vendu » (best
+      // effort) : l'historique et l'agenda racontent la même chose.
+      if (becameSale) {
+        const upcoming = appts?.find((a) => a.status === 'a_venir')
+        if (upcoming) {
+          updateAppointment(upcoming.id, { status: 'vendu' }).catch((e) =>
+            console.error('Synchro du RDV vendu :', e),
+          )
+        }
+      }
       onOpenChange(false)
-      toast.success('Point mis à jour')
+      toast.success(becameSale ? 'Vendu — la maison passe en « Client »' : 'Point mis à jour')
       if (becameRdv) onRdvNeeded?.({ ...point, status: 'rdv_pris' })
     } catch (e) {
       console.error('Modification du point :', e)
@@ -466,6 +491,7 @@ export function PointDetailSheet({
               showNav
               onEdit={onRdvNeeded ? (a) => onRdvNeeded(point, a) : undefined}
               onPlan={onRdvNeeded ? () => onRdvNeeded(point) : undefined}
+              onChanged={onApptsChanged}
             />
           )}
           {/* Client d'abord (réorganisation briac 25/07) : le contexte —
