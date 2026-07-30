@@ -7,6 +7,7 @@ import { AccueilScreen } from './components/AccueilScreen'
 import { AgendaScreen } from './components/AgendaScreen'
 import { StatsScreen } from './components/StatsScreen'
 import { ScreenBoundary } from './components/ScreenBoundary'
+import { PendingOutcomes } from './components/PendingOutcomes'
 import { SessionProvider, useSession } from './lib/session'
 import { useIsDark } from './lib/theme'
 import { isSupabaseConfigured } from './lib/supabase'
@@ -82,6 +83,14 @@ function AppInner() {
       </main>
 
       {!isSupabaseConfigured && <div className="mode-badge">Mode local (sans base)</div>}
+
+      {/* Popup du matin (30/07) : les RDV passés sans issue, à la première
+          ouverture du jour — jamais pendant les sondes (navigator.webdriver). */}
+      {profile && (
+        <ScreenBoundary>
+          <PendingOutcomes profile={profile} />
+        </ScreenBoundary>
+      )}
 
       <BottomNav active={tab} onChange={setTab} />
     </div>

@@ -1754,6 +1754,40 @@
   text-transform: uppercase;
   color: var(--ink-3);
 }
+/* Popup du matin « Que s'est-il passé ? » (30/07) : un bloc par RDV passé
+   sans issue, les 4 boutons d'issue en 1 tap. */
+.pending-intro {
+  margin: 0 2px 12px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.pending-rdv {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.pending-when {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.pending-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+.pending-sub {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
 /* Choix du thème (sheet de profil) : segmented Clair · Sombre · Auto. */
 .theme-pick {
   display: flex;

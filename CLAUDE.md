@@ -102,6 +102,11 @@ DA **« Encre & signal »** (choisie par briac le 26/07/2026 sur prototypes comp
   sur le MÊME RDV — vente différée comptée ; « Vendu » efface la relance). La vente compte AUSSI
   par bascule manuelle « RDV pris » → « Client » (écrit `vendu` + synchronise le RDV lié). Stats :
   « RDV effectués » = en attente + vendus + refusés (RDV tenus) ; les annulés ne comptent nulle part.
+  **La date du réel (30/07)** : solder un RDV « à venir » date visite/vente au JOUR DU RDV
+  (`occurred_at = scheduled_at`) — conclure un « En attente » ou basculer à la main = daté du jour
+  du geste. **Popup du matin** (`PendingOutcomes`) : 1re ouverture du jour, RDV passés sans issue →
+  « Que s'est-il passé ? » (4 issues en 1 tap, « Plus tard » non bloquant) ; jamais affiché sous
+  Playwright (`navigator.webdriver`), forçable par `?popup-rdv` pour les sondes dédiées.
 
 ## État actuel
 Voir **`docs/roadmap.md`**. En résumé : les 4 onglets (Accueil · Carte · Agenda · Stats) fonctionnent,

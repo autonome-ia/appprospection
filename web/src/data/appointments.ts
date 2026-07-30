@@ -158,6 +158,31 @@ export async function deleteAppointment(id: string): Promise<void> {
   }
 }
 
+/** RDV passés (avant aujourd'hui) encore « à venir » du commercial : le
+    popup du matin « que s'est-il passé ? » (30/07). Les tâches ont leur
+    propre boucle « Fait ✓ » et remontent déjà dans l'Accueil. */
+export async function fetchPendingOutcomes(profileId: string): Promise<Appointment[]> {
+  if (!supabase) return []
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
+  const query = (cols: string) =>
+    supabase!
+      .from('appointments')
+      .select(cols)
+      .eq('commercial_id', profileId)
+      .eq('status', 'a_venir')
+      .lt('scheduled_at', start.toISOString())
+      .order('scheduled_at')
+      .order('id')
+  let { data, error } = await query(COLS)
+  if (error && missingKind(error.message)) {
+    warnKind()
+    ;({ data, error } = await query(COLS_LEGACY))
+  }
+  if (error) throw error
+  return withKind((data ?? []) as unknown[]).filter((a) => a.kind !== 'tache')
+}
+
 /** Clé jour LOCALE à J+n (revisit_at attend YYYY-MM-DD). */
 function localDayPlus(n: number): string {
   const d = new Date()
@@ -183,6 +208,12 @@ export async function setAppointmentOutcome(
 ): Promise<{ appointment: Appointment; pointSynced: boolean }> {
   const updated = await updateAppointment(appt.id, { status: outcome })
   let pointSynced = true
+  // LA DATE DU RÉEL (30/07, demande briac + chef des ventes) : solder un RDV
+  // « à venir » — le soir même ou trois jours après via le popup du matin —
+  // date la visite ET la vente AU JOUR DU RDV (c'est là que ça s'est passé).
+  // La conclusion d'un « En attente » (le prospect répond plus tard) reste
+  // datée d'AUJOURD'HUI : c'est le jour de la réponse.
+  const when = appt.status === 'a_venir' ? appt.scheduled_at : new Date().toISOString()
   const pointPatch: Record<string, unknown> | null =
     outcome === 'vendu'
       ? // revisit_at effacé : la réponse d'un « En attente » est tombée, la
@@ -199,7 +230,7 @@ export async function setAppointmentOutcome(
     // le RDV était soldé (audit). L'échec est remonté à l'UI.
     const { data, error } = await supabase
       .from('points')
-      .update({ ...pointPatch, visited_at: new Date().toISOString() })
+      .update({ ...pointPatch, visited_at: when })
       .eq('id', appt.point_id)
       .select('id')
     if (error || !data?.length) {
@@ -215,6 +246,7 @@ export async function setAppointmentOutcome(
         point_id: appt.point_id,
         author_id: profile.id,
         status: pointPatch.status,
+        occurred_at: when, // stats datées du réel (jour du RDV, pas du tap)
       })
       if (e2) {
         pointSynced = false
