@@ -126,7 +126,10 @@ function Funnel({ s }: { s: CommercialStats }) {
       })}
       <div className="funnel-foot">
         <span className="funnel-conv">
-          Conversion <b className="tnum">{pct1(ratio(s.ventes, s.portes))}</b>
+          {/* LA conversion métier (retour briac 30/07) : ventes ÷ RDV
+              effectués — celle qu'on pilote. Ventes ÷ portes mesurait tout
+              le tunnel d'un coup, personne ne s'en servait. */}
+          Conversion <b className="tnum">{pct1(ratio(s.ventes, s.rdv_effectues))}</b>
         </span>
       </div>
     </div>
@@ -565,7 +568,9 @@ export function StatsScreen({
                   <div className="rank-metrics">
                     <span className="tnum">{s.portes}</span> portes ·{' '}
                     <span className="tnum">{s.rdv_pris}</span> RDV · conv.{' '}
-                    <span className="tnum">{pct1(ratio(s.ventes, s.portes))}</span>
+                    {/* Même définition que le pied du tunnel (30/07) :
+                        ventes ÷ RDV effectués. */}
+                    <span className="tnum">{pct1(ratio(s.ventes, s.rdv_effectues))}</span>
                   </div>
                   {/* Barre d'objectif HEBDO seulement en Semaine (audit UX
                       A9) : en Jour tout le monde était à 10 %, en Mois tout
