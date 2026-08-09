@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
-import { Copy, RefreshCw, Share2, X } from 'lucide-react'
-import { fetchOrgProfiles, setMemberDisabled, updateMemberRole, type OrgProfile } from '../data/profiles'
+import { Check, Copy, RefreshCw, Share2, X } from 'lucide-react'
+import {
+  fetchOrgProfiles,
+  setMemberDisabled,
+  updateMemberName,
+  updateMemberRole,
+  type OrgProfile,
+} from '../data/profiles'
 import { fetchInviteCode, fetchOrgName, regenInviteCode } from '../data/team'
 import { ROLE_LABELS, roleLabel, type Profile, type UserRole } from '../domain/types'
 
@@ -39,6 +45,9 @@ export function TeamSheet({
   const [loadError, setLoadError] = useState(false)
   /** Panneau d'édition déplié (id du membre) — inline, pas de 2e drawer. */
   const [openId, setOpenId] = useState<string | null>(null)
+  /** Nom en cours d'édition dans le panneau (les comptes d'avant le chantier
+      Équipe portaient leur EMAIL en guise de nom — le manager corrige ici). */
+  const [nameEdit, setNameEdit] = useState('')
   const [busy, setBusy] = useState(false)
   /** Confirmations 2 taps (audit UX : jamais de dialogue système). */
   const [armRegen, setArmRegen] = useState(false)
@@ -119,6 +128,27 @@ export function TeamSheet({
     } catch (e) {
       console.error('Rotation du code :', e)
       toast.error('Impossible de générer un nouveau code')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const openPanel = (m: OrgProfile, expanded: boolean) => {
+    setOpenId(expanded ? null : m.id)
+    setNameEdit(expanded ? '' : (m.full_name ?? ''))
+  }
+
+  const saveName = async (m: OrgProfile) => {
+    const next = nameEdit.trim()
+    if (busy || !next || next === (m.full_name ?? '')) return
+    setBusy(true)
+    try {
+      await updateMemberName(m.id, next)
+      toast.success('Nom mis à jour')
+      load()
+    } catch (e) {
+      console.error('Nom du membre :', e)
+      toast.error('Modification refusée — réservé au manager')
     } finally {
       setBusy(false)
     }
@@ -248,7 +278,7 @@ export function TeamSheet({
                   <button
                     type="button"
                     className="team-row"
-                    onClick={expandable ? () => setOpenId(expanded ? null : m.id) : undefined}
+                    onClick={expandable ? () => openPanel(m, expanded) : undefined}
                     disabled={!expandable}
                   >
                     <span className="avatar team-avatar">{initials(m.full_name)}</span>
@@ -266,6 +296,26 @@ export function TeamSheet({
 
                   {expanded && (
                     <div className="team-panel">
+                      <p className="eyebrow field-label">Nom affiché</p>
+                      <div className="team-name-edit">
+                        <input
+                          className="field-input"
+                          type="text"
+                          placeholder="Prénom Nom"
+                          value={nameEdit}
+                          onChange={(e) => setNameEdit(e.target.value)}
+                          autoComplete="off"
+                        />
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          onClick={() => void saveName(m)}
+                          disabled={busy || !nameEdit.trim() || nameEdit.trim() === (m.full_name ?? '')}
+                          aria-label="Enregistrer le nom"
+                        >
+                          <Check size={17} strokeWidth={2.2} />
+                        </button>
+                      </div>
                       <p className="eyebrow field-label">Rôle</p>
                       <div className="chip-row">
                         {ROLE_ORDER.map((r) => (

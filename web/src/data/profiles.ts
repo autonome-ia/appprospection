@@ -28,6 +28,20 @@ export async function updateWeeklyTarget(id: string, target: number): Promise<vo
   if (error) throw error
 }
 
+/** Nom affiché d'un membre, corrigé par le manager (écran Équipe) — les
+    comptes d'avant l'inscription par code portaient leur email en guise de
+    nom. 0 ligne modifiée sans erreur = refus RLS → on le dit. */
+export async function updateMemberName(id: string, fullName: string): Promise<void> {
+  if (!supabase) throw new Error('Hors ligne')
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ full_name: fullName })
+    .eq('id', id)
+    .select('id')
+  if (error) throw error
+  if (!data || data.length === 0) throw new Error('Modification refusée')
+}
+
 /** Changement de rôle (manager seul — trigger profiles_guard en base).
     0 ligne modifiée sans erreur = refus RLS silencieux → on le dit. */
 export async function updateMemberRole(id: string, role: UserRole): Promise<void> {
