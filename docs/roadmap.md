@@ -180,9 +180,12 @@ un compte » = **désactivation** (`disabled_at`, kill-switch RLS, réversible).
   refonte des policies : helpers `is_supervisor`/`is_secretaire`/`is_org_member`, la secrétaire
   crée point + journal + RDV **au nom du commercial** et ne peut jamais produire un statut terrain).
   **Banc RLS jetable** : `tools/rls-test/` (seed.sql → agence de test, `rls-test.mjs signup CODE`
-  → 5 comptes, promotion SQL, `rls-test.mjs run` → ~45 vérifications, surtout les REFUS, ménage
-  automatique — zéro dépendance, fetch nu). **⚠ 0018 puis 0019 À EXÉCUTER dans Supabase par
-  briac, puis dérouler le banc — un trou RLS est bloquant pour le lancement.**
+  → 5 comptes, promotion SQL, `rls-test.mjs run` — zéro dépendance, fetch nu). Migrations
+  exécutées par briac le 09/08. **Banc déroulé le 09/08 : 48 PASS, 0 ÉCHEC** (auto-promotion
+  refusée, secrétaire sans issue terrain, chef des ventes sans comptes/objectif, kill-switch de
+  désactivation, code superviseurs seuls, inscription sans/mauvais code refusée). L'agence « RLS
+  Test — jetable » et ses 5 comptes rlstest-* SONT CONSERVÉS : re-dérouler `rls-test.mjs run`
+  après toute retouche RLS.
 - [x] **Étape 2 — écran de connexion + inscription par code** (dernier écran hors DA) : refonte
   Encre & signal (marque + carte relief, labels eyebrow, `field-input` communs, deux thèmes via
   tokens), mode « Rejoindre son agence » : code 8 caractères en mono (une donnée), **vérifié en
@@ -227,9 +230,14 @@ un compte » = **désactivation** (`disabled_at`, kill-switch RLS, réversible).
 - [ ] ⬜ **Étape 5 — tuto auto à la 1re connexion : REPORTÉE** (fin de chantier chargée) : il faut
   distinguer un VRAI nouveau compte (profil créé < 48 h ? `created_at` pas dans le fetch session)
   d'un ancien qui verrait surgir le tuto à la prochaine mise à jour. Petit chantier dédié.
-- [ ] ⬜ **Étape 6 — amorçage Mister Toiture** (SQL fourni, exécuté PAR briac) : créer l'agence,
-  y basculer l'ami en chef_ventes et briac en manager (l'agence démarre VIDE — les données de test
-  restent dans l'ancienne agence avec le compte des sondes) ; solder Q13-16.
+- [x] **Étape 6 — amorçage Mister Toiture : FAIT le 09/08** (avancé pendant le chantier, plan
+  ajusté en route) : agence « Mister Toiture : Brest » créée en SQL, **5 comptes réels transvasés
+  AVEC leur historique de prospection** (briac manager SANS historique — ses points de test
+  renvoyés dans son ancienne agence après un faux départ corrigé ; abdoul manager, alexis
+  chef_ventes, alexandre + quentin commerciaux). Q13-16 soldées dans questions-ouvertes.md.
+  **Reliquats d'hygiène (briac)** : compte sondes dédié dans l'ancienne agence + `web/.env`
+  (`GUIDE_EMAIL` = son compte perso aujourd'hui → les sondes tournent sur la PROD) ; `full_name`
+  des 4 comptes migrés (emails bruts affichés en attendant).
 
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)

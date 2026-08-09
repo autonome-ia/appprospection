@@ -29,8 +29,11 @@
 
 ## D. Rôles, comptes & commercialisation
 
-13. 🟠 **Le manager prospecte-t-il aussi** (pose des points) ou uniquement supervision ?
-14. 🟠 **Taille d'équipe** cible au lancement (combien de commerciaux chez lui) ?
+13. ✅ **TRANCHÉ (25/07 puis chantier Équipe)** : oui, le manager (et le chef des ventes)
+    prospecte aussi — il pose des points, apparaît au classement, a un objectif hebdo.
+14. ✅ **SOLDÉE (09/08, amorçage réel)** : 5 comptes au lancement chez Mister Toiture : Brest —
+    2 managers (briac support/dev + Abdoul), 1 chef des ventes (Alexis), 2 commerciaux
+    (Alexandre, Quentin) ; les suivants s'inscriront avec le code d'agence.
 15. ✅ **TRANCHÉ (2026-07-16)** : outil **interne d'abord** (une seule agence), objectif de le vendre à d'autres agences **si ça marche dans son équipe**. → Archi conçue multi-tenant, mais pas d'inscription publique ni facturation au MVP.
 16. ✅ **TRANCHÉ (2026-08-09, chantier Équipe)** : UN **code d'invitation par agence** (8 caractères,
     visible manager + chef des ventes, rotation par le manager), **obligatoire à l'inscription** —
