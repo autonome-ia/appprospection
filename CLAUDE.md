@@ -110,4 +110,10 @@ DA **« Encre & signal »** (choisie par briac le 26/07/2026 sur prototypes comp
 
 ## État actuel
 Voir **`docs/roadmap.md`**. En résumé : les 4 onglets (Accueil · Carte · Agenda · Stats) fonctionnent,
-la DA premium est appliquée partout (sauf l'écran de connexion), l'app est déployée sur Render et installable.
+la DA premium est appliquée partout (écran de connexion compris depuis le 09/08), l'app est déployée sur
+Render et installable. **Chantier Équipe en cours (09/08)** : 4 rôles (`manager`, `chef_ventes`,
+`secretaire`, `commercial` — db/0018-0019, inscription par code OBLIGATOIRE, désactivation de compte),
+l'agence réelle « Mister Toiture : Brest » est amorcée avec les 5 comptes historiques. ⚠ L'écran de
+connexion est LE point d'entrée des sondes Playwright : placeholders « Email » / « Mot de passe » et
+bouton « Se connecter » à ne JAMAIS renommer. Restent : écran Équipe (étape 3), UI par rôle (étape 4,
+matrice à documenter ici), banc RLS `tools/rls-test/` à dérouler.

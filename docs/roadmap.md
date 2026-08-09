@@ -48,7 +48,7 @@
 - [x] Carte (barre d'outils, recherche, chips, drawers Vaul, toasts)
 - [x] Agenda (vue calendrier mois + planning du jour)
 - [x] Stats (segmented animé, tunnel, classement)
-- [ ] ⬜ Écran de connexion (encore ancien style) + finitions (contrôles carte)
+- [x] Écran de connexion — refondu Encre & signal avec l'inscription par code (chantier Équipe, étape 2, 09/08)
 
 ## Déploiement ✅
 - [x] Render (Static Site via `render.yaml`), repo GitHub `autonome-ia/appprospection`, HTTPS + PWA installable. Redéploiement auto à chaque `git push`.
@@ -183,8 +183,18 @@ un compte » = **désactivation** (`disabled_at`, kill-switch RLS, réversible).
   → 5 comptes, promotion SQL, `rls-test.mjs run` → ~45 vérifications, surtout les REFUS, ménage
   automatique — zéro dépendance, fetch nu). **⚠ 0018 puis 0019 À EXÉCUTER dans Supabase par
   briac, puis dérouler le banc — un trou RLS est bloquant pour le lancement.**
-- [ ] ⬜ **Étape 2 — écran de connexion + inscription par code** (dernier écran hors DA) : refonte
-  Encre & signal, deux thèmes, `validate_invite` avant signup (« Vous rejoignez Mister Toiture »).
+- [x] **Étape 2 — écran de connexion + inscription par code** (dernier écran hors DA) : refonte
+  Encre & signal (marque + carte relief, labels eyebrow, `field-input` communs, deux thèmes via
+  tokens), mode « Rejoindre son agence » : code 8 caractères en mono (une donnée), **vérifié en
+  direct par `validate_invite`** — « ✓ Vous rejoignez {agence} » avant de créer le compte, bouton
+  bloqué sans code valide, erreurs Supabase traduites, cas « confirmation d'email exigée » couvert
+  (écran « Compte créé »). **Amorçage réel fait le même jour (déviation assumée de l'étape 6)** :
+  agence « Mister Toiture : Brest » créée en SQL, 5 comptes existants transvasés AVEC leur
+  historique réel (briac manager sans historique — ses points de test renvoyés dans l'ancienne
+  agence après un faux départ, corrigé), le compte sondes resté dans l'agence de test. Sonde
+  `tools/screenshots/probe-auth.mjs` (deux thèmes, lecture seule) : placeholders « Email » /
+  « Mot de passe » et bouton « Se connecter » PRÉSERVÉS — toutes les sondes existantes se
+  connectent par eux. ⚠ Banc RLS (`tools/rls-test/`) toujours PAS déroulé — à faire.
 - [ ] ⬜ **Étape 3 — écran Équipe** : manager = liste + code partageable + rotation + changer le
   rôle + désactiver (2 taps, jamais soi-même) ; chef des ventes = liste en lecture.
 - [ ] ⬜ **Étape 4 — UI par rôle** : nav secrétaire (Agenda seul + roue Réglages dans son en-tête ;
