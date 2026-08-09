@@ -41,7 +41,7 @@ import { colorForCommercial } from '../domain/colors'
 import { BellRing, Plus, SlidersHorizontal } from 'lucide-react'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { usePoints } from '../hooks/usePoints'
-import type { MapPoint, Profile } from '../domain/types'
+import { isSupervisorRole, type MapPoint, type Profile } from '../domain/types'
 import type { Appointment } from '../domain/appointments'
 import type { FeatureCollection, Point } from 'geojson'
 
@@ -163,16 +163,16 @@ export function MapView({
   // (dans le quartier). Chip seule, pas de pastille marqueur (véto designer).
   const [dueOnly, setDueOnly] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
-  // Filtre « Qui » (manager seulement) : voir les points d'un ou plusieurs
-  // commerciaux. Le commercial, lui, ne voit QUE ses points (décision chef
-  // des ventes, 25/07).
+  // Filtre « Qui » (superviseur : manager + chef des ventes) : voir les
+  // points d'un ou plusieurs commerciaux. Le commercial, lui, ne voit QUE ses
+  // points (décision chef des ventes, 25/07).
   const [whoFilter, setWhoFilter] = useState<ReadonlySet<string>>(new Set())
   const [orgProfiles, setOrgProfiles] = useState<OrgProfile[]>([])
-  const isManager = profile?.role === 'manager'
+  const isSupervisor = isSupervisorRole(profile?.role)
   useEffect(() => {
-    if (!isManager) return
+    if (!isSupervisor) return
     fetchOrgProfiles().then(setOrgProfiles).catch((e) => console.error('Profils :', e))
-  }, [isManager])
+  }, [isSupervisor])
   // Pont Stats→Carte : applique le filtre « Qui » demandé par le drill-down
   // et déplie la barre de filtres (la chip active dit ce qu'on regarde).
   useEffect(() => {
@@ -760,8 +760,8 @@ export function MapView({
       const pt = pointsRef.current.find((p) => p.id === (hit.properties?.id as string))
       if (!pt || pt.id.startsWith('temp-')) return
       const prof = profileRef.current
-      // Seul l'auteur (ou un manager) peut déplacer — même règle que la RLS.
-      if (!prof || (prof.role !== 'manager' && pt.created_by !== null && pt.created_by !== prof.id))
+      // Seul l'auteur (ou un superviseur) peut déplacer — même règle que la RLS.
+      if (!prof || (!isSupervisorRole(prof.role) && pt.created_by !== null && pt.created_by !== prof.id))
         return
       clear()
       candidate = pt
@@ -1002,10 +1002,10 @@ export function MapView({
     const visible = points.filter(
       (p) =>
         // Carte privée : le commercial ne voit que SES points (les temp-
-        // locaux, created_by null, sont forcément à lui) ; le manager voit
-        // tout, filtrable par commercial.
+        // locaux, created_by null, sont forcément à lui) ; le superviseur
+        // voit tout, filtrable par commercial.
         p.id !== dragId && // l'original est masqué pendant le drag (fantôme au doigt)
-        (isManager
+        (isSupervisor
           ? whoFilter.size === 0 || p.created_by === null || whoFilter.has(p.created_by)
           : p.created_by === null || p.created_by === profile?.id) &&
         (statusFilter.size === 0 || statusFilter.has(p.status)) &&
@@ -1013,7 +1013,7 @@ export function MapView({
         (!dueOnly || (p.status === 'a_revoir' && p.revisit_at !== null && p.revisit_at <= today)),
     )
     source?.setData(toFeatureCollection(visible))
-  }, [points, mapLoaded, statusFilter, ageFilter, whoFilter, dueOnly, isManager, profile?.id, dragId])
+  }, [points, mapLoaded, statusFilter, ageFilter, whoFilter, dueOnly, isSupervisor, profile?.id, dragId])
 
   // Surbrillance du point sélectionné.
   useEffect(() => {
@@ -1112,8 +1112,8 @@ export function MapView({
                 </button>
               ))}
             </div>
-            {/* Manager : filtre par commercial (décision chef des ventes). */}
-            {isManager && orgProfiles.length > 1 && (
+            {/* Superviseur : filtre par commercial (décision chef des ventes). */}
+            {isSupervisor && orgProfiles.length > 1 && (
               <div className="map-filterrow">
                 {orgProfiles.map((op) => (
                   <button

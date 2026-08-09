@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'motion/react'
-import { Drawer } from 'vaul'
 import {
   MapPin,
-  LogOut,
   ChevronRight,
   BellRing,
   CalendarClock,
@@ -11,11 +9,8 @@ import {
   ClipboardList,
   Phone,
   Settings,
-  Users,
-  X,
 } from 'lucide-react'
 import { useSession } from '../lib/session'
-import { setThemePref, useThemePref, type ThemePref } from '../lib/theme'
 import { fetchRelances, localDayKey } from '../data/points'
 import { fetchStats, type StatsResult } from '../data/stats'
 import { toast } from 'sonner'
@@ -26,8 +21,8 @@ import { APPOINTMENT_STATUS_META, type Appointment } from '../domain/appointment
 import { PointSheet } from './PointSheet'
 import { AppointmentForm } from './AppointmentForm'
 import { GuideSection } from './Guide'
-import { TeamSheet } from './TeamSheet'
-import { roleLabel, type MapPoint } from '../domain/types'
+import { ProfileSheet } from './ProfileSheet'
+import { isSupervisorRole, roleLabel, type MapPoint } from '../domain/types'
 
 function relanceLabel(iso: string): string {
   // Jour LOCAL (toISOString = UTC : « aujourd'hui » était faux entre minuit
@@ -51,12 +46,6 @@ const fmtTime = (iso: string) =>
 const fmtShortDay = (iso: string) =>
   new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(new Date(iso))
 
-const THEMES: { value: ThemePref; label: string }[] = [
-  { value: 'light', label: 'Clair' },
-  { value: 'dark', label: 'Sombre' },
-  { value: 'system', label: 'Auto' },
-]
-
 const fade = {
   hidden: { opacity: 0, y: 8 },
   show: (i: number) => ({
@@ -71,12 +60,12 @@ export function AccueilScreen({
 }: {
   onShowOnMap?: (target: { pointId: string; lng: number; lat: number }) => void
 }) {
-  const { profile, session, signOut } = useSession()
+  const { profile, session } = useSession()
   const name = profile?.full_name ?? session?.user.email ?? null
   const role = roleLabel(profile?.role)
-  const isManager = profile?.role === 'manager'
-  // Écran Équipe : manager (gestion) et chef des ventes (lecture).
-  const isSupervisor = profile?.role === 'manager' || profile?.role === 'chef_ventes'
+  // Chef des ventes = mêmes VUES que le manager (agrégats équipe, relances
+  // de tous) — étape 4 du chantier Équipe.
+  const isSupervisor = isSupervisorRole(profile?.role)
   const meId = profile?.id ?? null
 
   const [relances, setRelances] = useState<MapPoint[]>([])
@@ -92,10 +81,6 @@ export function AccueilScreen({
   const [busyTask, setBusyTask] = useState<string | null>(null)
   // Profil + déconnexion derrière l'avatar (sheet), plus en premier niveau.
   const [profileOpen, setProfileOpen] = useState(false)
-  // Écran Équipe (chantier Équipe, étape 3) — ouvert DEPUIS la sheet de
-  // profil, qui se ferme d'abord (pas d'empilement de drawers vaul sur iOS).
-  const [teamOpen, setTeamOpen] = useState(false)
-  const themeChoice = useThemePref()
   const [clientAppt, setClientAppt] = useState<Appointment | null>(null)
   const [editing, setEditing] = useState<Appointment | null>(null)
   // Échec ≠ sections vides (audit UX A33) : un raté réseau faisait
@@ -116,9 +101,9 @@ export function AccueilScreen({
       .then(([r, sj, sw, appts, profs]) => {
         // Carte privée (décision chef des ventes, 25/07) : le commercial ne
         // relance que SES portes — une relance d'un collègue ouvrirait une
-        // carte où le point est invisible pour lui.
+        // carte où le point est invisible pour lui. Superviseur : tout.
         setRelances(
-          profile?.role === 'manager' ? r : r.filter((p) => p.created_by === profile?.id),
+          isSupervisorRole(profile?.role) ? r : r.filter((p) => p.created_by === profile?.id),
         )
         setStatsJour(sj)
         setStatsSemaine(sw)
@@ -179,18 +164,18 @@ export function AccueilScreen({
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [load])
 
-  // Carte « Aujourd'hui » : mes chiffres — équipe pour le manager (A28).
+  // Carte « Aujourd'hui » : mes chiffres — équipe pour le superviseur (A28).
   const portesJour = statsJour
-    ? isManager
+    ? isSupervisor
       ? statsJour.team.portes
       : (meId ? statsJour.byCommercial[meId]?.portes : 0) ?? 0
     : null
   const rdvSemaine = statsSemaine
-    ? isManager
+    ? isSupervisor
       ? statsSemaine.team.rdv_pris
       : (meId ? statsSemaine.byCommercial[meId]?.rdv_pris : 0) ?? 0
     : 0
-  const objTarget = isManager
+  const objTarget = isSupervisor
     ? orgProfiles.reduce((s, p) => s + (p.weekly_rdv_target ?? 0), 0)
     : (orgProfiles.find((p) => p.id === meId)?.weekly_rdv_target ?? 0)
 
@@ -263,7 +248,7 @@ export function AccueilScreen({
           <div className="today-figures">
             <div className="today-figure">
               <span className="today-num tnum">{portesJour}</span>
-              <span className="today-cap">{isManager ? 'portes équipe' : 'portes toquées'}</span>
+              <span className="today-cap">{isSupervisor ? 'portes équipe' : 'portes toquées'}</span>
             </div>
             <div className="today-figure">
               {/* Les tâches d'agenda (29/07) restent dans la LISTE du jour
@@ -291,7 +276,7 @@ export function AccueilScreen({
                 <span className="tnum">
                   {rdvSemaine}/{objTarget}
                 </span>{' '}
-                RDV cette semaine{isManager ? ' (équipe)' : ''}
+                RDV cette semaine{isSupervisor ? ' (équipe)' : ''}
               </span>
             </>
           )}
@@ -445,88 +430,9 @@ export function AccueilScreen({
         <GuideSection />
       </motion.div>
 
-      {/* Profil + déconnexion : sheet derrière l'avatar (audit UX B4). */}
-      {/* repositionInputs={false} : gabarit commun des sheets (bug iOS). */}
-      <Drawer.Root open={profileOpen} onOpenChange={setProfileOpen} repositionInputs={false}>
-        <Drawer.Portal>
-          <Drawer.Overlay className="drawer-overlay" />
-          <Drawer.Content className="drawer-content">
-            <div className="drawer-grip" />
-            <div className="drawer-header">
-              <span className="drawer-title">Profil &amp; réglages</span>
-              <button
-                type="button"
-                className="icon-btn"
-                onClick={() => setProfileOpen(false)}
-                aria-label="Fermer"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="drawer-body" data-vaul-no-drag>
-              <div className="user-card">
-                <span className="avatar">{initials(profile?.full_name, session?.user.email ?? '?')}</span>
-                <div className="user-meta">
-                  <span className="user-name">{name ?? 'Utilisateur'}</span>
-                  <span className="user-role">
-                    {role}
-                    {session?.user.email ? ` · ${session.user.email}` : ''}
-                  </span>
-                </div>
-              </div>
-              {/* Thème : préférence de l'appareil (localStorage), appliquée
-                  à chaud — « Auto » suit le réglage du téléphone. */}
-              <div className="theme-pick">
-                <span className="eyebrow">Thème</span>
-                <div className="seg">
-                  {THEMES.map((t) => (
-                    <button
-                      key={t.value}
-                      type="button"
-                      className={`seg-btn ${themeChoice === t.value ? 'is-active' : ''}`}
-                      onClick={() => setThemePref(t.value)}
-                    >
-                      {themeChoice === t.value && <span className="seg-ind" />}
-                      <span className="seg-text">{t.label}</span>
-                    </button>
-                  ))}
-                </div>
-                <p className="theme-hint">Auto : suit le réglage du téléphone.</p>
-              </div>
-              {isSupervisor && (
-                <button
-                  type="button"
-                  className="row-action"
-                  onClick={() => {
-                    setProfileOpen(false)
-                    setTeamOpen(true)
-                  }}
-                >
-                  <Users size={18} strokeWidth={1.8} />
-                  <span>Équipe</span>
-                  <ChevronRight size={17} strokeWidth={1.8} className="row-chevron" />
-                </button>
-              )}
-              {session && (
-                <button
-                  type="button"
-                  className="row-action"
-                  onClick={() => {
-                    setProfileOpen(false)
-                    void signOut()
-                  }}
-                >
-                  <LogOut size={18} strokeWidth={1.8} />
-                  <span>Se déconnecter</span>
-                  <ChevronRight size={17} strokeWidth={1.8} className="row-chevron" />
-                </button>
-              )}
-            </div>
-          </Drawer.Content>
-        </Drawer.Portal>
-      </Drawer.Root>
-
-      {profile && <TeamSheet open={teamOpen} onOpenChange={setTeamOpen} profile={profile} />}
+      {/* Profil + déconnexion + thème + Équipe : sheet partagée (extraite au
+          chantier Équipe — la secrétaire l'ouvre depuis son agenda). */}
+      <ProfileSheet open={profileOpen} onOpenChange={setProfileOpen} />
 
       {/* LA fiche du point, identique à la carte (convergence 29/07). Elle
           monte elle-même le formulaire RDV (Modifier / Planifier / + RDV). */}

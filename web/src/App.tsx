@@ -11,7 +11,27 @@ import { PendingOutcomes } from './components/PendingOutcomes'
 import { SessionProvider, useSession } from './lib/session'
 import { useIsDark } from './lib/theme'
 import { isSupabaseConfigured } from './lib/supabase'
+import { isSecretaireRole } from './domain/types'
 import './App.css'
+
+/** Compte désactivé par le manager (db/0019) : la RLS ne laisse plus rien
+    lire — on le dit, au lieu d'une app vide qui « bugge ». */
+function DisabledScreen() {
+  const { signOut } = useSession()
+  return (
+    <div className="auth-screen">
+      <div className="auth-card">
+        <h1 className="auth-title">Compte désactivé</h1>
+        <p className="auth-subtitle">
+          Ton compte a été désactivé par le manager de l’agence. Contacte-le pour le réactiver.
+        </p>
+        <button type="button" className="btn btn-primary auth-submit" onClick={() => void signOut()}>
+          Se déconnecter
+        </button>
+      </div>
+    </div>
+  )
+}
 
 function AppInner() {
   const { loading, session, profile } = useSession()
@@ -41,6 +61,25 @@ function AppInner() {
   // Si Supabase est configuré, on exige une connexion.
   if (isSupabaseConfigured && !session) {
     return <AuthScreen />
+  }
+
+  if (profile?.disabled_at) {
+    return <DisabledScreen />
+  }
+
+  // Secrétaire (chantier Équipe) : l'agenda partagé est TOUTE son app —
+  // pas de carte (jamais montée), ni d'accueil terrain, ni de stats, ni de
+  // barre d'onglets. Ses réglages vivent dans l'en-tête de l'agenda.
+  if (isSecretaireRole(profile?.role)) {
+    return (
+      <div className="app-shell">
+        <main className="app-main app-main-solo">
+          <ScreenBoundary>
+            <AgendaScreen profile={profile} />
+          </ScreenBoundary>
+        </main>
+      </div>
+    )
   }
 
   return (

@@ -3083,6 +3083,22 @@ select.field-input {
   text-decoration: underline;
 }
 
+/* --- UI par rôle (étape 4) --- */
+/* En-tête Agenda : segmented pleine largeur, roue Réglages à droite pour la
+   secrétaire (elle n'a pas l'onglet Accueil). Sans roue, rien ne bouge. */
+.agenda-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.agenda-top .seg {
+  flex: 1;
+}
+/* Rail du jour en lecture (secrétaire) : bloc inerte, pas « grisé ». */
+.appt-main.is-readonly {
+  opacity: 1;
+}
+
 /* --- Panneau détail d'un point (bottom sheet) --- */
 .sheet-backdrop {
   position: absolute;

@@ -11,7 +11,7 @@ import {
   type AppointmentStatus,
 } from '../domain/appointments'
 import { wazeUrl } from '../lib/nav'
-import type { MapPoint, Profile } from '../domain/types'
+import { isSecretaireRole, type MapPoint, type Profile } from '../domain/types'
 
 // -----------------------------------------------------------------------------
 // Section « Rendez-vous » STANDARD (fusion des fiches, 29/07 soir) : le même
@@ -62,6 +62,9 @@ function endOfToday(): number {
 
 export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, showNav }: Props) {
   const [busy, setBusy] = useState(false)
+  // Secrétaire (étape 4) : lecture — les issues terrain et la planification
+  // lui sont refusées par la RLS de toute façon, on ne les propose pas.
+  const canAct = !isSecretaireRole(profile.role)
   // Issue donnée depuis CE bloc : reflétée sans attendre le reload du parent.
   const [override, setOverride] = useState<{ id: string; status: AppointmentStatus } | null>(null)
   useEffect(() => {
@@ -89,7 +92,7 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
   const missingBanner = missing ? (
     <div className="rdv-missing">
       <span>Aucun RDV planifié pour ce point</span>
-      {onPlan && (
+      {onPlan && canAct && (
         <button type="button" className="text-btn" onClick={onPlan}>
           {/* « Replanifier » quand un ancien RDV existe (annulé, en attente…)
               — le mot dit le geste (retour briac 29/07). */}
@@ -138,7 +141,7 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
 
       {/* Solder SANS retraverser l'app (audit fusion) : mêmes issues, même
           règle jour J, quel que soit l'écran d'où la fiche est ouverte. */}
-      {outcomes && (
+      {canAct && outcomes && (
         <div className="appt-outcomes">
           {outcomes.map((o) => {
             const m = APPOINTMENT_STATUS_META[o]
@@ -177,7 +180,7 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
         </div>
       )}
 
-      {((showNav && (phone || waze)) || (editable && onEdit)) && (
+      {((showNav && (phone || waze)) || (editable && onEdit && canAct)) && (
         <span className="rdv-actions">
           {showNav && phone && (
             <a className="text-btn" href={`tel:${phone}`}>
@@ -189,7 +192,7 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
               <Navigation size={14} /> Y aller
             </a>
           )}
-          {editable && onEdit && (
+          {editable && onEdit && canAct && (
             <button type="button" className="text-btn" onClick={() => onEdit(editable)}>
               <Pencil size={14} /> Modifier
             </button>

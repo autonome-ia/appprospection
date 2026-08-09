@@ -142,33 +142,55 @@ export async function insertPoint(
   lat: number,
   status: PointStatus,
   note?: string | null,
+  /** Contact saisi À DISTANCE (formulaire « + » de Contacts) : tout part
+      dans le MÊME insert — indispensable pour la secrétaire, qui crée AU NOM
+      d'un commercial (RLS is_org_member) et n'a AUCUN droit d'UPDATE sur un
+      point qui ne lui appartient pas. Le journal porte le même auteur. */
+  extras?: {
+    createdBy?: string
+    client_name?: string | null
+    client_phone?: string | null
+    revisit_at?: string | null
+    /** Adresse BAN déjà connue : pas de géocodage inverse. */
+    address?: string | null
+  },
 ): Promise<MapPoint> {
   if (!supabase) throw new Error('Supabase non configuré')
 
+  const owner = extras?.createdBy ?? profile.id
   const { data, error } = await supabase
     .from('points')
     .insert({
       organization_id: profile.organization_id,
-      created_by: profile.id,
+      created_by: owner,
       status,
       lat,
       lng,
       notes: note ?? null,
+      ...(extras?.address !== undefined ? { address: extras.address } : {}),
+      ...(extras?.client_name !== undefined ? { client_name: extras.client_name } : {}),
+      ...(extras?.client_phone !== undefined ? { client_phone: extras.client_phone } : {}),
+      ...(extras?.revisit_at !== undefined ? { revisit_at: extras.revisit_at } : {}),
     })
     .select(COLS)
     .single()
   if (error) throw error
 
   const point = rowToPoint(data as Record<string, unknown>)
-  await logEvent(profile, point.id, status, note)
+  await logEvent(profile, point.id, status, note, owner)
   // Adresse + fiche maison (open data) en arrière-plan : la pose reste
   // instantanée, le temps réel propage les mises à jour à tous les clients.
-  void reverseGeocode(lng, lat).then(async (label) => {
-    if (label && supabase) {
-      const { error } = await supabase.from('points').update({ address: label }).eq('id', point.id)
-      if (error) console.error('Adresse du point :', error.message)
-    }
-  })
+  // NB secrétaire : ces écritures de cache sur un point qui ne lui appartient
+  // pas seront refusées par la RLS (console seulement) — le backfill paresseux
+  // les rattrape quand le commercial ouvre la fiche.
+  if (!extras?.address) {
+    void reverseGeocode(lng, lat).then(async (label) => {
+      if (label && supabase) {
+        const { error } = await supabase.from('points').update({ address: label }).eq('id', point.id)
+        if (error) console.error('Adresse du point :', error.message)
+      }
+    })
+  }
   // Import dynamique : le module d'enrichissement embarque proj4, inutile de
   // l'inclure dans le bundle principal.
   void import('./enrich')
@@ -419,7 +441,15 @@ export async function syncPointClient(
   if (!data?.length) throw new Error('point d’un autre commercial (RLS)')
 }
 
-async function logEvent(profile: Profile, pointId: string, status: PointStatus, note?: string | null) {
+async function logEvent(
+  profile: Profile,
+  pointId: string,
+  status: PointStatus,
+  note?: string | null,
+  /** Contact saisi au nom d'un commercial : la porte est comptée pour LUI
+      (Q29 — à revalider avec le chef des ventes). */
+  authorId?: string,
+) {
   if (!supabase) return
   // Le journal alimente les STATS : une visite non journalisée est comptée
   // nulle part. Un retry couvre le flanchement réseau entre les deux
@@ -428,7 +458,7 @@ async function logEvent(profile: Profile, pointId: string, status: PointStatus, 
     const { error } = await supabase.from('point_events').insert({
       organization_id: profile.organization_id,
       point_id: pointId,
-      author_id: profile.id,
+      author_id: authorId ?? profile.id,
       status,
       note: note ?? null,
     })

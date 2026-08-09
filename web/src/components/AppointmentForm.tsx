@@ -6,7 +6,7 @@ import { createAppointment, deleteAppointment, updateAppointment } from '../data
 import { addPointNote, syncPointClient } from '../data/points'
 import { searchAddresses, type AddressResult } from './AddressSearch'
 import type { Appointment, AppointmentKind } from '../domain/appointments'
-import type { Profile } from '../domain/types'
+import { isSupervisorRole, type Profile } from '../domain/types'
 
 interface Props {
   open: boolean
@@ -87,7 +87,7 @@ export function AppointmentForm({
   // seulement : la RLS refuse les autres, on ne leur propose pas.
   const [confirmDel, setConfirmDel] = useState(false)
   const canDelete =
-    !!existing && (profile.role === 'manager' || existing.commercial_id === profile.id)
+    !!existing && (isSupervisorRole(profile.role) || existing.commercial_id === profile.id)
 
   useEffect(() => {
     if (!addrFocus) return

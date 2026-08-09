@@ -25,6 +25,9 @@ export interface NewAppointment {
   notes?: string | null
   /** Tâche d'agenda (29/07) : entrée libre sans point ni issues. */
   kind?: 'rdv' | 'tache'
+  /** Titulaire ≠ soi (secrétaire qui crée AU NOM d'un commercial — étape 4 ;
+      la RLS exige un membre de l'agence). Défaut : soi. */
+  commercial_id?: string
 }
 
 export async function fetchAppointments(): Promise<Appointment[]> {
@@ -88,7 +91,7 @@ export async function createAppointment(
   const payload = {
     organization_id: profile.organization_id,
     created_by: profile.id,
-    commercial_id: profile.id,
+    commercial_id: appt.commercial_id ?? profile.id,
     point_id: appt.point_id ?? null,
     scheduled_at: appt.scheduled_at,
     address: appt.address ?? null,

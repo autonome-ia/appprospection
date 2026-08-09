@@ -20,12 +20,26 @@ export function roleLabel(role: string | null | undefined): string {
   return ROLE_LABELS[role as UserRole] ?? ROLE_LABELS.commercial
 }
 
+/** Vues et pouvoirs TERRAIN du manager (carte équipe, stats, drill-down,
+    édition des points/RDV des autres) — miroir de is_supervisor() en RLS.
+    La gestion des comptes et l'objectif hebdo restent manager strict. */
+export function isSupervisorRole(role: string | null | undefined): boolean {
+  return role === 'manager' || role === 'chef_ventes'
+}
+
+export function isSecretaireRole(role: string | null | undefined): boolean {
+  return role === 'secretaire'
+}
+
 /** Profil applicatif (table `profiles`). */
 export interface Profile {
   id: string
   organization_id: string
   full_name: string | null
   role: UserRole
+  /** Compte désactivé par le manager (db/0019) : la RLS ne laisse plus rien
+      lire — l'app affiche l'écran « compte désactivé ». */
+  disabled_at?: string | null
 }
 
 /** Point affiché sur la carte (projection légère de la table `points`). */

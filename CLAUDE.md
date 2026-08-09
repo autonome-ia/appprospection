@@ -57,6 +57,27 @@ Workflow type : coder → `npm run build` (vérifie) → commit → `git push` �
 - **Agenda** : **vue mois plein écran par défaut** (26/07/2026 — retour assumé sur le « jour d'abord » C1, testé puis rejeté sur le terrain par briac) ; le planning d'un jour s'ouvre en **sheet vaul** au tap sur sa case. Agenda **partagé** par défaut + chip « Mes RDV », couleur = **commercial** dans la grille (décisions chef des ventes, ne pas re-débattre).
 - **Géoplateforme** : **1 seule couche par appel WFS/WMS-V** (limite IGN au 15/06/2026 — ne jamais regrouper des TYPENAMES) ; la doc IGN vit sur **cartes.gouv.fr** (geoservices.ign.fr = redirections). `copc`/`laz-perf` figés en versions exactes ; toujours passer `{ lazPerf }` à `Copc.loadPointDataView` (sinon un 2e wasm s'instancie).
 
+## Rôles & droits (chantier Équipe, 09/08/2026 — matrice finale)
+4 rôles (`user_role`, db/0018) — la sécurité vit en BASE (RLS + trigger `profiles_guard`, db/0019),
+l'UI ne fait que suivre. Helpers : `is_supervisor()` (manager OU chef_ventes) côté SQL,
+`isSupervisorRole()`/`isSecretaireRole()` côté TS (`domain/types.ts`) ; rôle inconnu = commercial.
+- **manager** : tout + SEUL à gérer les comptes (rôles, désactivation — écran Équipe) et à éditer
+  l'objectif hebdo (stepper Stats + trigger en base). Jamais son propre rôle, jamais rétrograder le
+  dernier manager actif. Multi-manager autorisé.
+- **chef_ventes** : mêmes vues ET pouvoirs TERRAIN que le manager (carte équipe + filtre « Qui »,
+  drag des points d'autrui, stats + drill-down + classement, relances/contacts de tous, issues des
+  RDV des autres, suppression RDV/journal/notes), liste Équipe + code d'invitation en LECTURE.
+- **secretaire** : agenda partagé en LECTURE (App.tsx la borne à l'onglet Agenda, sans nav ni
+  carte ; roue Réglages dans l'en-tête Agenda → ProfileSheet) ; UNE action : **ajouter des contacts
+  AU NOM d'un commercial** (sélecteur obligatoire dans ContactForm — le point, le journal ET le RDV
+  appartiennent au commercial, en UN insert : elle n'a aucun droit d'UPDATE ensuite). Ni issues, ni
+  création/décalage de RDV, ni tâches, ni relances. Elle voit TOUS les contacts (standard tél.).
+- **commercial** : inchangé (ses points — carte privée —, ses stats, agenda partagé).
+- **Invitations** : un code par agence (`organization_invites`, lisible superviseurs, rotation RPC
+  manager), inscription par code OBLIGATOIRE → arrive commercial. « Supprimer un compte » =
+  désactivation (`profiles.disabled_at` — kill-switch `current_org_id()`, écran « compte
+  désactivé », réversible). Écran Équipe : sheet derrière Profil & réglages (Accueil).
+
 ## Direction artistique (IMPORTANT)
 DA **« Encre & signal »** (choisie par briac le 26/07/2026 sur prototypes comparés — remplace « Clair & précis »).
 - **Encre quasi noire** (#111113) sur papier neutre, **relief marqué** (ombres franches, les cartes décollent).

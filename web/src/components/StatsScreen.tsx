@@ -15,7 +15,7 @@ import { fetchOrgProfiles, updateWeeklyTarget, type OrgProfile } from '../data/p
 import { colorForCommercial } from '../domain/colors'
 import { CLIENT_STATUSES, DISPLAY_STATUSES, isClientStatus } from '../domain/status'
 import { markerDataUrl } from '../config/markers'
-import type { Profile } from '../domain/types'
+import { isSupervisorRole, type Profile } from '../domain/types'
 
 const PERIODS: { value: Period; label: string }[] = [
   { value: 'jour', label: 'Jour' },
@@ -246,6 +246,10 @@ export function StatsScreen({
   // window.prompt système (clavier libre, saisie invalide avalée).
   const [targetEdit, setTargetEdit] = useState<number | null>(null)
 
+  // Chef des ventes = mêmes VUES que le manager (drill-down, classement,
+  // pont carte) ; l'ÉDITION de l'objectif hebdo reste manager strict
+  // (verrouillée aussi en base — trigger profiles_guard).
+  const isSupervisor = isSupervisorRole(profile?.role)
   const isManager = profile?.role === 'manager'
   const meId = profile?.id ?? null
 
@@ -300,8 +304,8 @@ export function StatsScreen({
   const nameOf = (id: string) => profiles.find((p) => p.id === id)?.full_name ?? 'Commercial'
   const targetOf = (id: string) => profiles.find((p) => p.id === id)?.weekly_rdv_target ?? 0
 
-  // Focus : commercial = ses stats ; manager = équipe (ou commercial en drill-down).
-  const focusId = isManager ? drillId : meId
+  // Focus : commercial = ses stats ; superviseur = équipe (ou drill-down).
+  const focusId = isSupervisor ? drillId : meId
   const cur = data ? (focusId ? data.current.byCommercial[focusId] ?? EMPTY : data.current.team) : EMPTY
   const prev = data ? (focusId ? data.previous.byCommercial[focusId] ?? EMPTY : data.previous.team) : EMPTY
   const daily = data
@@ -336,7 +340,7 @@ export function StatsScreen({
   // Objectif hebdo : par commercial en drill-down/vue perso, AGRÉGÉ en vue
   // Équipe (audit UX A28 — le manager additionnait de tête les X/Y).
   const showObjective =
-    data !== null && period === 'semaine' && (focusId !== null || (isManager && teamTarget > 0))
+    data !== null && period === 'semaine' && (focusId !== null || (isSupervisor && teamTarget > 0))
   const objectiveTarget = focusId ? targetOf(focusId) : teamTarget
   const days = data ? daysOf(data.range.start, data.range.end) : []
 
@@ -414,7 +418,7 @@ export function StatsScreen({
         </div>
       )}
 
-      {isManager && drillId && (
+      {isSupervisor && drillId && (
         <button type="button" className="drill-back" onClick={() => setDrillId(null)}>
           <ChevronLeft size={16} /> Retour équipe
         </button>
@@ -449,7 +453,7 @@ export function StatsScreen({
           </p>
           {/* « Ma position » vit sous le héros (plus de carte séparée en
               fond d'écran que personne n'atteignait). */}
-          {!isManager && myIdx >= 0 && (
+          {!isSupervisor && myIdx >= 0 && (
             <p className="hero-pos">
               {myIdx + 1}
               {myIdx === 0 ? 'ᵉʳ' : 'ᵉ'} sur {ranked.length}
@@ -461,7 +465,7 @@ export function StatsScreen({
                 })`}
             </p>
           )}
-          {isManager && drillId && onShowCommercialOnMap && (
+          {isSupervisor && drillId && onShowCommercialOnMap && (
             <button
               type="button"
               className="text-btn drill-map"
@@ -542,7 +546,7 @@ export function StatsScreen({
       {data && <StatusBreakdown s={cur} />}
 
       {/* Manager : classement complet (cliquable). Commercial : sa position. */}
-      {data && isManager && !drillId && (
+      {data && isSupervisor && !drillId && (
         <section className="card">
           <p className="eyebrow">Classement des commerciaux</p>
           {ranked.length === 0 && <p className="screen-empty">Aucun commercial.</p>}

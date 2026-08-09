@@ -4,11 +4,12 @@ import { toast } from 'sonner'
 import { MapPin, X } from 'lucide-react'
 import { searchAddresses, type AddressResult } from './AddressSearch'
 import { TIME_SLOTS } from './AppointmentForm'
-import { findPointByAddress, insertPoint, updatePoint } from '../data/points'
+import { findPointByAddress, insertPoint } from '../data/points'
 import { createAppointment } from '../data/appointments'
+import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
 import { STATUS_BY_VALUE } from '../domain/status'
 import { markerDataUrl } from '../config/markers'
-import type { MapPoint, Profile } from '../domain/types'
+import { isSecretaireRole, type MapPoint, type Profile } from '../domain/types'
 
 // -----------------------------------------------------------------------------
 // Saisie manuelle d'un contact (vue Contacts, 27/07) : « poser un point sans
@@ -49,6 +50,24 @@ function defaultRdv(): { date: string; time: string } {
 
 export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: Props) {
   const [status, setStatus] = useState<'rdv_pris' | 'a_revoir' | 'ancien_client'>('rdv_pris')
+  // Secrétaire (étape 4) : le contact est créé AU NOM d'un commercial —
+  // sinon sa carte privée et sa liste Contacts ne le verraient jamais. Le
+  // sélecteur est OBLIGATOIRE pour elle ; le RDV lié suit le même titulaire.
+  const secretaire = isSecretaireRole(profile.role)
+  const [ownerId, setOwnerId] = useState('')
+  const [team, setTeam] = useState<OrgProfile[]>([])
+  useEffect(() => {
+    if (!secretaire) return
+    fetchOrgProfiles()
+      .then((profs) =>
+        setTeam(
+          profs
+            .filter((p) => !p.disabled_at && p.role !== 'secretaire')
+            .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? '')),
+        ),
+      )
+      .catch((e) => console.error('Profils :', e))
+  }, [secretaire])
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [note, setNote] = useState('')
@@ -118,20 +137,16 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
         })
         return
       }
-      const point = await insertPoint(profile, chosen.lng, chosen.lat, status, note.trim() || null)
-      // Infos client dans la foulée (insertPoint ne les porte pas) — l'échec
-      // n'est pas silencieux mais le point existe : la fiche permet de
-      // compléter à la main.
-      try {
-        await updatePoint(profile, point.id, {
-          client_name: name.trim() || null,
-          client_phone: phone.trim() || null,
-          ...(status === 'a_revoir' && revisitAt ? { revisit_at: revisitAt } : {}),
-        })
-      } catch (e) {
-        console.error('Infos client du contact :', e)
-        toast.error('Contact créé, mais infos client non enregistrées — complétez sa fiche')
-      }
+      // TOUT dans le même insert (adresse BAN comprise — pas de géocodage
+      // inverse) : indispensable pour la secrétaire, qui crée au nom d'un
+      // commercial et ne peut plus UPDATE le point ensuite (RLS).
+      const point = await insertPoint(profile, chosen.lng, chosen.lat, status, note.trim() || null, {
+        ...(secretaire && ownerId ? { createdBy: ownerId } : {}),
+        address: chosen.label,
+        client_name: name.trim() || null,
+        client_phone: phone.trim() || null,
+        ...(status === 'a_revoir' && revisitAt ? { revisit_at: revisitAt } : {}),
+      })
       // RDV créé DANS LE MÊME formulaire (retour briac 27/07 : le second
       // modal redemandait ce qui venait d'être saisi). La note reste sur le
       // point (note terrain) : l'agenda l'affiche déjà en contexte.
@@ -145,6 +160,7 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
             client_name: name.trim() || null,
             client_phone: phone.trim() || null,
             notes: null,
+            ...(secretaire && ownerId ? { commercial_id: ownerId } : {}),
           })
         } catch (e) {
           rdvOk = false
@@ -232,6 +248,29 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
             )}
             {address.trim().length > 0 && !chosen && (
               <p className="field-hint">Choisissez l’adresse dans la liste — elle place la maison sur la carte.</p>
+            )}
+
+            {secretaire && (
+              <>
+                <p className="eyebrow field-label">Pour quel commercial</p>
+                <select
+                  className="field-input"
+                  value={ownerId}
+                  onChange={(e) => setOwnerId(e.target.value)}
+                >
+                  <option value="" disabled>
+                    Choisir…
+                  </option>
+                  {team.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.full_name ?? 'Sans nom'}
+                    </option>
+                  ))}
+                </select>
+                <p className="field-hint">
+                  Le contact et son RDV appartiendront à ce commercial (sa carte, ses stats).
+                </p>
+              </>
             )}
 
             <p className="eyebrow field-label">Statut</p>
@@ -334,7 +373,11 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
                 className="btn btn-primary"
                 // Date de RDV vidée à la main : sans elle le RDV serait
                 // invalide — on verrouille plutôt que d'échouer à moitié.
-                disabled={!chosen || saving || (status === 'rdv_pris' && !rdvDate)}
+                // Secrétaire : titulaire obligatoire (le contact doit
+                // appartenir à un commercial).
+                disabled={
+                  !chosen || saving || (status === 'rdv_pris' && !rdvDate) || (secretaire && !ownerId)
+                }
                 onClick={() => void save()}
               >
                 {saving ? 'Création…' : 'Créer le contact'}

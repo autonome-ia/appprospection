@@ -12,6 +12,7 @@ import {
   ClipboardList,
   Navigation,
   Search,
+  Settings,
   X,
 } from 'lucide-react'
 import {
@@ -36,7 +37,8 @@ import {
 } from '../domain/appointments'
 import { STATUS_BY_VALUE, sameDisplayStatus } from '../domain/status'
 import { colorForCommercial } from '../domain/colors'
-import type { MapPoint, Profile } from '../domain/types'
+import { ProfileSheet } from './ProfileSheet'
+import { isSecretaireRole, isSupervisorRole, type MapPoint, type Profile } from '../domain/types'
 
 function fmt(iso: string, timeOnly = false): string {
   return new Intl.DateTimeFormat(
@@ -72,11 +74,14 @@ interface CardProps {
   onOpenClient: (a: Appointment) => void
   /** RDV annulé → nouveau RDV pré-rempli du même point (refonte 29/07). */
   onReplan?: (a: Appointment) => void
+  /** Secrétaire (étape 4) : les agendas de tous en LECTURE — ni issues, ni
+      « Fait ✓ », ni fiche ; Appeler / Itinéraire restent (son quotidien). */
+  readOnly?: boolean
 }
 
 /** RDV en « rail horaire » (refonte 26/07) : heure mono à gauche, barre à la
     couleur du commercial, contenu aéré — plus de cadre de carte. */
-function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan }: CardProps) {
+function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan, readOnly }: CardProps) {
   const meta = APPOINTMENT_STATUS_META[appt.status]
   const color = who ? colorForCommercial(who.id, who.color) : '#98a2b3'
   // Tâche d'agenda (29/07) : sa note est son TITRE, client/adresse en
@@ -103,8 +108,14 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
       <span className="appt-time">{fmt(appt.scheduled_at, true)}</span>
       <span className="appt-rail" aria-hidden="true" />
       <div className="appt-body">
-        {/* Tout le bloc lecture est tappable → fiche client (audit UX A6). */}
-        <button type="button" className="appt-main" onClick={() => onOpenClient(appt)}>
+        {/* Tout le bloc lecture est tappable → fiche client (audit UX A6).
+            Lecture seule (secrétaire) : le bloc reste un simple affichage. */}
+        <button
+          type="button"
+          className={`appt-main ${readOnly ? 'is-readonly' : ''}`}
+          onClick={readOnly ? undefined : () => onOpenClient(appt)}
+          disabled={readOnly}
+        >
           <span className="appt-name-row">
             {isTache && <ClipboardList size={14} strokeWidth={1.9} className="appt-task-icon" />}
             <span className="appt-name">
@@ -121,7 +132,7 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
                 {meta.label}
               </span>
             )}
-            <ChevronRight size={15} strokeWidth={1.9} className="row-chevron" />
+            {!readOnly && <ChevronRight size={15} strokeWidth={1.9} className="row-chevron" />}
           </span>
           {/* Pas de doublon : sans nom client, l'adresse sert déjà de titre. */}
           {isTache
@@ -163,7 +174,7 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
 
         {/* Tâche : un seul contrôle « Fait ✓ » — toggle sans conséquence
             stats (kind filtré partout), donc pas de garde « jour venu ». */}
-        {isTache && (
+        {isTache && !readOnly && (
           <div className="appt-outcomes">
             <button
               type="button"
@@ -193,7 +204,7 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
             tap de scroll raté écrivait des stats fausses. Jamais sur une
             tâche. « En attente » = état OUVERT (29/07 soir) : Vendu / Refus
             restent proposés sans limite de date — même règle que la fiche. */}
-        {!isTache && railOutcomes && (
+        {!isTache && !readOnly && railOutcomes && (
           <div className="appt-outcomes">
             {railOutcomes.map((o) => {
               const m = APPOINTMENT_STATUS_META[o]
@@ -233,7 +244,7 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
 
         {/* RDV annulé : la suite en 1 tap (refonte des issues 29/07) — un
             NOUVEAU RDV pré-rempli, l'annulé reste dans l'historique. */}
-        {!isTache && appt.status === 'annule' && appt.point && onReplan && (
+        {!isTache && !readOnly && appt.status === 'annule' && appt.point && onReplan && (
           <div className="appt-outcomes">
             <button type="button" className="outcome-btn" onClick={() => onReplan(appt)}>
               <CalendarPlus size={14} strokeWidth={1.9} /> Replanifier
@@ -305,6 +316,8 @@ interface DaySheetProps {
   onCreateTask: () => void
   /** RDV annulé → nouveau RDV pré-rempli (refonte des issues 29/07). */
   onReplan: (a: Appointment) => void
+  /** Secrétaire : planning en lecture — ni issues ni création. */
+  readOnly?: boolean
 }
 
 function DaySheet({
@@ -320,6 +333,7 @@ function DaySheet({
   onCreate,
   onCreateTask,
   onReplan,
+  readOnly,
 }: DaySheetProps) {
   const dayLabel = capitalize(
     new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(date),
@@ -360,6 +374,7 @@ function DaySheet({
                     onChanged={onChanged}
                     onOpenClient={onOpenClient}
                     onReplan={onReplan}
+                    readOnly={readOnly}
                   />
                 ))}
                 {/* Maisons « à revoir » planifiées ce jour (pas des RDV : un
@@ -390,16 +405,18 @@ function DaySheet({
               </>
             )}
 
-            <div className="drawer-footer">
-              {/* Tâche libre (29/07, demande chef des ventes) : même jour,
-                  même formulaire — la note devient le titre, hors stats. */}
-              <button type="button" className="btn btn-ghost" onClick={onCreateTask}>
-                <ClipboardList size={15} strokeWidth={1.9} /> Tâche
-              </button>
-              <button type="button" className="btn btn-primary" onClick={onCreate}>
-                <Plus size={15} strokeWidth={2.2} /> RDV ce jour
-              </button>
-            </div>
+            {!readOnly && (
+              <div className="drawer-footer">
+                {/* Tâche libre (29/07, demande chef des ventes) : même jour,
+                    même formulaire — la note devient le titre, hors stats. */}
+                <button type="button" className="btn btn-ghost" onClick={onCreateTask}>
+                  <ClipboardList size={15} strokeWidth={1.9} /> Tâche
+                </button>
+                <button type="button" className="btn btn-primary" onClick={onCreate}>
+                  <Plus size={15} strokeWidth={2.2} /> RDV ce jour
+                </button>
+              </div>
+            )}
           </div>
         </Drawer.Content>
       </Drawer.Portal>
@@ -445,6 +462,10 @@ export function AgendaScreen({
   // Agenda PARTAGÉ par défaut (décision chef des ventes, 25/07) : chip
   // « Mes RDV » pour ne voir que les siens.
   const [onlyMine, setOnlyMine] = useState(false)
+  // Secrétaire (étape 4) : l'agenda est TOUTE son app — la sheet « Profil &
+  // réglages » (thème, déconnexion) s'ouvre depuis SON en-tête.
+  const secretaire = isSecretaireRole(profile?.role)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   // Échec de chargement ≠ agenda vide : sans ce drapeau, une coupure réseau
   // affichait « Aucun rendez-vous ce jour » — un commercial pouvait rater un
@@ -470,12 +491,14 @@ export function AgendaScreen({
       .then(([a, r, c]) => {
         if (seq !== reloadSeq.current) return
         setAppts(a)
-        // Relances ET contacts : chacun les siens, le manager voit tout
-        // (décision briac 27/07 — contacts non partagés).
+        // Relances ET contacts : chacun les siens, le SUPERVISEUR voit tout
+        // (décision briac 27/07 — contacts non partagés). Secrétaire : pas
+        // de relances (terrain), mais TOUS les contacts — c'est le standard
+        // téléphonique de l'agence (un client appelle, elle le retrouve).
         const mine = <T extends { created_by: string | null }>(rows: T[]) =>
-          profile?.role === 'manager' ? rows : rows.filter((p) => p.created_by === profile?.id)
-        setRevisits(mine(r))
-        setContacts(mine(c))
+          isSupervisorRole(profile?.role) ? rows : rows.filter((p) => p.created_by === profile?.id)
+        setRevisits(isSecretaireRole(profile?.role) ? [] : mine(r))
+        setContacts(isSecretaireRole(profile?.role) ? c : mine(c))
         setLoadError(false)
       })
       .catch((e) => {
@@ -636,23 +659,36 @@ export function AgendaScreen({
         </div>
       )}
 
-      <div className="seg">
-        {(
-          [
-            ['agenda', 'Agenda'],
-            ['contacts', 'Contacts'],
-          ] as ['agenda' | 'contacts', string][]
-        ).map(([v, label]) => (
+      <div className="agenda-top">
+        <div className="seg">
+          {(
+            [
+              ['agenda', 'Agenda'],
+              ['contacts', 'Contacts'],
+            ] as ['agenda' | 'contacts', string][]
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              type="button"
+              className={`seg-btn ${view === v ? 'is-active' : ''}`}
+              onClick={() => setView(v)}
+            >
+              {view === v && <span className="seg-ind" />}
+              <span className="seg-text">{label}</span>
+            </button>
+          ))}
+        </div>
+        {/* Secrétaire : pas d'onglet Accueil — thème et déconnexion ici. */}
+        {secretaire && (
           <button
-            key={v}
             type="button"
-            className={`seg-btn ${view === v ? 'is-active' : ''}`}
-            onClick={() => setView(v)}
+            className="icon-btn"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Réglages"
           >
-            {view === v && <span className="seg-ind" />}
-            <span className="seg-text">{label}</span>
+            <Settings size={19} strokeWidth={1.8} />
           </button>
-        ))}
+        )}
       </div>
 
       {view === 'contacts' && (
@@ -771,24 +807,27 @@ export function AgendaScreen({
           </div>
         </div>
 
-        <div className="chip-row agenda-mine">
-          <button
-            type="button"
-            className={`chip ${onlyMine ? 'is-active' : ''}`}
-            onClick={() => setOnlyMine((v) => !v)}
-          >
-            Mes RDV
-          </button>
-          {/* Tâche en 1 tap depuis le mois (retour briac 29/07) : sans passer
-              par un jour — le formulaire propose la prochaine heure ronde. */}
-          <button
-            type="button"
-            className="chip agenda-add-task"
-            onClick={() => setCreating({ at: null, kind: 'tache' })}
-          >
-            <Plus size={14} strokeWidth={2.2} /> Tâche
-          </button>
-        </div>
+        {/* Secrétaire : ni « Mes RDV » (elle n'en a pas) ni création. */}
+        {!secretaire && (
+          <div className="chip-row agenda-mine">
+            <button
+              type="button"
+              className={`chip ${onlyMine ? 'is-active' : ''}`}
+              onClick={() => setOnlyMine((v) => !v)}
+            >
+              Mes RDV
+            </button>
+            {/* Tâche en 1 tap depuis le mois (retour briac 29/07) : sans passer
+                par un jour — le formulaire propose la prochaine heure ronde. */}
+            <button
+              type="button"
+              className="chip agenda-add-task"
+              onClick={() => setCreating({ at: null, kind: 'tache' })}
+            >
+              <Plus size={14} strokeWidth={2.2} /> Tâche
+            </button>
+          </div>
+        )}
 
         <div className="cal-weekdays">
           {WEEKDAYS.map((w, i) => (
@@ -872,6 +911,7 @@ export function AgendaScreen({
           revisits={revisitsByDay[dateKey(daySheet)] ?? []}
           whoById={whoById}
           profile={profile}
+          readOnly={secretaire}
           onOpenChange={(o) => !o && setDaySheet(null)}
           onChanged={reload}
           onOpenClient={(a) => {
@@ -950,6 +990,8 @@ export function AgendaScreen({
           }}
         />
       )}
+
+      {secretaire && <ProfileSheet open={settingsOpen} onOpenChange={setSettingsOpen} />}
 
       {addingContact && (
         <ContactForm

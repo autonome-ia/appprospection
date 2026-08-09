@@ -208,12 +208,25 @@ un compte » = **désactivation** (`disabled_at`, kill-switch RLS, réversible).
   lecture seule). **⚠ Découverte de la sonde : `GUIDE_EMAIL` (web/.env) = le compte PERSO de
   briac, désormais dans la VRAIE agence — les sondes/captures tournent sur la prod. À corriger :
   compte sondes dédié dans l'ancienne agence de test (s'inscrire avec SON code) + web/.env.**
-- [ ] ⬜ **Étape 4 — UI par rôle** : nav secrétaire (Agenda seul + roue Réglages dans son en-tête ;
-  segment Contacts avec « + » et **sélecteur de titulaire obligatoire** ; création en UN insert —
-  le point appartient au commercial, elle ne peut plus l'updater après coup ; issues/+ Tâche/
-  création RDV masquées), chef des ventes = vues manager sans gestion, stepper d'objectif manager
-  strict, rôle inconnu traité « commercial » (repli client pas à jour). Matrice finale → CLAUDE.md.
-- [ ] ⬜ **Étape 5 (si raisonnable)** — déclenchement auto du 1er tuto du Guide à la 1re connexion.
+- [x] **Étape 4 — UI par rôle** : **chef des ventes = superviseur partout** (Accueil : agrégats et
+  objectif équipe, relances de tous ; Carte : tous les points + filtre « Qui » + drag d'autrui ;
+  Stats : drill-down, classement, pont carte ; Agenda : relances/contacts de tous ; suppression de
+  RDV) via `isSupervisorRole()` — le **stepper d'objectif reste manager strict** (`isManager`,
+  verrou base en plus). **Secrétaire** : App.tsx la borne à l'Agenda (pas de nav, carte jamais
+  montée) ; sheet « Profil & réglages » **extraite en `ProfileSheet`** (Accueil + roue dans
+  l'en-tête Agenda pour elle) ; planning et rail du jour en lecture (ni issues, ni « Fait ✓ », ni
+  fiche au tap, ni création RDV/tâche, ni « Mes RDV ») ; relances masquées, **tous les contacts
+  visibles** (standard téléphonique) ; **ContactForm : sélecteur « Pour quel commercial »
+  obligatoire** — point + journal + RDV créés AU NOM du commercial **en UN insert** (adresse BAN
+  incluse, plus de updatePoint : la RLS le lui refuse — et l'ancien risque « infos client non
+  enregistrées » disparaît pour tout le monde) ; `RdvSection` sans issues/Modifier/Planifier pour
+  elle. **Écran « Compte désactivé »** (session lit `disabled_at`, App l'affiche au lieu d'une app
+  vide). Matrice finale documentée dans CLAUDE.md. Vérifié : build + sondes probe-team/probe-auth
+  (manager) ; **le parcours secrétaire n'a pas de sonde** (aucun compte secrétaire de test — à
+  couvrir avec le banc RLS).
+- [ ] ⬜ **Étape 5 — tuto auto à la 1re connexion : REPORTÉE** (fin de chantier chargée) : il faut
+  distinguer un VRAI nouveau compte (profil créé < 48 h ? `created_at` pas dans le fetch session)
+  d'un ancien qui verrait surgir le tuto à la prochaine mise à jour. Petit chantier dédié.
 - [ ] ⬜ **Étape 6 — amorçage Mister Toiture** (SQL fourni, exécuté PAR briac) : créer l'agence,
   y basculer l'ami en chef_ventes et briac en manager (l'agence démarre VIDE — les données de test
   restent dans l'ancienne agence avec le compte des sondes) ; solder Q13-16.
