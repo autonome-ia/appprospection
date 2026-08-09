@@ -11,6 +11,7 @@ import {
   ClipboardList,
   Phone,
   Settings,
+  Users,
   X,
 } from 'lucide-react'
 import { useSession } from '../lib/session'
@@ -25,7 +26,8 @@ import { APPOINTMENT_STATUS_META, type Appointment } from '../domain/appointment
 import { PointSheet } from './PointSheet'
 import { AppointmentForm } from './AppointmentForm'
 import { GuideSection } from './Guide'
-import type { MapPoint } from '../domain/types'
+import { TeamSheet } from './TeamSheet'
+import { roleLabel, type MapPoint } from '../domain/types'
 
 function relanceLabel(iso: string): string {
   // Jour LOCAL (toISOString = UTC : « aujourd'hui » était faux entre minuit
@@ -71,8 +73,10 @@ export function AccueilScreen({
 }) {
   const { profile, session, signOut } = useSession()
   const name = profile?.full_name ?? session?.user.email ?? null
-  const role = profile?.role === 'manager' ? 'Manager' : 'Commercial'
+  const role = roleLabel(profile?.role)
   const isManager = profile?.role === 'manager'
+  // Écran Équipe : manager (gestion) et chef des ventes (lecture).
+  const isSupervisor = profile?.role === 'manager' || profile?.role === 'chef_ventes'
   const meId = profile?.id ?? null
 
   const [relances, setRelances] = useState<MapPoint[]>([])
@@ -88,6 +92,9 @@ export function AccueilScreen({
   const [busyTask, setBusyTask] = useState<string | null>(null)
   // Profil + déconnexion derrière l'avatar (sheet), plus en premier niveau.
   const [profileOpen, setProfileOpen] = useState(false)
+  // Écran Équipe (chantier Équipe, étape 3) — ouvert DEPUIS la sheet de
+  // profil, qui se ferme d'abord (pas d'empilement de drawers vaul sur iOS).
+  const [teamOpen, setTeamOpen] = useState(false)
   const themeChoice = useThemePref()
   const [clientAppt, setClientAppt] = useState<Appointment | null>(null)
   const [editing, setEditing] = useState<Appointment | null>(null)
@@ -486,6 +493,20 @@ export function AccueilScreen({
                 </div>
                 <p className="theme-hint">Auto : suit le réglage du téléphone.</p>
               </div>
+              {isSupervisor && (
+                <button
+                  type="button"
+                  className="row-action"
+                  onClick={() => {
+                    setProfileOpen(false)
+                    setTeamOpen(true)
+                  }}
+                >
+                  <Users size={18} strokeWidth={1.8} />
+                  <span>Équipe</span>
+                  <ChevronRight size={17} strokeWidth={1.8} className="row-chevron" />
+                </button>
+              )}
               {session && (
                 <button
                   type="button"
@@ -504,6 +525,8 @@ export function AccueilScreen({
           </Drawer.Content>
         </Drawer.Portal>
       </Drawer.Root>
+
+      {profile && <TeamSheet open={teamOpen} onOpenChange={setTeamOpen} profile={profile} />}
 
       {/* LA fiche du point, identique à la carte (convergence 29/07). Elle
           monte elle-même le formulaire RDV (Modifier / Planifier / + RDV). */}

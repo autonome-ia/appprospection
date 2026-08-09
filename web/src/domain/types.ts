@@ -1,12 +1,31 @@
 import type { PointStatus } from './status'
 import type { HouseExtra, LidarDiag, RoofData } from './house'
 
+/** Rôles (chantier Équipe, db/0018) : le manager gère les comptes et
+    l'objectif hebdo ; le chef des ventes a les vues ET pouvoirs terrain du
+    manager sans la gestion ; la secrétaire lit les agendas et ajoute des
+    contacts au nom d'un commercial. */
+export type UserRole = 'commercial' | 'chef_ventes' | 'secretaire' | 'manager'
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  commercial: 'Commercial',
+  chef_ventes: 'Chef des ventes',
+  secretaire: 'Secrétaire',
+  manager: 'Manager',
+}
+
+/** Libellé d'un rôle — un rôle inconnu (client pas à jour face à une base
+    plus récente) est traité comme un commercial, jamais comme un manager. */
+export function roleLabel(role: string | null | undefined): string {
+  return ROLE_LABELS[role as UserRole] ?? ROLE_LABELS.commercial
+}
+
 /** Profil applicatif (table `profiles`). */
 export interface Profile {
   id: string
   organization_id: string
   full_name: string | null
-  role: 'commercial' | 'manager'
+  role: UserRole
 }
 
 /** Point affiché sur la carte (projection légère de la table `points`). */

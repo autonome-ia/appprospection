@@ -195,8 +195,19 @@ un compte » = **désactivation** (`disabled_at`, kill-switch RLS, réversible).
   `tools/screenshots/probe-auth.mjs` (deux thèmes, lecture seule) : placeholders « Email » /
   « Mot de passe » et bouton « Se connecter » PRÉSERVÉS — toutes les sondes existantes se
   connectent par eux. ⚠ Banc RLS (`tools/rls-test/`) toujours PAS déroulé — à faire.
-- [ ] ⬜ **Étape 3 — écran Équipe** : manager = liste + code partageable + rotation + changer le
-  rôle + désactiver (2 taps, jamais soi-même) ; chef des ventes = liste en lecture.
+- [x] **Étape 3 — écran Équipe** : sheet vaul (gabarit commun) derrière « Profil & réglages »
+  (entrée manager + chef des ventes). Code d'invitation en grand (mono, copie 1 tap), bouton
+  **« Inviter » = partage natif** (message pré-rempli lien + code — pas d'email automatique :
+  il faudrait un serveur et la clé secrète ; le partage part du téléphone du manager, v2 possible
+  en Edge Function), « Nouveau code » (manager, 2 taps). Liste des membres triée rôle puis nom
+  (désactivés en fin, estompés) ; manager : tap sur un membre → chips des 4 rôles + « Désactiver
+  le compte » (2 taps) / « Réactiver » — jamais sa propre ligne ; chef des ventes : lecture seule.
+  Data : `data/team.ts` (code, rotation), `updateMemberRole`/`setMemberDisabled` avec détection du
+  refus RLS (0 ligne = erreur montrée, jamais un faux succès) ; `UserRole` à 4 valeurs + `roleLabel`
+  (rôle inconnu affiché « Commercial ») dans `domain/types.ts`. Sonde `probe-team.mjs` (2 thèmes,
+  lecture seule). **⚠ Découverte de la sonde : `GUIDE_EMAIL` (web/.env) = le compte PERSO de
+  briac, désormais dans la VRAIE agence — les sondes/captures tournent sur la prod. À corriger :
+  compte sondes dédié dans l'ancienne agence de test (s'inscrire avec SON code) + web/.env.**
 - [ ] ⬜ **Étape 4 — UI par rôle** : nav secrétaire (Agenda seul + roue Réglages dans son en-tête ;
   segment Contacts avec « + » et **sélecteur de titulaire obligatoire** ; création en UN insert —
   le point appartient au commercial, elle ne peut plus l'updater après coup ; issues/+ Tâche/
