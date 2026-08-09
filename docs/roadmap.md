@@ -227,6 +227,10 @@ un compte » = **désactivation** (`disabled_at`, kill-switch RLS, réversible).
   vide). Matrice finale documentée dans CLAUDE.md. Vérifié : build + sondes probe-team/probe-auth
   (manager) ; **le parcours secrétaire n'a pas de sonde** (aucun compte secrétaire de test — à
   couvrir avec le banc RLS).
+- [x] **Retours post-lancement (09/08)** : champ « Nom affiché » dans l'écran Équipe (les comptes
+  migrés portaient leur email en guise de nom — corrigés en SQL, les suivants saisissent leur nom
+  à l'inscription) ; **objectif hebdo 0 = profil support** : hors classement et hors objectif
+  équipe (demande briac, qui ne prospecte pas) — secrétaires et désactivés exclus d'office.
 - [ ] ⬜ **Étape 5 — tuto auto à la 1re connexion : REPORTÉE** (fin de chantier chargée) : il faut
   distinguer un VRAI nouveau compte (profil créé < 48 h ? `created_at` pas dans le fetch session)
   d'un ancien qui verrait surgir le tuto à la prochaine mise à jour. Petit chantier dédié.

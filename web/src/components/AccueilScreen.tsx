@@ -175,8 +175,12 @@ export function AccueilScreen({
       ? statsSemaine.team.rdv_pris
       : (meId ? statsSemaine.byCommercial[meId]?.rdv_pris : 0) ?? 0
     : 0
+  // Objectif équipe = ceux qui prospectent (objectif 0 = profil support hors
+  // classement — même règle que les Stats) ; secrétaires/désactivés exclus.
   const objTarget = isSupervisor
-    ? orgProfiles.reduce((s, p) => s + (p.weekly_rdv_target ?? 0), 0)
+    ? orgProfiles
+        .filter((p) => !p.disabled_at && p.role !== 'secretaire')
+        .reduce((s, p) => s + (p.weekly_rdv_target ?? 0), 0)
     : (orgProfiles.find((p) => p.id === meId)?.weekly_rdv_target ?? 0)
 
   return (

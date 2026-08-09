@@ -73,6 +73,10 @@ l'UI ne fait que suivre. Helpers : `is_supervisor()` (manager OU chef_ventes) c�
   appartiennent au commercial, en UN insert : elle n'a aucun droit d'UPDATE ensuite). Ni issues, ni
   création/décalage de RDV, ni tâches, ni relances. Elle voit TOUS les contacts (standard tél.).
 - **commercial** : inchangé (ses points — carte privée —, ses stats, agenda partagé).
+- **Objectif hebdo 0 = profil SUPPORT** (demande briac 09/08) : hors classement des commerciaux et
+  hors objectif équipe (Stats + Accueil) — briac (manager support/dev) est à 0 ; secrétaires et
+  comptes désactivés exclus d'office. Remettre un objectif > 0 réintègre (stepper du drill-down,
+  ou SQL si le profil n'est plus drillable).
 - **Invitations** : un code par agence (`organization_invites`, lisible superviseurs, rotation RPC
   manager), inscription par code OBLIGATOIRE → arrive commercial. « Supprimer un compte » =
   désactivation (`profiles.disabled_at` — kill-switch `current_org_id()`, écran « compte
