@@ -32,7 +32,10 @@
 13. 🟠 **Le manager prospecte-t-il aussi** (pose des points) ou uniquement supervision ?
 14. 🟠 **Taille d'équipe** cible au lancement (combien de commerciaux chez lui) ?
 15. ✅ **TRANCHÉ (2026-07-16)** : outil **interne d'abord** (une seule agence), objectif de le vendre à d'autres agences **si ça marche dans son équipe**. → Archi conçue multi-tenant, mais pas d'inscription publique ni facturation au MVP.
-16. 🟡 Qui peut **inviter / créer** les comptes commerciaux (le manager seul) ?
+16. ✅ **TRANCHÉ (2026-08-09, chantier Équipe)** : UN **code d'invitation par agence** (8 caractères,
+    visible manager + chef des ventes, rotation par le manager), **obligatoire à l'inscription** —
+    tout inscrit arrive « commercial », le manager attribue ensuite les rôles (chef des ventes,
+    secrétaire, autre manager) via l'écran Équipe. Une nouvelle agence ne se crée qu'en SQL (briac).
 
 ## E. Chat
 
@@ -61,3 +64,10 @@
 
 27. 🟡 **Contacts saisis à la main et statistiques** : depuis le 27/07, un contact peut être créé manuellement (bouton « + » de la vue Contacts) — il pose un point et est donc **compté comme une porte frappée** dans les stats. OK si c'est la ressaisie d'une vraie tournée ; à revoir si vous importez d'anciens contacts en masse (on ajouterait alors un marquage pour les exclure du comptage). Même question pour les **« Client » ressaisis en masse** (fusion du 29/07, valeur `ancien_client`) : chaque saisie compte une porte ce jour-là (jamais une vente — le tunnel reste juste).
 28. 🟡 **Les « Clients » sont-ils un actif d'AGENCE ou du commercial ?** (Reformulée le 29/07 avec la fusion Vendu + Ancien client → « Client ».) Aujourd'hui contacts ET carte sont « chacun les siens » (le manager voit tout) — un client de X n'apparaît ni dans la liste ni sur la carte de Y. Si le carnet clients doit être commun à l'équipe (références de rue, entretien/R2), on l'ouvrira à tous — à trancher avec le chantier Équipe (briac, 29/07 : on reste « chacun les siens » pour l'instant).
+
+29. 🟠 **Contacts saisis par la secrétaire : à qui la « porte » ?** (Chantier Équipe, 09/08.) Un
+    contact qu'elle ajoute est créé AU NOM du commercial choisi (point + journal + RDV) — sinon sa
+    carte privée et sa vue Contacts ne le verraient jamais. Conséquence : ce contact compte **une
+    porte toquée pour le commercial** dans les stats, alors que personne n'a toqué (appel entrant).
+    Acceptable au volume actuel ? Sinon on marquera les saisies secrétariat pour les exclure du
+    tunnel (même famille que la question 27).

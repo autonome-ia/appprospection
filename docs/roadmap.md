@@ -155,9 +155,47 @@
 - [x] **Picker de pose en grille 3×2 (30/07, retour briac)** : les 6 statuts étaient derrière un slider horizontal — deux gestes pour un choix fait 40-60 fois par tournée, la moitié des chips hors champ. `.status-picker` passe de flex + overflow-x à une **grille 3 colonnes × 2 lignes** (chips compactées : centrées, 13 px, padding réduit — cibles conservées), tout visible d'un coup, cellules égales pour la mémoire musculaire du pouce. Un seul composant (`StatusPicker`) → corrigé partout : **viseur de pose (FAB +)** ET **fiche maison avant prospection**. Vérifié aux sondes (captures des deux surfaces).
 - [x] **« Conversion » = ventes ÷ RDV effectués (30/07, vérification demandée par briac)** : la stat nommée « Conversion » (pied du tunnel + « conv. » du classement des commerciaux) calculait **ventes ÷ portes** — pas la conversion métier. Corrigée aux deux endroits : **ventes ÷ RDV effectués**, la même définition que le taux affiché au-dessus de la barre « Ventes » du tunnel (celle qu'on pilote). Vérifié à la sonde : 5 ventes / 6 effectués → 83,3 % (l'ancienne formule affichait 22,7 %).
 - [x] **La date du réel + popup du matin (30/07, demande briac + chef des ventes : « la vente doit compter le jour où elle a eu lieu »)** — deux morceaux complémentaires : **(A) datation au jour du RDV** — solder un RDV « à venir » (le soir même ou trois jours après) écrit la visite/vente à `occurred_at = scheduled_at` (et `visited_at` idem) : la vente de lundi soir soldée mardi matin compte LUNDI, peu importe le tap ; la conclusion d'un « En attente » reste datée du jour de la réponse (c'est la vraie date), idem la bascule manuelle « RDV pris → Client ». Conséquence assumée : les stats d'hier peuvent se compléter le lendemain matin (rétroactif voulu). **(B) popup du matin** (`PendingOutcomes`, monté dans App) : à la PREMIÈRE ouverture du jour, si des RDV passés (pas seulement hier — tous, le plus ancien d'abord) n'ont pas d'issue → sheet « Que s'est-il passé ? », un bloc par RDV avec les 4 issues en 1 tap (mêmes composants/toasts que partout), « Plus tard » jamais bloquant (revient le lendemain), marqueur localStorage 1×/jour, rien affiché si tout est soldé, chacun ses RDV (tâches exclues — elles ont « Fait ✓ »). **Garde sondes** : jamais affiché sous Playwright (`navigator.webdriver`) — les sondes existantes sont intactes ; `?popup-rdv` force l'ouverture pour les vérifications dédiées. Vérifié par interception réseau (2 RDV factices) : le popup a aussi révélé 7 vrais RDV orphelins dans les données de test — le besoin est réel. **Validation du fonctionnement par le chef des ventes en attente** (récap envoyé).
-- [ ] ⬜ **Écran de connexion** — dernier écran encore à l'ancien style ; l'habiller avec la DA (Geist/Lucide). Petit, rapide.
-- [ ] ⬜ **Équipe (invitations)** — le manager partage un code ; les commerciaux s'inscrivent avec ce code et rejoignent SON agence (aujourd'hui chaque inscription = nouvelle agence isolée). Débloque le test réel à plusieurs. *Dépend un peu de l'ami (Q13-16).*
 - [ ] ⬜ **Micro-ajustements métier** — après le retour de l'ami : statuts, flux RDV, définitions de stats (« contact » vs « impossible », etc. — voir `questions-ouvertes.md`).
+
+## CHANTIER ÉQUIPE (ouvert le 09/08/2026 — dernier verrou avant le test réel chez Mister Toiture)
+Arbitrages (briac + chef des ventes, 09/08) : **4 rôles** — manager (tout + SEUL à gérer les comptes
+et l'objectif hebdo), **chef des ventes** (mêmes vues ET mêmes pouvoirs terrain que le manager, ni
+comptes ni objectif), **secrétaire** (agendas de tous en LECTURE ; seule action = **ajouter des
+contacts au nom d'un commercial** dans l'onglet Contacts — arbitrage de l'ami du 09/08, remplace la
+proposition « elle décale/annule des RDV »), commercial (inchangé). **UN code d'invitation par
+agence** (8 caractères), **code OBLIGATOIRE à l'inscription** (une agence ne se crée qu'en SQL),
+tout inscrit arrive commercial, le manager attribue les rôles. Multi-manager autorisé. « Supprimer
+un compte » = **désactivation** (`disabled_at`, kill-switch RLS, réversible).
+- [x] **Étape 0 — cadrage** : architecture, matrice RLS rôle par rôle, inventaire de tous les
+  `profile.role === 'manager'` avec verdicts (→ `is_supervisor` partout sauf stepper d'objectif +
+  gestion des comptes = manager strict), validé par briac. **2 trous de sécurité existants
+  découverts** : `profiles_update_self` sans restriction de colonnes (auto-promotion manager
+  possible via l'API REST !) et `appointments.commercial_id` non contraint à l'agence.
+- [x] **Étape 1 — migrations livrées** : `db/0018_roles_enum.sql` (enum + chef_ventes/secretaire, à
+  lancer SEUL) puis `db/0019_equipe.sql` (invitations `organization_invites` + code lisible
+  superviseurs seuls + rotation RPC manager + `validate_invite` anonyme ; `handle_new_user` v2 code
+  obligatoire ; `disabled_at` + `current_org_id()` kill-switch + lecture de SON profil pour l'écran
+  « compte désactivé » ; trigger `profiles_guard` — ferme l'auto-promotion, protège rôle/org/
+  objectif/désactivation, jamais le dernier manager actif, bypass SQL editor pour l'amorçage ;
+  refonte des policies : helpers `is_supervisor`/`is_secretaire`/`is_org_member`, la secrétaire
+  crée point + journal + RDV **au nom du commercial** et ne peut jamais produire un statut terrain).
+  **Banc RLS jetable** : `tools/rls-test/` (seed.sql → agence de test, `rls-test.mjs signup CODE`
+  → 5 comptes, promotion SQL, `rls-test.mjs run` → ~45 vérifications, surtout les REFUS, ménage
+  automatique — zéro dépendance, fetch nu). **⚠ 0018 puis 0019 À EXÉCUTER dans Supabase par
+  briac, puis dérouler le banc — un trou RLS est bloquant pour le lancement.**
+- [ ] ⬜ **Étape 2 — écran de connexion + inscription par code** (dernier écran hors DA) : refonte
+  Encre & signal, deux thèmes, `validate_invite` avant signup (« Vous rejoignez Mister Toiture »).
+- [ ] ⬜ **Étape 3 — écran Équipe** : manager = liste + code partageable + rotation + changer le
+  rôle + désactiver (2 taps, jamais soi-même) ; chef des ventes = liste en lecture.
+- [ ] ⬜ **Étape 4 — UI par rôle** : nav secrétaire (Agenda seul + roue Réglages dans son en-tête ;
+  segment Contacts avec « + » et **sélecteur de titulaire obligatoire** ; création en UN insert —
+  le point appartient au commercial, elle ne peut plus l'updater après coup ; issues/+ Tâche/
+  création RDV masquées), chef des ventes = vues manager sans gestion, stepper d'objectif manager
+  strict, rôle inconnu traité « commercial » (repli client pas à jour). Matrice finale → CLAUDE.md.
+- [ ] ⬜ **Étape 5 (si raisonnable)** — déclenchement auto du 1er tuto du Guide à la 1re connexion.
+- [ ] ⬜ **Étape 6 — amorçage Mister Toiture** (SQL fourni, exécuté PAR briac) : créer l'agence,
+  y basculer l'ami en chef_ventes et briac en manager (l'agence démarre VIDE — les données de test
+  restent dans l'ancienne agence avec le compte des sondes) ; solder Q13-16.
 
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)
