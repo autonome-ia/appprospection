@@ -35,6 +35,9 @@ interface GuideStep {
 interface Guide {
   id: string
   title: string
+  /** Titre COURT de la carte de l'Accueil (une ligne garantie — des titres
+      de longueurs différentes désalignaient les 6 cartes, retour briac). */
+  short: string
   icon: LucideIcon
   steps: GuideStep[]
 }
@@ -45,6 +48,7 @@ const GUIDES: Guide[] = [
   {
     id: 'carte',
     title: 'La carte — prospecter',
+    short: 'La carte',
     icon: Map,
     steps: [
       {
@@ -88,6 +92,7 @@ const GUIDES: Guide[] = [
   {
     id: 'agenda',
     title: 'L’agenda — vos RDV',
+    short: 'L’agenda',
     icon: CalendarCheck,
     steps: [
       {
@@ -131,6 +136,7 @@ const GUIDES: Guide[] = [
   {
     id: 'contacts',
     title: 'Vos contacts',
+    short: 'Vos contacts',
     icon: BookUser,
     steps: [
       {
@@ -150,6 +156,7 @@ const GUIDES: Guide[] = [
   {
     id: 'accueil',
     title: 'L’accueil — votre journée',
+    short: 'L’accueil',
     icon: Home,
     steps: [
       {
@@ -175,6 +182,7 @@ const GUIDES: Guide[] = [
   {
     id: 'stats',
     title: 'Les stats — votre semaine',
+    short: 'Les stats',
     icon: BarChart3,
     steps: [
       {
@@ -194,6 +202,7 @@ const GUIDES: Guide[] = [
   {
     id: 'toit',
     title: 'Mesurer un toit',
+    short: 'Mesurer un toit',
     icon: Box,
     steps: [
       {
@@ -356,7 +365,7 @@ export function GuideSection() {
                   <Icon size={24} strokeWidth={1.7} />
                 </span>
               </span>
-              <span className="guide-card-title">{g.title}</span>
+              <span className="guide-card-title">{g.short}</span>
             </button>
           )
         })}
