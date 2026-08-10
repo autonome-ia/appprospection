@@ -301,6 +301,13 @@ function monthCells(monthDate: Date): Date[] {
 }
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
+/** Lundi de la semaine du jour donné (grille lundi → dimanche). */
+function startOfWeek(d: Date): Date {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7))
+  return x
+}
+
 // -----------------------------------------------------------------------------
 // Sheet du jour : le mois occupe tout l'écran, le planning d'une journée
 // s'ouvre au tap sur sa case (refonte agenda 26/07). Gabarit vaul commun
@@ -448,6 +455,17 @@ export function AgendaScreen({
   const [creating, setCreating] = useState<{ at: Date | null; kind?: AppointmentKind } | null>(null)
   const [editing, setEditing] = useState<Appointment | null>(null)
   const [monthDate, setMonthDate] = useState(() => startOfMonth(new Date()))
+  // Vue Mois / Semaine (demande d'Alexis, 10/08) : le mois reste la vue par
+  // défaut, la semaine liste les 7 jours en rangées lisibles (heure + nom
+  // entiers). Le choix est mémorisé sur l'appareil.
+  const [calMode, setCalMode] = useState<'mois' | 'semaine'>(() => {
+    try {
+      return localStorage.getItem('agenda-vue') === 'semaine' ? 'semaine' : 'mois'
+    } catch {
+      return 'mois'
+    }
+  })
+  const [weekDate, setWeekDate] = useState(() => startOfWeek(new Date()))
   // Jour ouvert en sheet (refonte 26/07 : le mois plein écran est la vue,
   // le planning du jour s'ouvre par-dessus).
   const [daySheet, setDaySheet] = useState<Date | null>(null)
@@ -492,6 +510,8 @@ export function AgendaScreen({
   const todayRef = useRef(new Date())
   const monthDateRef = useRef(monthDate)
   monthDateRef.current = monthDate
+  const weekDateRef = useRef(weekDate)
+  weekDateRef.current = weekDate
 
   // Anti-course : plusieurs reload se croisent (visibilitychange + realtime +
   // onChanged) et c'était le DERNIER à résoudre qui gagnait, pas le plus
@@ -560,6 +580,11 @@ export function AgendaScreen({
       if (!sameDay(now, todayRef.current)) {
         if (monthDateRef.current.getTime() === startOfMonth(todayRef.current).getTime()) {
           setMonthDate(startOfMonth(now))
+        }
+        // Même recalage pour la semaine (restée sur celle de l'ancien
+        // « aujourd'hui » = défaut, à recaler ; choisie à la main = respectée).
+        if (weekDateRef.current.getTime() === startOfWeek(todayRef.current).getTime()) {
+          setWeekDate(startOfWeek(now))
         }
         todayRef.current = now
       }
@@ -663,6 +688,52 @@ export function AgendaScreen({
   )
   const shiftMonth = (delta: number) =>
     setMonthDate(new Date(monthDate.getFullYear(), monthDate.getMonth() + delta, 1))
+
+  // Vue Semaine : 7 jours à partir du lundi affiché.
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekDate)
+    d.setDate(weekDate.getDate() + i)
+    return d
+  })
+  const weekEnd = weekDays[6]
+  const fmtDM = (d: Date) =>
+    new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(d)
+  const weekLabel =
+    weekDate.getMonth() === weekEnd.getMonth()
+      ? `${weekDate.getDate()} - ${fmtDM(weekEnd)}`
+      : `${fmtDM(weekDate)} - ${fmtDM(weekEnd)}`
+  const shiftWeek = (delta: number) => {
+    const d = new Date(weekDate)
+    d.setDate(weekDate.getDate() + delta * 7)
+    setWeekDate(d)
+  }
+  const onCurrentPeriod =
+    calMode === 'mois'
+      ? monthDate.getMonth() === today.getMonth() && monthDate.getFullYear() === today.getFullYear()
+      : weekDate.getTime() === startOfWeek(today).getTime()
+  const switchMode = (m: 'mois' | 'semaine') => {
+    if (m === calMode) return
+    if (m === 'semaine') {
+      // Semaine d'aujourd'hui si on regarde le mois courant, sinon la
+      // 1re semaine du mois affiché (on reste où on regardait).
+      setWeekDate(
+        startOfWeek(
+          monthDate.getMonth() === today.getMonth() &&
+            monthDate.getFullYear() === today.getFullYear()
+            ? today
+            : monthDate,
+        ),
+      )
+    } else {
+      setMonthDate(startOfMonth(weekDate))
+    }
+    setCalMode(m)
+    try {
+      localStorage.setItem('agenda-vue', m)
+    } catch {
+      /* stockage indisponible : le choix ne survivra pas, tant pis */
+    }
+  }
 
   return (
     // Pas d'en-tête « Agenda / + RDV » (retour briac 26/07) : de l'espace
@@ -791,26 +862,50 @@ export function AgendaScreen({
       {view === 'agenda' && (
       <>
       <div className="cal">
-        {/* Titre du mois à gauche, navigation groupée à droite (DA 26/07). */}
+        {/* Titre de la période à gauche, bascule Mois/Semaine + navigation
+            à droite (vue Semaine : demande d'Alexis, 10/08). */}
         <div className="cal-nav">
-          <span className="cal-month">{monthLabel}</span>
+          <span className={`cal-month ${calMode === 'semaine' ? 'tnum' : ''}`}>
+            {calMode === 'mois' ? monthLabel : weekLabel}
+          </span>
           <div className="cal-nav-controls">
+            <div className="seg seg-mini">
+              {(
+                [
+                  ['mois', 'Mois'],
+                  ['semaine', 'Semaine'],
+                ] as ['mois' | 'semaine', string][]
+              ).map(([m, label]) => (
+                <button
+                  key={m}
+                  type="button"
+                  className={`seg-btn ${calMode === m ? 'is-active' : ''}`}
+                  onClick={() => switchMode(m)}
+                >
+                  {calMode === m && <span className="seg-ind" />}
+                  <span className="seg-text">{label}</span>
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               className="icon-btn"
-              onClick={() => shiftMonth(-1)}
-              aria-label="Mois précédent"
+              onClick={() => (calMode === 'mois' ? shiftMonth(-1) : shiftWeek(-1))}
+              aria-label={calMode === 'mois' ? 'Mois précédent' : 'Semaine précédente'}
             >
               <ChevronLeft size={18} />
             </button>
-            {/* Retour 1 tap au mois courant (audit UX A16) : revenir coûtait
-                3-4 taps de chevrons devant le prospect. */}
-            {(monthDate.getMonth() !== today.getMonth() ||
-              monthDate.getFullYear() !== today.getFullYear()) && (
+            {/* Retour 1 tap à la période courante (audit UX A16) : revenir
+                coûtait 3-4 taps de chevrons devant le prospect. */}
+            {!onCurrentPeriod && (
               <button
                 type="button"
                 className="text-btn cal-today"
-                onClick={() => setMonthDate(startOfMonth(new Date()))}
+                onClick={() =>
+                  calMode === 'mois'
+                    ? setMonthDate(startOfMonth(new Date()))
+                    : setWeekDate(startOfWeek(new Date()))
+                }
               >
                 Aujourd’hui
               </button>
@@ -818,8 +913,8 @@ export function AgendaScreen({
             <button
               type="button"
               className="icon-btn"
-              onClick={() => shiftMonth(1)}
-              aria-label="Mois suivant"
+              onClick={() => (calMode === 'mois' ? shiftMonth(1) : shiftWeek(1))}
+              aria-label={calMode === 'mois' ? 'Mois suivant' : 'Semaine suivante'}
             >
               <ChevronRight size={18} />
             </button>
@@ -883,6 +978,84 @@ export function AgendaScreen({
           )}
         </div>
 
+        {calMode === 'semaine' && (
+          /* Une rangée par jour : heure mono + pilule entière (couleur =
+             commercial, pastille = type — même langage que le mois). Tap
+             n'importe où sur le jour = la même sheet que le mois. */
+          <div className="week-list">
+            {weekDays.map((d) => {
+              const k = dateKey(d)
+              const dayAppts = (byDay[k] ?? []).sort((a, b) =>
+                a.scheduled_at.localeCompare(b.scheduled_at),
+              )
+              const dayRevisits = revisitsByDay[k] ?? []
+              const items = [
+                ...dayAppts.map((a) => ({
+                  time: fmt(a.scheduled_at, true),
+                  label:
+                    a.kind === 'tache'
+                      ? (a.notes ?? 'Tâche')
+                      : (a.client_name ?? a.address ?? 'RDV'),
+                  color: a.commercial_id
+                    ? colorForCommercial(a.commercial_id, whoById[a.commercial_id]?.color)
+                    : '#98a2b3',
+                  done: a.kind === 'tache' && a.status === 'effectue',
+                  task: a.kind === 'tache',
+                  dot: a.kind === 'tache' ? null : APPOINTMENT_STATUS_META[a.status].color,
+                })),
+                ...dayRevisits.map((p) => ({
+                  time: null,
+                  label: p.client_name ?? p.address ?? 'À revoir',
+                  color: p.created_by
+                    ? colorForCommercial(p.created_by, whoById[p.created_by]?.color)
+                    : '#98a2b3',
+                  done: false,
+                  task: false,
+                  dot: STATUS_BY_VALUE.a_revoir.color,
+                })),
+              ]
+              const isToday = sameDay(d, today)
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  className={`week-day ${isToday ? 'is-today' : ''}`}
+                  onClick={() => setDaySheet(d)}
+                >
+                  <span className="week-day-head">
+                    <span className="week-daynum tnum">{d.getDate()}</span>
+                    <span className="week-dayname">
+                      {capitalize(
+                        new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(d),
+                      )}
+                    </span>
+                  </span>
+                  <span className="week-rows">
+                    {items.map((it, i) => (
+                      <span key={i} className="week-event">
+                        <span className="week-time tnum">{it.time ?? ''}</span>
+                        <span
+                          className={`cal-event ${it.done ? 'is-done' : ''}`}
+                          style={{ background: it.color }}
+                        >
+                          {it.task ? (
+                            <span className="cal-dot is-task" />
+                          ) : (
+                            it.dot && <span className="cal-dot" style={{ background: it.dot }} />
+                          )}
+                          {it.label}
+                        </span>
+                      </span>
+                    ))}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {calMode === 'mois' && (
+        <>
         <div className="cal-weekdays">
           {WEEKDAYS.map((w, i) => (
             <span key={i}>{w}</span>
@@ -966,6 +1139,8 @@ export function AgendaScreen({
             )
           })}
         </div>
+        </>
+        )}
       </div>
 
       </>

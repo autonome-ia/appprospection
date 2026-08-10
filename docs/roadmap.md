@@ -333,6 +333,15 @@ phrase, halo orange sur la cible).
   valider), lazy-import de MapView (contredit la carte persistante). Vérifié : probe-geoloc +
   test caméra au reload + caches présents dans dist/sw.js.
 
+- [x] **Vue Semaine dans l'agenda** (demande d'Alexis, 10/08) : segmented compact Mois · Semaine
+  dans la barre de navigation (choix mémorisé sur l'appareil, `agenda-vue` localStorage) — la
+  semaine liste les 7 jours en rangées (numéro + jour, aujourd'hui cerclé accent) avec heure mono
+  et pilules entières (couleur = commercial, pastille = type, relances incluses — même langage que
+  le mois, enfin lisible en entier). Tap sur un jour = la même sheet que depuis le mois (zéro
+  logique dupliquée) ; chevrons et « Aujourd'hui » suivent le mode ; filtre par membre et
+  « + Tâche » inchangés ; recalage au réveil de la PWA mirroré pour la semaine. Sonde lecture
+  seule `probe-agenda-semaine.mjs` (2 thèmes, bascule + sheet).
+
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)
 - Carnet de contacts / mini-CRM (clients à rappeler, R2)
