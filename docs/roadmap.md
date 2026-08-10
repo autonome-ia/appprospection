@@ -236,7 +236,19 @@ un compte » = **désactivation** (`disabled_at`, kill-switch RLS, réversible).
   édition de tâche, issues/Modifier de la fiche — les boutons s'affichaient et échouaient au tap,
   la RLS refusant déjà) ; « Planifier » d'un point orphelin réservé à l'auteur du point ;
   **superviseurs inchangés** (arbitrage briac : manager + chef des ventes gardent la main, base
-  intacte — le banc RLS reste valide tel quel).
+  intacte — le banc RLS reste valide tel quel) ;
+  **refonte couleurs agenda (10/08, 2e retour d'Alexis : « difficile de savoir qui a tel RDV, et
+  les à revoir sont tous ambre »)** — 3 arbitrages briac sur planches : (1) `TEAM_PALETTE` fermée
+  de 8 teintes distinctes ET éloignées des couleurs sémantiques (l'ancienne palette auto contenait
+  orange/ambre/vert/rouge — collisions dans le code même), **assignée par le manager** dans le
+  panneau du membre (Équipe → pastilles, `profiles.color` enfin utilisée) ; (2) **légende-filtre
+  « ● Prénom »** en tête d'agenda remplace « Mes RDV » (une chip par membre actif dans SA couleur,
+  multi-sélection, « Moi » en premier — la légende qui apprend les couleurs ; filtre aussi les
+  relances, visible par la secrétaire) ; (3) **pastille de TYPE dans les pilules du mois** (idée
+  d'Alexis : mêmes couleurs sémantiques que la carte — ● bleu à venir, ● ambre à revoir, ● vert
+  vendu, liseré blanc ; carré blanc = tâche) et **les relances prennent la couleur de leur
+  commercial** (l'ambre uniforme semblait un 6e membre). Sonde lecture seule
+  `probe-agenda-couleurs.mjs` (deux thèmes).
 - [ ] ⬜ **Étape 5 — tuto auto à la 1re connexion : REPORTÉE** (fin de chantier chargée) : il faut
   distinguer un VRAI nouveau compte (profil créé < 48 h ? `created_at` pas dans le fetch session)
   d'un ancien qui verrait surgir le tuto à la prochaine mise à jour. Petit chantier dédié.

@@ -467,9 +467,11 @@ export function AgendaScreen({
   // Saisie manuelle (bouton « + ») : le formulaire crée point ET RDV en une
   // fois (retour briac 27/07 : plus de second modal qui redemandait tout).
   const [addingContact, setAddingContact] = useState(false)
-  // Agenda PARTAGÉ par défaut (décision chef des ventes, 25/07) : chip
-  // « Mes RDV » pour ne voir que les siens.
-  const [onlyMine, setOnlyMine] = useState(false)
+  // Agenda PARTAGÉ par défaut (décision chef des ventes, 25/07). La chip
+  // « Mes RDV » est devenue une LÉGENDE-FILTRE par membre (refonte couleurs,
+  // retour Alexis 10/08) : une chip « ● Prénom » par membre — on apprend les
+  // couleurs ET on filtre (multi-sélection, vide = tout le monde).
+  const [whoFilter, setWhoFilter] = useState<ReadonlySet<string>>(new Set())
   // Secrétaire (étape 4) : l'agenda est TOUTE son app — la sheet « Profil &
   // réglages » (thème, déconnexion) s'ouvre depuis SON en-tête.
   const secretaire = isSecretaireRole(profile?.role)
@@ -574,10 +576,13 @@ export function AgendaScreen({
     return m
   }, [profiles])
 
-  // RDV affichés : tous (agenda partagé) ou les miens (chip « Mes RDV »).
+  // RDV affichés : tous (agenda partagé) ou les membres filtrés.
   const shownAppts = useMemo(
-    () => (onlyMine && profile ? appts.filter((a) => a.commercial_id === profile.id) : appts),
-    [appts, onlyMine, profile],
+    () =>
+      whoFilter.size === 0
+        ? appts
+        : appts.filter((a) => a.commercial_id !== null && whoFilter.has(a.commercial_id)),
+    [appts, whoFilter],
   )
 
   // Regroupe les RDV par jour.
@@ -590,14 +595,16 @@ export function AgendaScreen({
     return m
   }, [shownAppts])
 
-  // Regroupe les « à revoir » datés par jour de relance (clé YYYY-MM-DD).
+  // Regroupe les « à revoir » datés par jour de relance (clé YYYY-MM-DD) —
+  // le filtre par membre s'applique aussi (relance = son auteur).
   const revisitsByDay = useMemo(() => {
     const m: Record<string, MapPoint[]> = {}
     for (const p of revisits) {
+      if (whoFilter.size > 0 && (p.created_by === null || !whoFilter.has(p.created_by))) continue
       if (p.revisit_at) (m[p.revisit_at] ??= []).push(p)
     }
     return m
-  }, [revisits])
+  }, [revisits, whoFilter])
 
   // Prochain RDV « à venir » par point (tolérance 1 h, comme le planning) :
   // sous-titre/tri de la liste Contacts + ligne d'échéance de la fiche.
@@ -815,18 +822,41 @@ export function AgendaScreen({
           </div>
         </div>
 
-        {/* Secrétaire : ni « Mes RDV » (elle n'en a pas) ni création. */}
-        {!secretaire && (
-          <div className="chip-row agenda-mine">
-            <button
-              type="button"
-              className={`chip ${onlyMine ? 'is-active' : ''}`}
-              onClick={() => setOnlyMine((v) => !v)}
-            >
-              Mes RDV
-            </button>
-            {/* Tâche en 1 tap depuis le mois (retour briac 29/07) : sans passer
-                par un jour — le formulaire propose la prochaine heure ronde. */}
+        {/* Légende-filtre par membre (refonte couleurs, 10/08) : « ● Prénom »
+            dans SA couleur — la légende permanente qui apprend les couleurs,
+            et le filtre en un geste (soi = l'ancien « Mes RDV »). Utile à la
+            secrétaire aussi (lecture) ; « + Tâche » reste hors de sa portée. */}
+        <div className="chip-row agenda-mine">
+          {profiles
+            .filter((p) => !p.disabled_at && p.role !== 'secretaire')
+            .sort((a, b) =>
+              a.id === profile.id ? -1 : b.id === profile.id ? 1 : (a.full_name ?? '').localeCompare(b.full_name ?? ''),
+            )
+            .map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={`chip ${whoFilter.has(p.id) ? 'is-active' : ''}`}
+                style={{ ['--chip' as string]: colorForCommercial(p.id, p.color) }}
+                onClick={() =>
+                  setWhoFilter((prev) => {
+                    const next = new Set(prev)
+                    if (next.has(p.id)) next.delete(p.id)
+                    else next.add(p.id)
+                    return next
+                  })
+                }
+              >
+                <span
+                  className="status-dot"
+                  style={{ background: colorForCommercial(p.id, p.color) }}
+                />
+                {p.id === profile.id ? 'Moi' : displayName(p)}
+              </button>
+            ))}
+          {!secretaire && (
+            /* Tâche en 1 tap depuis le mois (retour briac 29/07) : sans passer
+               par un jour — le formulaire propose la prochaine heure ronde. */
             <button
               type="button"
               className="chip agenda-add-task"
@@ -834,8 +864,8 @@ export function AgendaScreen({
             >
               <Plus size={14} strokeWidth={2.2} /> Tâche
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="cal-weekdays">
           {WEEKDAYS.map((w, i) => (
@@ -854,8 +884,12 @@ export function AgendaScreen({
             // ambre = maison à revoir. Débordement en « +n ».
             const items = [
               // Couleur = COMMERCIAL (décision chef des ventes, 25/07) : sur
-              // un agenda partagé, « qui a ce RDV » prime — le statut se lit
-              // dans le planning du jour. Ambre = maison à revoir.
+              // un agenda partagé, « qui a ce RDV » prime. Le TYPE se lit par
+              // la pastille en tête de pilule (refonte couleurs, retour
+              // Alexis 10/08 — mêmes couleurs sémantiques que la carte) :
+              // ● bleu = RDV à venir, ● ambre = à revoir, ● vert = vendu…
+              // carré blanc = tâche. Les relances prennent ENFIN la couleur
+              // de leur commercial (l'ambre uniforme semblait un 6e membre).
               ...dayAppts.map((a) => ({
                 // Tâche : l'objet (« récupérer l'acompte ») EST le titre ;
                 // faite = estompée (le mois montre ce qui RESTE à faire).
@@ -867,11 +901,17 @@ export function AgendaScreen({
                   ? colorForCommercial(a.commercial_id, whoById[a.commercial_id]?.color)
                   : '#98a2b3',
                 done: a.kind === 'tache' && a.status === 'effectue',
+                task: a.kind === 'tache',
+                dot: a.kind === 'tache' ? null : APPOINTMENT_STATUS_META[a.status].color,
               })),
               ...dayRevisits.map((p) => ({
                 label: p.client_name ?? p.address ?? 'À revoir',
-                color: STATUS_BY_VALUE.a_revoir.color,
+                color: p.created_by
+                  ? colorForCommercial(p.created_by, whoById[p.created_by]?.color)
+                  : '#98a2b3',
                 done: false,
+                task: false,
+                dot: STATUS_BY_VALUE.a_revoir.color,
               })),
             ]
             const shown = items.slice(0, 4)
@@ -896,6 +936,11 @@ export function AgendaScreen({
                       className={`cal-event ${it.done ? 'is-done' : ''}`}
                       style={{ background: it.color }}
                     >
+                      {it.task ? (
+                        <span className="cal-dot is-task" />
+                      ) : (
+                        it.dot && <span className="cal-dot" style={{ background: it.dot }} />
+                      )}
                       {it.label}
                     </span>
                   ))}

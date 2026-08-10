@@ -1021,6 +1021,24 @@
   overflow: hidden;
   text-overflow: ellipsis; /* coupé net, dernier glyphe tranché en deux sinon */
 }
+/* Pastille de TYPE en tête de pilule (refonte couleurs 10/08) : mêmes
+   couleurs sémantiques que la carte, liseré blanc pour se détacher de
+   n'importe quel fond commercial. Carré blanc = tâche. */
+.cal-dot {
+  display: inline-block;
+  vertical-align: middle;
+  width: 5px;
+  height: 5px;
+  margin: -1px 3px 0 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85);
+}
+.cal-dot.is-task {
+  border-radius: 1px;
+  background: #ffffff;
+  box-shadow: none;
+  opacity: 0.9;
+}
 .cal-cell.is-out .cal-event {
   opacity: 0.45;
 }
@@ -3075,6 +3093,24 @@ select.field-input {
   align-items: center;
   gap: 8px;
   margin-bottom: 4px;
+}
+/* Sélecteur de couleur d'agenda (8 teintes de TEAM_PALETTE). */
+.team-swatches {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.team-swatch {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  flex: none;
+}
+.team-swatch.is-active {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--ink);
 }
 .team-danger {
   margin-top: 12px;

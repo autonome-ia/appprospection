@@ -5,11 +5,13 @@ import { Check, Copy, RefreshCw, Share2, X } from 'lucide-react'
 import {
   fetchOrgProfiles,
   setMemberDisabled,
+  updateMemberColor,
   updateMemberName,
   updateMemberRole,
   type OrgProfile,
 } from '../data/profiles'
 import { fetchInviteCode, fetchOrgName, regenInviteCode } from '../data/team'
+import { colorForCommercial, TEAM_PALETTE } from '../domain/colors'
 import { ROLE_LABELS, roleLabel, type Profile, type UserRole } from '../domain/types'
 
 /**
@@ -154,6 +156,21 @@ export function TeamSheet({
     }
   }
 
+  const changeColor = async (m: OrgProfile, color: string) => {
+    if (busy || color === m.color) return
+    setBusy(true)
+    try {
+      await updateMemberColor(m.id, color)
+      toast.success('Couleur mise à jour')
+      load()
+    } catch (e) {
+      console.error('Couleur du membre :', e)
+      toast.error('Modification refusée — réservé au manager')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const changeRole = async (m: OrgProfile, role: UserRole) => {
     if (busy || role === m.role) return
     setBusy(true)
@@ -281,7 +298,12 @@ export function TeamSheet({
                     onClick={expandable ? () => openPanel(m, expanded) : undefined}
                     disabled={!expandable}
                   >
-                    <span className="avatar team-avatar">{initials(m.full_name)}</span>
+                    <span
+                      className="avatar team-avatar"
+                      style={{ background: colorForCommercial(m.id, m.color), color: '#fff' }}
+                    >
+                      {initials(m.full_name)}
+                    </span>
                     <span className="team-texts">
                       <span className="team-name">
                         {m.full_name ?? 'Sans nom'}
@@ -316,6 +338,23 @@ export function TeamSheet({
                           <Check size={17} strokeWidth={2.2} />
                         </button>
                       </div>
+                      {/* Couleur d'agenda (refonte 10/08) : le manager arbitre
+                          — deux commerciaux ne prennent pas la même teinte. */}
+                      <p className="eyebrow field-label">Couleur d’agenda</p>
+                      <div className="team-swatches">
+                        {TEAM_PALETTE.map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            className={`team-swatch ${colorForCommercial(m.id, m.color) === c ? 'is-active' : ''}`}
+                            style={{ background: c }}
+                            onClick={() => void changeColor(m, c)}
+                            disabled={busy}
+                            aria-label={`Couleur ${c}`}
+                          />
+                        ))}
+                      </div>
+
                       <p className="eyebrow field-label">Rôle</p>
                       <div className="chip-row">
                         {ROLE_ORDER.map((r) => (

@@ -1,10 +1,23 @@
 // Couleur stable par commercial (agenda, stats). Dérivée de l'id -> palette,
-// sauf si le profil a une couleur explicite.
+// sauf si le profil a une couleur explicite (assignée par le manager dans
+// l'écran Équipe — refonte couleurs agenda, retour Alexis 10/08).
 
-const PALETTE = [
-  '#2563eb', '#db2777', '#16a34a', '#ea580c',
-  '#7c3aed', '#0891b2', '#ca8a04', '#dc2626',
+/** Palette FERMÉE des couleurs de commerciaux : 8 teintes distinctes entre
+    elles ET éloignées des couleurs sémantiques (orange accent, ambre
+    « à revoir », vert « vendu », bleu « RDV pris », rouge danger) — l'ancienne
+    palette auto contenait orange/ambre/vert/rouge, source de confusion. */
+export const TEAM_PALETTE = [
+  '#4263eb', // indigo
+  '#7048e8', // violet
+  '#c2255c', // framboise
+  '#0e9384', // canard
+  '#0c8599', // lagon
+  '#66a80f', // olive
+  '#9c36b5', // pourpre
+  '#5f6b7a', // ardoise
 ]
+
+const PALETTE = TEAM_PALETTE
 
 function hash(str: string): number {
   let h = 0

@@ -42,6 +42,18 @@ export async function updateMemberName(id: string, fullName: string): Promise<vo
   if (!data || data.length === 0) throw new Error('Modification refusée')
 }
 
+/** Couleur d'agenda d'un membre (manager, écran Équipe — refonte 10/08). */
+export async function updateMemberColor(id: string, color: string): Promise<void> {
+  if (!supabase) throw new Error('Hors ligne')
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ color })
+    .eq('id', id)
+    .select('id')
+  if (error) throw error
+  if (!data || data.length === 0) throw new Error('Modification refusée')
+}
+
 /** Changement de rôle (manager seul — trigger profiles_guard en base).
     0 ligne modifiée sans erreur = refus RLS silencieux → on le dit. */
 export async function updateMemberRole(id: string, role: UserRole): Promise<void> {
