@@ -249,9 +249,34 @@ un compte » = **désactivation** (`disabled_at`, kill-switch RLS, réversible).
   vendu, liseré blanc ; carré blanc = tâche) et **les relances prennent la couleur de leur
   commercial** (l'ambre uniforme semblait un 6e membre). Sonde lecture seule
   `probe-agenda-couleurs.mjs` (deux thèmes).
-- [ ] ⬜ **Étape 5 — tuto auto à la 1re connexion : REPORTÉE** (fin de chantier chargée) : il faut
-  distinguer un VRAI nouveau compte (profil créé < 48 h ? `created_at` pas dans le fetch session)
-  d'un ancien qui verrait surgir le tuto à la prochaine mise à jour. Petit chantier dédié.
+- [x] **Étape 5 — tuto auto à la 1re connexion : FAIT avec les Guides v3** (voir chantier dédié).
+
+## CHANTIER GUIDES v3 (10/08/2026 — retour Alexis « pas complets » + briac « mieux présenter »)
+Refonte complète des tutos de l'Accueil. Arbitrages briac : **un guide par ONGLET** (sa remarque —
+la carte n'avait aucun tuto), titres courts par étape, navigation au **swipe**, auto-ouverture à la
+1re connexion ; doctrine v2 conservée (une phrase par étape, la capture montre LITTÉRALEMENT la
+phrase, halo orange sur la cible).
+- [x] **Sommaire v3 (validé briac)** : 6 guides, 22 étapes — **La carte** (viseur, grille 3×2,
+  fiche du point, fiche maison, filtres, drag), **L'agenda** (mois couleurs+pastilles,
+  légende-filtre, planning du jour, solder, replanifier, tâches), **Vos contacts** (tri échéance,
+  saisie « + »), **L'accueil** (Aujourd'hui, À relancer, popup du matin), **Les stats** (tunnel,
+  périodes), **Mesurer un toit** (laser, 3D, rapport). Cible = commercial (pas de gestion).
+- [x] **Agence de DÉMO + compte sondes dédié (solde du reliquat prod)** : 3 comptes
+  `sondes-1/2/3@example.com` (Julien Le Gall — LE compte de capture (`GUIDE_EMAIL`) —, Marie
+  Tanguy, Thomas Quéré manager de ménage) dans l'ancienne agence de test « Mister Toiture » ;
+  `tools/screenshots/seed-demo.mjs` — semis rejouable de données fictives plausibles (tournée de
+  Lesneven : relance échue Salaün, RDV Caradec du jour, vente Abgrall, « En attente » Léon, annulé
+  Inizan, RDV orphelin Kerbrat pour le popup, tâches dont une en retard, RDV colorés de Marie et
+  Thomas), **GARDE-FOU anti-prod : refus d'écrire si l'agence contient un membre non-sondes**.
+- [x] **Production** : `shoot.mjs` v3 (22 captures — dont le popup via `?popup-rdv` et le DRAG
+  réel : appui long → fantôme capturé puis page RECHARGÉE sans relâcher, zéro écriture ; garde
+  « GUIDE_EMAIL doit être un compte sondes ») + `convert.mjs` (recadrages par capture) ; itérées
+  à l'œil (fantôme hors bande, halo sur le mauvais bouton, tunnel vide un lundi → capture sur
+  « Mois », tâche coupée — tous corrigés). 22 WebP dans `web/public/guide/` (v2 supprimées).
+- [x] **UI** : `Guide.tsx` réécrit (6 guides, titres d'étape en eyebrow, swipe sur la capture,
+  `?v=3`) ; **auto-ouverture du 1er guide à la 1re connexion** (profil < 48 h + jamais vu —
+  `created_at` ajouté au fetch session ; l'app arrive alors sur l'Accueil ; anciens comptes
+  marqués « vu » d'office ; jamais sous `navigator.webdriver`).
 - [x] **Étape 6 — amorçage Mister Toiture : FAIT le 09/08** (avancé pendant le chantier, plan
   ajusté en route) : agence « Mister Toiture : Brest » créée en SQL, **5 comptes réels transvasés
   AVEC leur historique de prospection** (briac manager SANS historique — ses points de test

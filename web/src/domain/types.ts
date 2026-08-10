@@ -40,6 +40,9 @@ export interface Profile {
   /** Compte désactivé par le manager (db/0019) : la RLS ne laisse plus rien
       lire — l'app affiche l'écran « compte désactivé ». */
   disabled_at?: string | null
+  /** Date de création — l'auto-ouverture du 1er tuto ne vise que les comptes
+      de moins de 48 h (Guide v3). */
+  created_at?: string | null
 }
 
 /** Point affiché sur la carte (projection légère de la table `points`). */

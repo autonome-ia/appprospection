@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Toaster } from 'sonner'
 import { MapView, type MapFocus } from './components/MapView'
 import { BottomNav, type Tab } from './components/BottomNav'
@@ -45,6 +45,20 @@ function AppInner() {
   // Pont Stats→Carte (audit UX B5) : le drill-down d'un commercial bascule
   // sur la carte avec le filtre « Qui » pré-appliqué.
   const [mapWho, setMapWho] = useState<string | null>(null)
+
+  // Premier lancement d'un compte NEUF (< 48 h) : on arrive sur l'Accueil —
+  // le Guide s'y auto-ouvre (GuideSection). Un ancien compte reste sur la
+  // carte ; jamais sous Playwright (sondes).
+  useEffect(() => {
+    if (!profile || navigator.webdriver) return
+    try {
+      if (localStorage.getItem('guide-auto')) return
+      const created = profile.created_at ? Date.parse(profile.created_at) : NaN
+      if (Number.isFinite(created) && Date.now() - created < 48 * 3600_000) setTab('accueil')
+    } catch {
+      /* stockage indisponible */
+    }
+  }, [profile])
   const showCommercialOnMap = (commercialId: string) => {
     setMapWho(commercialId)
     setTab('carte')

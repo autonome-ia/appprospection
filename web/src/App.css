@@ -1583,8 +1583,12 @@
   background: var(--surface-2);
   overflow: hidden;
 }
-.guide-step-text {
+/* Titre court d'étape (Guide v3) au-dessus de la phrase. */
+.guide-step-eyebrow {
   margin: 14px 2px 0;
+}
+.guide-step-text {
+  margin: 5px 2px 0;
   font-size: 15px;
   line-height: 1.55;
   color: var(--ink);

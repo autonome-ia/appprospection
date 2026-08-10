@@ -18,23 +18,32 @@ mkdirSync(OUT, { recursive: true })
 // Viser h ≈ 420-460 (ratio proche du cadre 358×388 de la sheet, léger
 // letterbox vertical accepté). null = pas de recadrage (plein écran).
 const CROP = {
-  'pose-1': { y: 420, h: 424 }, // quartier + points + FAB « + » halo + onglets
-  'pose-2': { y: 330, h: 424 }, // réticule sur le toit → « Poser ici »
-  'pose-3': { y: 285, h: 440 }, // fiche : Client rempli + note terrain
-  'relance-1': { y: 235, h: 440 }, // fiche : Client + « Revoir le » halo
-  'relance-2': { y: 150, h: 460 }, // Accueil : Aujourd'hui → À relancer
-  'rdv-1': { y: 190, h: 460 }, // formulaire pré-rempli : titre → Adresse
-  'rdv-2': { y: 130, h: 560 }, // chip « Mes RDV » halo + semaines à pilules
-  'rdv-3': { y: 380, h: 424 }, // sheet du jour : rail + rangée d'issues
-  'maison-1': { y: 135, h: 424 }, // pans sur l'ortho + en-tête fiche + badges
-  'maison-2': { y: 150, h: 500 }, // module Toiture : segmented + 3D + légende
-  'maison-3': { y: 200, h: 460 }, // totaux (Σ retenue) + plan coté + tête de
-  // tableau — la ligne « Établi par … » (y≈181, sondée) reste HORS cadre tant
-  // que le profil de capture affiche un email (le renommer au semis).
   // NB : sheet ouverte, la page capturée fait 664 pt de haut (pas 844).
+  'carte-1': { y: 420, h: 424 }, // quartier + points + FAB « + » halo + onglets
+  'carte-2': { y: 300, h: 454 }, // réticule + grille 3×2 des statuts
+  'carte-3': { y: 250, h: 440 }, // fiche : bloc RDV + Client rempli + note
+  'carte-4': { y: 200, h: 440 }, // fiche maison : en-tête + badges
+  'carte-5': { y: 400, h: 444 }, // barre de filtres dépliée + bouton halo
+  'carte-6': { y: 150, h: 460 }, // drag : le fantôme suit le doigt (~y 240-290)
+  'toit-1': { y: 135, h: 424 }, // pans sur l'ortho + en-tête fiche + badges
+  'toit-2': { y: 150, h: 500 }, // module Toiture : segmented + 3D + légende
+  'toit-3': { y: 200, h: 460 }, // totaux (Σ retenue) + plan coté
+  'agenda-1': { y: 130, h: 560 }, // grille du mois : pilules + pastilles
+  'agenda-2': { y: 100, h: 460 }, // légende-filtre « ● Prénom » halo
+  'agenda-3': { y: 280, h: 440 }, // sheet du jour : rail horaire
+  'agenda-4': { y: 380, h: 424 }, // rangée d'issues halo
+  'agenda-5': { y: 250, h: 440 }, // RDV annulé (centré) + « Replanifier » halo
+  'agenda-6': { y: 175, h: 440 }, // tâche (en tête du jour) + « Fait ✓ » halo
+  'contacts-1': { y: 60, h: 500 }, // liste triée par échéance
+  'contacts-2': { y: 190, h: 460 }, // formulaire « Nouveau contact »
+  'accueil-1': { y: 150, h: 460 }, // carte Aujourd'hui + objectif
+  'accueil-2': { y: 250, h: 460 }, // section « À relancer » + appel halo
+  'accueil-3': { y: 280, h: 500 }, // popup du matin « Que s'est-il passé ? »
+  'stats-1': { y: 250, h: 500 }, // héros + tunnel de conversion
+  'stats-2': { y: 90, h: 420 }, // période + chevrons (halo)
 }
 
-const files = readdirSync(IN).filter((f) => /^(pose|relance|rdv|maison)-\d\.png$/.test(f))
+const files = readdirSync(IN).filter((f) => /^(carte|agenda|contacts|accueil|stats|toit)-\d\.png$/.test(f))
 if (!files.length) console.log('Rien à convertir dans', IN)
 for (const f of files) {
   const name = f.replace(/\.png$/, '')
