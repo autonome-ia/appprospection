@@ -1,7 +1,10 @@
-// Météo du jour à la position du commercial — Open-Meteo (open-meteo.com),
-// gratuit et sans clé comme BAN/IGN, données CC-BY 4.0 (attribution dans le
-// title du chip). Palier gratuit NON-commercial : à re-vérifier si l'app
-// devient un SaaS payant (plan API payant ou autre source).
+// Météo du jour à la position du commercial — MET Norway (api.met.no,
+// Locationforecast 2.0) : gratuit Y COMPRIS commercial (CC BY 4.0), sans clé,
+// CORS ouvert — même philosophie que BAN/IGN. Remplace Open-Meteo dont le
+// palier gratuit est réservé au non-commercial (bascule 10/08/2026).
+// Conditions met.no : GET nu SANS header custom (préflight CORS non
+// supporté — l'identification passe par le header Origin, automatique),
+// lat/lon ≤ 4 décimales, cache ~30 min, attribution « MET Norway ».
 //
 // Contrat UX : la météo est un bonus SILENCIEUX. Géoloc refusée, indisponible,
 // API en panne → null, jamais d'erreur visible, l'Accueil ne l'attend pas.
@@ -9,12 +12,11 @@
 export type Weather = {
   /** °C, arrondie à l'affichage. */
   temp: number
-  /** Code WMO (weather_code Open-Meteo). */
-  code: number
-  isDay: boolean
+  /** symbol_code met.no (ex. « clearsky_day », « lightrainshowers_night »). */
+  symbol: string
 }
 
-const CACHE_KEY = 'meteo-cache-v1'
+const CACHE_KEY = 'meteo-cache-v2'
 const CACHE_TTL = 30 * 60 * 1000 // 30 min : pas une app météo.
 
 function readCache(): Weather | null {
@@ -23,7 +25,7 @@ function readCache(): Weather | null {
     if (!raw) return null
     const c = JSON.parse(raw) as Weather & { at: number }
     if (Date.now() - c.at > CACHE_TTL) return null
-    return { temp: c.temp, code: c.code, isDay: c.isDay }
+    return { temp: c.temp, symbol: c.symbol }
   } catch {
     return null
   }
@@ -39,6 +41,18 @@ function locate(): Promise<GeolocationPosition> {
   )
 }
 
+type MetNoResponse = {
+  properties?: {
+    timeseries?: Array<{
+      data?: {
+        instant?: { details?: { air_temperature?: number } }
+        next_1_hours?: { summary?: { symbol_code?: string } }
+        next_6_hours?: { summary?: { symbol_code?: string } }
+      }
+    }>
+  }
+}
+
 async function fetchWeather(): Promise<Weather | null> {
   const cached = readCache()
   if (cached) return cached
@@ -50,19 +64,21 @@ async function fetchWeather(): Promise<Weather | null> {
     const perm = await navigator.permissions.query({ name: 'geolocation' })
     if (perm.state !== 'granted') return null
     const pos = await locate()
-    // 2 décimales (~1 km) : largement assez pour la météo.
-    const lat = pos.coords.latitude.toFixed(2)
-    const lon = pos.coords.longitude.toFixed(2)
+    // 3 décimales (~100 m) : assez pour la météo, sous la limite met.no (4).
+    const lat = pos.coords.latitude.toFixed(3)
+    const lon = pos.coords.longitude.toFixed(3)
     const r = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,is_day`,
+      `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat}&lon=${lon}`,
     )
     if (!r.ok) return null
-    const json = (await r.json()) as {
-      current?: { temperature_2m?: number; weather_code?: number; is_day?: number }
-    }
-    const c = json.current
-    if (typeof c?.temperature_2m !== 'number' || typeof c.weather_code !== 'number') return null
-    const w: Weather = { temp: c.temperature_2m, code: c.weather_code, isDay: c.is_day !== 0 }
+    const json = (await r.json()) as MetNoResponse
+    const now = json.properties?.timeseries?.[0]?.data
+    const temp = now?.instant?.details?.air_temperature
+    // next_1_hours couvre les ~60 premières heures — présent pour l'instant
+    // courant, next_6_hours en filet.
+    const symbol = now?.next_1_hours?.summary?.symbol_code ?? now?.next_6_hours?.summary?.symbol_code
+    if (typeof temp !== 'number' || !symbol) return null
+    const w: Weather = { temp, symbol }
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify({ ...w, at: Date.now() }))
     } catch {

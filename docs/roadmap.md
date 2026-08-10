@@ -289,14 +289,17 @@ phrase, halo orange sur la cible).
 ## Petites améliorations UX (10/08/2026)
 - [x] **Météo du jour sur l'Accueil** : chip discret (icône Lucide + température en mono) en bout
   de ligne du label de la carte « Aujourd'hui » (emplacement choisi par briac sur captures, vs
-  en-tête à côté du « Bonjour »). **Open-Meteo** (gratuit, sans clé, CORS ouvert — même famille
-  que BAN/IGN), attribution CC-BY dans le title. Géoloc **one-shot, uniquement si la permission
-  est déjà accordée** (pas de prompt surprise sur l'Accueil — elle l'est dès la 1re utilisation
-  de la carte) ; cache localStorage 30 min ; TOUT échec (géoloc, API, réseau) = silence, le chip
-  n'apparaît pas. `data/weather.ts` + `WeatherChip.tsx`, sonde lecture seule `probe-meteo.mjs`
-  (2 thèmes, géoloc simulée à Lesneven). ⚠ Le palier gratuit d'Open-Meteo est réservé au
-  NON-commercial : OK outil interne, à repasser en plan payant (~29 €/mois) ou changer de source
-  si l'app devient un SaaS facturé.
+  en-tête à côté du « Bonjour »). Source : **MET Norway** (api.met.no, Locationforecast 2.0) —
+  gratuit **Y COMPRIS commercial** (CC BY 4.0), sans clé, CORS ouvert, usage navigateur prévu par
+  leurs TOS (identification via header `Origin` automatique) — choisi le 10/08 après étude
+  comparée (3 agents web) : Open-Meteo d'abord livré puis remplacé (palier gratuit non-commercial),
+  Météo-France DPObs = clé exposée + pas de « condition ciel » simple, OpenWeatherMap/WeatherAPI =
+  clé exposée, Pirate Weather = modèle 22 km hors USA. Contraintes met.no respectées : GET nu sans
+  header custom (pas de préflight), lat/lon 3 décimales, cache 30 min, attribution dans le title.
+  Géoloc **one-shot, uniquement si la permission est déjà accordée** (pas de prompt surprise sur
+  l'Accueil — elle l'est dès la 1re utilisation de la carte) ; TOUT échec (géoloc, API, réseau) =
+  silence, le chip n'apparaît pas. `data/weather.ts` + `WeatherChip.tsx`, sonde lecture seule
+  `probe-meteo.mjs` (2 thèmes, géoloc simulée à Lesneven).
 
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)

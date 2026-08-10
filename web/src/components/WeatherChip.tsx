@@ -3,6 +3,7 @@ import {
   Cloud,
   CloudDrizzle,
   CloudFog,
+  CloudHail,
   CloudLightning,
   CloudMoon,
   CloudRain,
@@ -14,18 +15,22 @@ import {
 } from 'lucide-react'
 import { getWeather, type Weather } from '../data/weather'
 
-// Codes WMO (doc Open-Meteo) → icône Lucide + libellé (title/aria).
-function meta(code: number, isDay: boolean): { Icon: LucideIcon; label: string } {
-  if (code === 0) return isDay ? { Icon: Sun, label: 'Ciel dégagé' } : { Icon: Moon, label: 'Nuit claire' }
-  if (code <= 2) return isDay ? { Icon: CloudSun, label: 'Éclaircies' } : { Icon: CloudMoon, label: 'Éclaircies' }
-  if (code === 3) return { Icon: Cloud, label: 'Couvert' }
-  if (code === 45 || code === 48) return { Icon: CloudFog, label: 'Brouillard' }
-  if (code <= 57) return { Icon: CloudDrizzle, label: 'Bruine' }
-  if (code <= 67) return { Icon: CloudRain, label: 'Pluie' }
-  if (code <= 77) return { Icon: CloudSnow, label: 'Neige' }
-  if (code <= 82) return { Icon: CloudRain, label: 'Averses' }
-  if (code <= 86) return { Icon: CloudSnow, label: 'Averses de neige' }
-  return { Icon: CloudLightning, label: 'Orage' }
+// symbol_code met.no (41 familles × suffixe _day/_night) → icône Lucide +
+// libellé. On teste du plus spécifique (orage) au plus général (dégagé).
+function meta(symbol: string): { Icon: LucideIcon; label: string } {
+  const day = !symbol.endsWith('_night')
+  const base = symbol.replace(/_(day|night|polartwilight)$/, '')
+  if (base.includes('thunder')) return { Icon: CloudLightning, label: 'Orage' }
+  if (base.includes('sleet')) return { Icon: CloudHail, label: 'Grésil' }
+  if (base.includes('snow')) return { Icon: CloudSnow, label: 'Neige' }
+  if (base.startsWith('lightrain')) return { Icon: CloudDrizzle, label: 'Pluie faible' }
+  if (base.includes('rainshowers')) return { Icon: CloudRain, label: 'Averses' }
+  if (base.includes('rain')) return { Icon: CloudRain, label: 'Pluie' }
+  if (base === 'fog') return { Icon: CloudFog, label: 'Brouillard' }
+  if (base === 'cloudy') return { Icon: Cloud, label: 'Couvert' }
+  if (base === 'partlycloudy' || base === 'fair')
+    return day ? { Icon: CloudSun, label: 'Éclaircies' } : { Icon: CloudMoon, label: 'Éclaircies' }
+  return day ? { Icon: Sun, label: 'Ciel dégagé' } : { Icon: Moon, label: 'Nuit claire' }
 }
 
 /** Température + condition à la position du commercial. Rien tant que la
@@ -40,11 +45,11 @@ export function WeatherChip({ className }: { className?: string }) {
     }
   }, [])
   if (!w) return null
-  const { Icon, label } = meta(w.code, w.isDay)
+  const { Icon, label } = meta(w.symbol)
   return (
     <span
       className={`weather-chip${className ? ` ${className}` : ''}`}
-      title={`${label} — données Open-Meteo`}
+      title={`${label} — données MET Norway (CC BY 4.0)`}
       aria-label={`Météo : ${label}, ${Math.round(w.temp)} degrés`}
     >
       <Icon size={15} strokeWidth={1.9} aria-hidden="true" />
