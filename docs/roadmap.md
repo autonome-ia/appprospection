@@ -230,7 +230,13 @@ un compte » = **désactivation** (`disabled_at`, kill-switch RLS, réversible).
 - [x] **Retours post-lancement (09/08)** : champ « Nom affiché » dans l'écran Équipe (les comptes
   migrés portaient leur email en guise de nom — corrigés en SQL, les suivants saisissent leur nom
   à l'inscription) ; **objectif hebdo 0 = profil support** : hors classement et hors objectif
-  équipe (demande briac, qui ne prospecte pas) — secrétaires et désactivés exclus d'office.
+  équipe (demande briac, qui ne prospecte pas) — secrétaires et désactivés exclus d'office ;
+  **chacun ses RDV à l'écran (10/08, 1er retour terrain d'Alexis)** : un commercial ne voit plus
+  AUCUNE action sur le RDV ou la tâche d'un collègue (issues du rail, « Fait ✓ », Replanifier,
+  édition de tâche, issues/Modifier de la fiche — les boutons s'affichaient et échouaient au tap,
+  la RLS refusant déjà) ; « Planifier » d'un point orphelin réservé à l'auteur du point ;
+  **superviseurs inchangés** (arbitrage briac : manager + chef des ventes gardent la main, base
+  intacte — le banc RLS reste valide tel quel).
 - [ ] ⬜ **Étape 5 — tuto auto à la 1re connexion : REPORTÉE** (fin de chantier chargée) : il faut
   distinguer un VRAI nouveau compte (profil créé < 48 h ? `created_at` pas dans le fetch session)
   d'un ancien qui verrait surgir le tuto à la prochaine mise à jour. Petit chantier dédié.

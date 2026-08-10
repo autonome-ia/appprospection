@@ -11,7 +11,7 @@ import {
   type AppointmentStatus,
 } from '../domain/appointments'
 import { wazeUrl } from '../lib/nav'
-import { isSecretaireRole, type MapPoint, type Profile } from '../domain/types'
+import { isSecretaireRole, isSupervisorRole, type MapPoint, type Profile } from '../domain/types'
 
 // -----------------------------------------------------------------------------
 // Section « Rendez-vous » STANDARD (fusion des fiches, 29/07 soir) : le même
@@ -62,9 +62,17 @@ function endOfToday(): number {
 
 export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, showNav }: Props) {
   const [busy, setBusy] = useState(false)
-  // Secrétaire (étape 4) : lecture — les issues terrain et la planification
-  // lui sont refusées par la RLS de toute façon, on ne les propose pas.
-  const canAct = !isSecretaireRole(profile.role)
+  // Chacun ses RDV (retour chef des ventes, 10/08) : issues et « Modifier »
+  // réservés au TITULAIRE du RDV et aux superviseurs — la secrétaire reste
+  // en lecture partout. La RLS refuse déjà les autres ; on ne montre plus
+  // des boutons qui échouent.
+  const secretaire = isSecretaireRole(profile.role)
+  const supervisor = isSupervisorRole(profile.role)
+  // « Planifier » (point « RDV pris » sans RDV) : l'auteur du point ou un
+  // superviseur — pas un collègue de passage sur la fiche.
+  const canPlan =
+    !secretaire &&
+    (supervisor || !point || point.created_by === null || point.created_by === profile.id)
   // Issue donnée depuis CE bloc : reflétée sans attendre le reload du parent.
   const [override, setOverride] = useState<{ id: string; status: AppointmentStatus } | null>(null)
   useEffect(() => {
@@ -92,7 +100,7 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
   const missingBanner = missing ? (
     <div className="rdv-missing">
       <span>Aucun RDV planifié pour ce point</span>
-      {onPlan && canAct && (
+      {onPlan && canPlan && (
         <button type="button" className="text-btn" onClick={onPlan}>
           {/* « Replanifier » quand un ancien RDV existe (annulé, en attente…)
               — le mot dit le geste (retour briac 29/07). */}
@@ -103,6 +111,8 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
   ) : null
 
   if (!shownRdv || shownStatus === null) return missingBanner
+
+  const canAct = !secretaire && (supervisor || shownRdv.commercial_id === profile.id)
 
   // RDV encore modifiable = « à venir » (même passé de date : un RDV oublié
   // se DÉCALE, on n'en recrée pas un deuxième — piège corrigé le 29/07).

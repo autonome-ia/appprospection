@@ -94,6 +94,14 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
   // la vente DEUX fois dans les stats (audit).
   const [busy, setBusy] = useState(false)
   const waze = wazeUrl(appt.point, appt.address)
+  // Chacun ses RDV (retour chef des ventes, 10/08) : un commercial ne voit
+  // AUCUNE action (issues, « Fait ✓ », Replanifier, édition de tâche) sur le
+  // RDV d'un collègue — les boutons s'affichaient et échouaient au tap (la
+  // RLS refuse titulaire/créateur/superviseur exceptés). Superviseurs : tout.
+  const canAct =
+    !readOnly && (isSupervisorRole(profile.role) || appt.commercial_id === profile.id)
+  // Une tâche d'un collègue reste lisible mais inerte (le tap ouvre l'édition).
+  const inert = readOnly || (isTache && !canAct)
   // Même règle que RdvSection (la fiche) : toutes les issues dès le jour J,
   // Vendu / Refus tant que le RDV est « En attente ».
   const railOutcomes =
@@ -112,9 +120,9 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
             Lecture seule (secrétaire) : le bloc reste un simple affichage. */}
         <button
           type="button"
-          className={`appt-main ${readOnly ? 'is-readonly' : ''}`}
-          onClick={readOnly ? undefined : () => onOpenClient(appt)}
-          disabled={readOnly}
+          className={`appt-main ${inert ? 'is-readonly' : ''}`}
+          onClick={inert ? undefined : () => onOpenClient(appt)}
+          disabled={inert}
         >
           <span className="appt-name-row">
             {isTache && <ClipboardList size={14} strokeWidth={1.9} className="appt-task-icon" />}
@@ -132,7 +140,7 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
                 {meta.label}
               </span>
             )}
-            {!readOnly && <ChevronRight size={15} strokeWidth={1.9} className="row-chevron" />}
+            {!inert && <ChevronRight size={15} strokeWidth={1.9} className="row-chevron" />}
           </span>
           {/* Pas de doublon : sans nom client, l'adresse sert déjà de titre. */}
           {isTache
@@ -174,7 +182,7 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
 
         {/* Tâche : un seul contrôle « Fait ✓ » — toggle sans conséquence
             stats (kind filtré partout), donc pas de garde « jour venu ». */}
-        {isTache && !readOnly && (
+        {isTache && canAct && (
           <div className="appt-outcomes">
             <button
               type="button"
@@ -204,7 +212,7 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
             tap de scroll raté écrivait des stats fausses. Jamais sur une
             tâche. « En attente » = état OUVERT (29/07 soir) : Vendu / Refus
             restent proposés sans limite de date — même règle que la fiche. */}
-        {!isTache && !readOnly && railOutcomes && (
+        {!isTache && canAct && railOutcomes && (
           <div className="appt-outcomes">
             {railOutcomes.map((o) => {
               const m = APPOINTMENT_STATUS_META[o]
@@ -244,7 +252,7 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
 
         {/* RDV annulé : la suite en 1 tap (refonte des issues 29/07) — un
             NOUVEAU RDV pré-rempli, l'annulé reste dans l'historique. */}
-        {!isTache && !readOnly && appt.status === 'annule' && appt.point && onReplan && (
+        {!isTache && canAct && appt.status === 'annule' && appt.point && onReplan && (
           <div className="appt-outcomes">
             <button type="button" className="outcome-btn" onClick={() => onReplan(appt)}>
               <CalendarPlus size={14} strokeWidth={1.9} /> Replanifier
