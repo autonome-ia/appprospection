@@ -13,6 +13,7 @@ import {
   Navigation,
   Search,
   Settings,
+  SlidersHorizontal,
   X,
 } from 'lucide-react'
 import {
@@ -472,6 +473,9 @@ export function AgendaScreen({
   // retour Alexis 10/08) : une chip « ● Prénom » par membre — on apprend les
   // couleurs ET on filtre (multi-sélection, vide = tout le monde).
   const [whoFilter, setWhoFilter] = useState<ReadonlySet<string>>(new Set())
+  // Chips repliées derrière un bouton filtre (retour briac 10/08 : « trop
+  // grosses ») — même pattern que la carte, bouton surligné si filtre actif.
+  const [whoOpen, setWhoOpen] = useState(false)
   // Secrétaire (étape 4) : l'agenda est TOUTE son app — la sheet « Profil &
   // réglages » (thème, déconnexion) s'ouvre depuis SON en-tête.
   const secretaire = isSecretaireRole(profile?.role)
@@ -823,43 +827,55 @@ export function AgendaScreen({
         </div>
 
         {/* Légende-filtre par membre (refonte couleurs, 10/08) : « ● Prénom »
-            dans SA couleur — la légende permanente qui apprend les couleurs,
-            et le filtre en un geste (soi = l'ancien « Mes RDV »). Utile à la
+            dans SA couleur — repliée derrière le bouton filtre (retour briac
+            le soir même : les chips permanentes mangeaient l'écran). Bouton
+            surligné quand un filtre est actif, comme sur la carte. Utile à la
             secrétaire aussi (lecture) ; « + Tâche » reste hors de sa portée. */}
         <div className="chip-row agenda-mine">
-          {profiles
-            .filter((p) => !p.disabled_at && p.role !== 'secretaire')
-            .sort((a, b) =>
-              a.id === profile.id ? -1 : b.id === profile.id ? 1 : (a.full_name ?? '').localeCompare(b.full_name ?? ''),
-            )
-            .map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                className={`chip ${whoFilter.has(p.id) ? 'is-active' : ''}`}
-                style={{ ['--chip' as string]: colorForCommercial(p.id, p.color) }}
-                onClick={() =>
-                  setWhoFilter((prev) => {
-                    const next = new Set(prev)
-                    if (next.has(p.id)) next.delete(p.id)
-                    else next.add(p.id)
-                    return next
-                  })
-                }
-              >
-                <span
-                  className="status-dot"
-                  style={{ background: colorForCommercial(p.id, p.color) }}
-                />
-                {p.id === profile.id ? 'Moi' : displayName(p)}
-              </button>
-            ))}
+          <button
+            type="button"
+            className={`chip chip-sm agenda-who-btn ${whoOpen || whoFilter.size > 0 ? 'is-active' : ''}`}
+            onClick={() => setWhoOpen((v) => !v)}
+            aria-label="Filtrer par commercial"
+            aria-expanded={whoOpen}
+          >
+            <SlidersHorizontal size={13} strokeWidth={2} />
+            {whoFilter.size > 0 && <span className="tnum">{whoFilter.size}</span>}
+          </button>
+          {whoOpen &&
+            profiles
+              .filter((p) => !p.disabled_at && p.role !== 'secretaire')
+              .sort((a, b) =>
+                a.id === profile.id ? -1 : b.id === profile.id ? 1 : (a.full_name ?? '').localeCompare(b.full_name ?? ''),
+              )
+              .map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`chip chip-sm ${whoFilter.has(p.id) ? 'is-active' : ''}`}
+                  style={{ ['--chip' as string]: colorForCommercial(p.id, p.color) }}
+                  onClick={() =>
+                    setWhoFilter((prev) => {
+                      const next = new Set(prev)
+                      if (next.has(p.id)) next.delete(p.id)
+                      else next.add(p.id)
+                      return next
+                    })
+                  }
+                >
+                  <span
+                    className="status-dot"
+                    style={{ background: colorForCommercial(p.id, p.color) }}
+                  />
+                  {p.id === profile.id ? 'Moi' : displayName(p)}
+                </button>
+              ))}
           {!secretaire && (
             /* Tâche en 1 tap depuis le mois (retour briac 29/07) : sans passer
                par un jour — le formulaire propose la prochaine heure ronde. */
             <button
               type="button"
-              className="chip agenda-add-task"
+              className="chip chip-sm agenda-add-task"
               onClick={() => setCreating({ at: null, kind: 'tache' })}
             >
               <Plus size={14} strokeWidth={2.2} /> Tâche

@@ -311,6 +311,11 @@ phrase, halo orange sur la cible).
   `·` pour les séparateurs de données (title météo, mention LiDAR du rapport), `-` pour les
   intervalles de dates et les cellules vides du rapport. Les commentaires de code et console.warn
   (invisibles à l'écran) gardent leur typographie.
+- [x] **Légende-filtre agenda repliée** (retour briac : « pastilles trop grosses ») : les chips
+  « ● Prénom » du 10/08 passent en taille compacte (`chip-sm` : 12 px, padding réduit — « + Tâche »
+  aussi) et se replient derrière un bouton filtre (SlidersHorizontal, même pattern que la carte) :
+  masquées par défaut, dépliées au tap, bouton accent + compteur quand un filtre est actif même
+  replié. Sonde `probe-agenda-couleurs.mjs` adaptée (capture fermée + dépliée + filtrée, 2 thèmes).
 
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)
