@@ -28,7 +28,7 @@ window.addEventListener('vite:preloadError', (e) => {
   }
   if (past.length >= 2) {
     console.error('vite:preloadError répété — rechargement suspendu (version périmée toujours servie ?)')
-    toast.error('Mise à jour indisponible — vérifiez le réseau, puis fermez et rouvrez l’app')
+    toast.error('Mise à jour indisponible : vérifiez le réseau, puis fermez et rouvrez l’app')
     return
   }
   try {

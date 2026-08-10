@@ -93,7 +93,7 @@ export function TeamSheet({
   // — WhatsApp/SMS/Mail). Pas d'email automatique : il faudrait un serveur et
   // la clé secrète ; le partage natif est plus direct et plus personnel.
   const inviteText = code
-    ? `Rejoins l’équipe ${orgName ?? 'de ton agence'} sur AppProspection :\n${window.location.origin}\n\nCode d’invitation : ${code}\nSur l’écran d’accueil, choisis « J’ai un code d’invitation — créer mon compte ».`
+    ? `Rejoins l’équipe ${orgName ?? 'de ton agence'} sur AppProspection :\n${window.location.origin}\n\nCode d’invitation : ${code}\nSur l’écran d’accueil, choisis « J’ai un code d’invitation : créer mon compte ».`
     : null
 
   const share = async () => {
@@ -126,7 +126,7 @@ export function TeamSheet({
     try {
       const next = await regenInviteCode()
       setCode(next)
-      toast.success('Nouveau code généré — l’ancien ne fonctionne plus')
+      toast.success('Nouveau code généré : l’ancien ne fonctionne plus')
     } catch (e) {
       console.error('Rotation du code :', e)
       toast.error('Impossible de générer un nouveau code')
@@ -150,7 +150,7 @@ export function TeamSheet({
       load()
     } catch (e) {
       console.error('Nom du membre :', e)
-      toast.error('Modification refusée — réservé au manager')
+      toast.error('Modification refusée : réservé au manager')
     } finally {
       setBusy(false)
     }
@@ -165,7 +165,7 @@ export function TeamSheet({
       load()
     } catch (e) {
       console.error('Couleur du membre :', e)
-      toast.error('Modification refusée — réservé au manager')
+      toast.error('Modification refusée : réservé au manager')
     } finally {
       setBusy(false)
     }
@@ -180,7 +180,7 @@ export function TeamSheet({
       load()
     } catch (e) {
       console.error('Changement de rôle :', e)
-      toast.error('Changement refusé — réservé au manager')
+      toast.error('Changement refusé : réservé au manager')
     } finally {
       setBusy(false)
     }
@@ -204,7 +204,7 @@ export function TeamSheet({
       load()
     } catch (e) {
       console.error('Désactivation :', e)
-      toast.error('Modification refusée — réservé au manager')
+      toast.error('Modification refusée : réservé au manager')
     } finally {
       setBusy(false)
     }
@@ -253,7 +253,7 @@ export function TeamSheet({
                   </button>
                 </div>
                 <p className="team-invite-hint">
-                  Un nouveau membre crée son compte avec ce code — il arrive « commercial », tu
+                  Un nouveau membre crée son compte avec ce code : il arrive « commercial », tu
                   choisis son rôle ici ensuite.
                 </p>
                 <div className="team-invite-actions">

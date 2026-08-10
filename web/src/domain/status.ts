@@ -34,11 +34,11 @@ export interface StatusMeta {
 export const STATUSES: StatusMeta[] = [
   { value: 'absent', label: 'Absent', color: '#7d8898', description: 'Personne / pas d’ouverture' },
   { value: 'a_revoir', label: 'À revoir', color: '#d97706', description: 'Repasser plus tard' },
-  { value: 'impossible', label: 'Refus', color: '#344054', description: 'A refusé — inutile d’y retourner' },
+  { value: 'impossible', label: 'Refus', color: '#344054', description: 'A refusé : inutile d’y retourner' },
   { value: 'hors_cible', label: 'Hors cible', color: '#6d4fa1', description: 'Pas notre cible (locataire…)' },
   { value: 'rdv_pris', label: 'RDV pris', color: '#2f6bff', description: 'Rendez-vous obtenu' },
-  { value: 'vendu', label: 'Client', color: '#17b26a', description: 'Client — vente conclue' },
-  { value: 'ancien_client', label: 'Client', color: '#17b26a', description: 'Client de l’agence — on y a déjà vendu' },
+  { value: 'vendu', label: 'Client', color: '#17b26a', description: 'Client : vente conclue' },
+  { value: 'ancien_client', label: 'Client', color: '#17b26a', description: 'Client de l’agence : on y a déjà vendu' },
 ]
 
 export const STATUS_BY_VALUE: Record<PointStatus, StatusMeta> = Object.fromEntries(

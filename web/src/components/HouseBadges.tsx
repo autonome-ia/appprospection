@@ -63,7 +63,7 @@ function lidarExcuse(
 ): { label: string; title: string } | null {
   if (statut === 'grand_batiment') {
     return {
-      label: 'collectif — pas de mesure',
+      label: 'collectif : pas de mesure',
       title:
         'Le polygone IGN couvre un bâtiment collectif (ou une bande de maisons fusionnées) : la mesure laser porterait sur tout le bloc.',
     }
@@ -74,7 +74,7 @@ function lidarExcuse(
       return {
         label: 'LiDAR : zone pas encore couverte',
         title:
-          'Le survol laser IGN n’a pas encore couvert cette zone (programme complet fin 2026) — la mesure sera re-tentée automatiquement.',
+          'Le survol laser IGN n’a pas encore couvert cette zone (programme complet fin 2026) : la mesure sera re-tentée automatiquement.',
       }
     case 'canopee':
       return {
@@ -85,7 +85,7 @@ function lidarExcuse(
       return {
         label: 'plus récente que le survol laser',
         title:
-          'La maison est apparue après le passage de l’avion LiDAR : aucun point disponible — l’estimation reste affichée.',
+          'La maison est apparue après le passage de l’avion LiDAR : aucun point disponible : l’estimation reste affichée.',
       }
     default:
       return null
@@ -165,7 +165,7 @@ export function HouseBadges({
           {matConfirme}
         </Badge>
       ) : matToit ? (
-        <Badge info="Donnée fiscale — probable, une rénovation récente peut ne pas apparaître">
+        <Badge info="Donnée fiscale : probable, une rénovation récente peut ne pas apparaître">
           {matToit}
         </Badge>
       ) : null}
@@ -173,7 +173,7 @@ export function HouseBadges({
         hideMeasured ? null : (
           <Badge
             className="is-measured tnum"
-            info={`Toit de la maison, hors annexes et extensions — mesuré au laser (nuage de points LiDAR HD IGN${
+            info={`Toit de la maison, hors annexes et extensions, mesuré au laser (nuage de points LiDAR HD IGN${
               lidarMillesime ? `, survol ${lidarMillesime.slice(0, 4)}` : ''
             })`}
           >
@@ -198,7 +198,7 @@ export function HouseBadges({
       {vegBadge !== null && (
         <Badge
           className="is-muted"
-          info={`Végétation haute sur ~${vegBadge} % de l’emprise (LiDAR) — mousse et gouttières à surveiller`}
+          info={`Végétation haute sur ~${vegBadge} % de l’emprise (LiDAR) : mousse et gouttières à surveiller`}
         >
           végétation surplombante
         </Badge>
@@ -208,7 +208,7 @@ export function HouseBadges({
       {(extra?.logements ?? 0) >= 2 && (
         <Badge
           className="is-muted tnum"
-          info="Nombre de logements (BD TOPO) — bâtiment probablement collectif ou mitoyen"
+          info="Nombre de logements (BD TOPO) : bâtiment probablement collectif ou mitoyen"
         >
           {extra!.logements} logements
         </Badge>

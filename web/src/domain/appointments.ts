@@ -52,13 +52,13 @@ export const FOLLOW_UP_OUTCOMES: AppointmentStatus[] = ['vendu', 'refus']
 export function outcomeToastMessage(outcome: AppointmentStatus): string {
   switch (outcome) {
     case 'vendu':
-      return 'Vendu — la maison passe en « Client »'
+      return 'Vendu : la maison passe en « Client »'
     case 'effectue':
-      return 'En attente — la maison passe en « À revoir », relance dans 7 jours'
+      return 'En attente : la maison passe en « À revoir », relance dans 7 jours'
     case 'refus':
       return 'La maison passe en « Refus »'
     case 'annule':
-      return 'RDV annulé — replanifiez quand vous voulez'
+      return 'RDV annulé : replanifiez quand vous voulez'
     default:
       return `RDV marqué « ${APPOINTMENT_STATUS_META[outcome].label} »`
   }

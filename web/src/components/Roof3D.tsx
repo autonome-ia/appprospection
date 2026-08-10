@@ -178,7 +178,7 @@ export function Roof3D({ roof, wastePct, embedded = false, excluded, onTogglePan
             className={`pan-chip tnum roof3d-toggle ${excluded.has(idx) ? 'is-off' : ''}`}
             style={{ borderColor: colorOf.get(idx) ?? 'var(--line)' }}
             onClick={() => toggleRef.current(idx)}
-            title={excluded.has(idx) ? 'Exclu — taper pour inclure' : 'Inclus — taper pour exclure'}
+            title={excluded.has(idx) ? 'Exclu : taper pour inclure' : 'Inclus : taper pour exclure'}
           >
             {letters.get(idx) ? `${letters.get(idx)} · ` : ''}
             {pan.m2} m² · {pan.pente_deg}°
@@ -187,7 +187,7 @@ export function Roof3D({ roof, wastePct, embedded = false, excluded, onTogglePan
         {wastePct != null && wastePct > 0 && selectionM2 > 0 && (
           <span
             className="pan-chip tnum roof3d-waste"
-            title="Surface de commande estimée : sélection + chutes de coupe (selon matériau et complexité du toit) — pourcentage indicatif, à valider sur les factures"
+            title="Surface de commande estimée : sélection + chutes de coupe (selon matériau et complexité du toit). Pourcentage indicatif, à valider sur les factures"
           >
             + chutes ~{wastePct} % ≈ {Math.round(selectionM2 * (1 + wastePct / 100))} m²
           </span>

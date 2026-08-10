@@ -197,7 +197,7 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
                   toast.success(done ? 'Tâche remise à faire' : 'Tâche faite')
                 } catch (e) {
                   console.error('Tâche faite :', e)
-                  toast.error('Impossible d’enregistrer — vérifiez le réseau')
+                  toast.error('Impossible d’enregistrer : vérifiez le réseau')
                 } finally {
                   setBusy(false)
                 }
@@ -232,12 +232,12 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
                       toast.success(outcomeToastMessage(o))
                       if (!pointSynced) {
                         toast.error(
-                          'La maison n’a pas pu être mise à jour sur la carte — rouvrez sa fiche pour corriger',
+                          'La maison n’a pas pu être mise à jour sur la carte : rouvrez sa fiche pour corriger',
                         )
                       }
                     } catch (e) {
                       console.error('Issue du RDV :', e)
-                      toast.error('Issue non enregistrée — vérifiez le réseau')
+                      toast.error('Issue non enregistrée : vérifiez le réseau')
                     } finally {
                       setBusy(false)
                     }
@@ -667,7 +667,7 @@ export function AgendaScreen({
     <div className="screen agenda-screen">
       {loadError && (
         <div className="load-error">
-          <span>Agenda impossible à charger — vérifiez le réseau.</span>
+          <span>Agenda impossible à charger : vérifiez le réseau.</span>
           <button type="button" className="text-btn" onClick={reload}>
             Réessayer
           </button>
@@ -752,7 +752,7 @@ export function AgendaScreen({
               <p>
                 {clientQuery.trim() || contactFilter
                   ? 'Aucun contact ne correspond.'
-                  : 'Aucun contact — les points « RDV pris » et « À revoir » apparaîtront ici.'}
+                  : 'Aucun contact : les points « RDV pris » et « À revoir » apparaîtront ici.'}
               </p>
             </div>
           ) : (

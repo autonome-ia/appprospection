@@ -47,7 +47,7 @@ const v3 = (name: string) => `/guide/${name}.webp?v=3`
 const GUIDES: Guide[] = [
   {
     id: 'carte',
-    title: 'La carte — prospecter',
+    title: 'La carte : prospecter',
     short: 'La carte',
     icon: Map,
     steps: [
@@ -61,13 +61,13 @@ const GUIDES: Guide[] = [
         img: v3('carte-2'),
         alt: 'La grille des 6 statuts en mode visée',
         title: 'Les 6 statuts',
-        text: 'Choisissez le statut dans la grille — du simple « Absent » au « RDV pris » — puis « Poser ici ».',
+        text: 'Choisissez le statut dans la grille, du simple « Absent » au « RDV pris », puis « Poser ici ».',
       },
       {
         img: v3('carte-3'),
         alt: 'Fiche du point : client, téléphone, note',
         title: 'La fiche du point',
-        text: 'Après la pose, la fiche s’ouvre : nom, téléphone, une note — tout ce que vous saurez de cette porte.',
+        text: 'Après la pose, la fiche s’ouvre : nom, téléphone, une note. Tout ce que vous saurez de cette porte.',
       },
       {
         img: v3('carte-4'),
@@ -79,7 +79,7 @@ const GUIDES: Guide[] = [
         img: v3('carte-5'),
         alt: 'La barre de filtres de la carte',
         title: 'Les filtres',
-        text: 'Le bouton filtres trie vos portes par statut ou ancienneté — « À relancer » montre celles qui attendent.',
+        text: 'Le bouton filtres trie vos portes par statut ou ancienneté : « À relancer » montre celles qui attendent.',
       },
       {
         img: v3('carte-6'),
@@ -91,7 +91,7 @@ const GUIDES: Guide[] = [
   },
   {
     id: 'agenda',
-    title: 'L’agenda — vos RDV',
+    title: 'L’agenda : vos RDV',
     short: 'L’agenda',
     icon: CalendarCheck,
     steps: [
@@ -99,7 +99,7 @@ const GUIDES: Guide[] = [
         img: v3('agenda-1'),
         alt: 'La grille du mois : couleurs et pastilles',
         title: 'Le mois d’un coup d’œil',
-        text: 'Une pilule par RDV : la couleur dit QUI, la pastille dit QUOI — bleu à venir, ambre à revoir, vert vendu.',
+        text: 'Une pilule par RDV : la couleur dit QUI, la pastille dit QUOI (bleu à venir, ambre à revoir, vert vendu).',
       },
       {
         img: v3('agenda-2'),
@@ -117,7 +117,7 @@ const GUIDES: Guide[] = [
         img: v3('agenda-4'),
         alt: 'Les issues du RDV : Vendu, En attente, Refus, Annulé',
         title: 'Solder un RDV',
-        text: 'Le jour J, donnez l’issue : Vendu, En attente, Refus ou Annulé — la carte se met à jour toute seule.',
+        text: 'Le jour J, donnez l’issue : Vendu, En attente, Refus ou Annulé. La carte se met à jour toute seule.',
       },
       {
         img: v3('agenda-5'),
@@ -129,7 +129,7 @@ const GUIDES: Guide[] = [
         img: v3('agenda-6'),
         alt: 'Une tâche d’agenda et son bouton « Fait »',
         title: 'Les tâches',
-        text: '« + Tâche » note l’acompte à récupérer ; « Fait ✓ » la barre — en retard, elle vous rattrape sur l’Accueil.',
+        text: '« + Tâche » note l’acompte à récupérer ; « Fait ✓ » la barre. En retard, elle vous rattrape sur l’Accueil.',
       },
     ],
   },
@@ -149,13 +149,13 @@ const GUIDES: Guide[] = [
         img: v3('contacts-2'),
         alt: 'Le formulaire « Nouveau contact »',
         title: 'Le client qui appelle',
-        text: 'Le « + » crée un contact à distance : adresse, statut, RDV — posé sur la carte comme si vous y étiez.',
+        text: 'Le « + » crée un contact à distance : adresse, statut, RDV, posé sur la carte comme si vous y étiez.',
       },
     ],
   },
   {
     id: 'accueil',
-    title: 'L’accueil — votre journée',
+    title: 'L’accueil : votre journée',
     short: 'L’accueil',
     icon: Home,
     steps: [
@@ -163,7 +163,7 @@ const GUIDES: Guide[] = [
         img: v3('accueil-1'),
         alt: 'La carte « Aujourd’hui » et l’objectif',
         title: 'Aujourd’hui',
-        text: 'Vos portes, vos RDV du jour, vos relances — et la barre d’objectif de la semaine.',
+        text: 'Vos portes, vos RDV du jour, vos relances, et la barre d’objectif de la semaine.',
       },
       {
         img: v3('accueil-2'),
@@ -175,13 +175,13 @@ const GUIDES: Guide[] = [
         img: v3('accueil-3'),
         alt: 'Le popup du matin : RDV sans issue',
         title: 'Que s’est-il passé ?',
-        text: 'Un RDV d’hier sans issue ? L’app vous le demande au premier café — 4 boutons, 5 secondes.',
+        text: 'Un RDV d’hier sans issue ? L’app vous le demande au premier café : 4 boutons, 5 secondes.',
       },
     ],
   },
   {
     id: 'stats',
-    title: 'Les stats — votre semaine',
+    title: 'Les stats : votre semaine',
     short: 'Les stats',
     icon: BarChart3,
     steps: [
@@ -195,7 +195,7 @@ const GUIDES: Guide[] = [
         img: v3('stats-2'),
         alt: 'Naviguer entre les périodes',
         title: 'Naviguer',
-        text: 'Jour, semaine, mois — les chevrons remontent le temps, « Aujourd’hui » vous ramène.',
+        text: 'Jour, semaine, mois : les chevrons remontent le temps, « Aujourd’hui » vous ramène.',
       },
     ],
   },
@@ -209,7 +209,7 @@ const GUIDES: Guide[] = [
         img: v3('toit-1'),
         alt: 'Les pans mesurés dessinés sur la photo aérienne',
         title: 'La mesure laser',
-        text: 'Chaque pan du toit est mesuré au laser et dessiné sur la photo — les m² s’affichent pan par pan.',
+        text: 'Chaque pan du toit est mesuré au laser et dessiné sur la photo : les m² s’affichent pan par pan.',
       },
       {
         img: v3('toit-2'),

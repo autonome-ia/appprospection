@@ -167,7 +167,7 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
           console.error('RDV du contact :', e)
           // Filet existant : la fiche d'un « RDV pris » sans RDV propose
           // « Planifier » — le trou n'est pas silencieux.
-          toast.error('Contact créé, mais RDV non enregistré — ouvrez sa fiche pour planifier')
+          toast.error('Contact créé, mais RDV non enregistré : ouvrez sa fiche pour planifier')
         }
       }
       if (status !== 'rdv_pris' || rdvOk) {
@@ -183,7 +183,7 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
       onCreated({ ...point, client_name: name.trim() || null, client_phone: phone.trim() || null })
     } catch (e) {
       console.error('Création du contact :', e)
-      toast.error('Création impossible — vérifiez le réseau')
+      toast.error('Création impossible : vérifiez le réseau')
     } finally {
       setSaving(false)
     }
@@ -247,7 +247,7 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
               </ul>
             )}
             {address.trim().length > 0 && !chosen && (
-              <p className="field-hint">Choisissez l’adresse dans la liste — elle place la maison sur la carte.</p>
+              <p className="field-hint">Choisissez l’adresse dans la liste : elle place la maison sur la carte.</p>
             )}
 
             {secretaire && (

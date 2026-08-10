@@ -632,7 +632,7 @@ export function MapView({
     // partirait en « mode local » silencieux — point PERDU au rafraîchissement
     // (audit, bloquant). On refuse plutôt que de mentir.
     if (isSupabaseConfigured && !profile) {
-      toast.error('Connexion en cours — réessayez dans un instant')
+      toast.error('Connexion en cours, réessayez dans un instant')
       return
     }
     // Un filtre actif qui masquerait le point tout juste posé = risque de
@@ -651,13 +651,13 @@ export function MapView({
     // note, retour briac 29/07 ; la pose écrit `ancien_client`, jamais
     // `vendu` — la vente n'arrive que par l'issue RDV).
     const chained = status === 'rdv_pris' || status === 'ancien_client'
-    toast.success(`Point posé — ${STATUS_BY_VALUE[status].label}`, {
+    toast.success(`Point posé : ${STATUS_BY_VALUE[status].label}`, {
       cancel: {
         label: 'Annuler',
         onClick: () =>
           void removePoint(point.id).catch((e) => {
             console.error('Annulation du point :', e)
-            toast.error('Annulation impossible — vérifiez le réseau')
+            toast.error('Annulation impossible : vérifiez le réseau')
           }),
       },
       action: chained
@@ -737,14 +737,14 @@ export function MapView({
               onClick: () =>
                 void updatePoint(d.point.id, prev).catch((e) => {
                   console.error('Retour du point :', e)
-                  toast.error('Impossible de revenir en arrière — vérifiez le réseau')
+                  toast.error('Impossible de revenir en arrière : vérifiez le réseau')
                 }),
             },
           }),
         )
         .catch((e) => {
           console.error('Déplacement du point :', e)
-          toast.error('Déplacement impossible — réseau, ou point d’un autre commercial')
+          toast.error('Déplacement impossible : réseau, ou point d’un autre commercial')
         })
     }
 
@@ -1212,7 +1212,7 @@ export function MapView({
             </svg>
           </div>
           <div className="place-bar">
-            <p className="eyebrow place-hint">Déplacez la carte — la maison sous le viseur</p>
+            <p className="eyebrow place-hint">Déplacez la carte : la maison sous le viseur</p>
             <StatusPicker active={activeStatus} onChange={setActiveStatus} />
             <div className="place-actions">
               <button type="button" className="btn btn-ghost" onClick={() => setPlacing(false)}>

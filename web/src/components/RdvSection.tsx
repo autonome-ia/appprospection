@@ -172,12 +172,12 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
                     toast.success(outcomeToastMessage(o))
                     if (!pointSynced) {
                       toast.error(
-                        'La maison n’a pas pu être mise à jour sur la carte — rouvrez sa fiche pour corriger',
+                        'La maison n’a pas pu être mise à jour sur la carte : rouvrez sa fiche pour corriger',
                       )
                     }
                   } catch (e) {
                     console.error('Issue du RDV :', e)
-                    toast.error('Issue non enregistrée — vérifiez le réseau')
+                    toast.error('Issue non enregistrée : vérifiez le réseau')
                   } finally {
                     setBusy(false)
                   }

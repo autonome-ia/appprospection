@@ -349,11 +349,11 @@ export function PointDetailSheet({
         }
       }
       onOpenChange(false)
-      toast.success(becameSale ? 'Vendu — la maison passe en « Client »' : 'Point mis à jour')
+      toast.success(becameSale ? 'Vendu : la maison passe en « Client »' : 'Point mis à jour')
       if (becameRdv) onRdvNeeded?.({ ...point, status: 'rdv_pris' })
     } catch (e) {
       console.error('Modification du point :', e)
-      toast.error('Modification impossible — réseau, ou point d’un autre commercial')
+      toast.error('Modification impossible : réseau, ou point d’un autre commercial')
     } finally {
       setSaving(false)
     }
@@ -377,7 +377,7 @@ export function PointDetailSheet({
       toast('Point supprimé')
     } catch (e) {
       console.error('Suppression du point :', e)
-      toast.error('Suppression impossible — réseau, ou point d’un autre commercial')
+      toast.error('Suppression impossible : réseau, ou point d’un autre commercial')
     } finally {
       setSaving(false)
     }

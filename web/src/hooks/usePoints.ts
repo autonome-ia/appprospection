@@ -240,7 +240,7 @@ export function usePoints(profile: Profile | null) {
           console.error('Ajout du point :', e)
           tempIdsRef.current.delete(temp.id)
           setPoints((prev) => prev.filter((x) => x.id !== temp.id))
-          toast.error('Point non enregistré — vérifiez le réseau')
+          toast.error('Point non enregistré : vérifiez le réseau')
           return null
         })
       return { point: temp, saved }

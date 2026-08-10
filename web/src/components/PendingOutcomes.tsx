@@ -99,8 +99,8 @@ export function PendingOutcomes({ profile }: { profile: Profile }) {
           <div className="drawer-body" data-vaul-no-drag>
             <p className="pending-intro">
               {list.length > 1
-                ? `${list.length} RDV passés attendent leur issue — les stats sont datées du jour du RDV.`
-                : 'Un RDV passé attend son issue — les stats sont datées du jour du RDV.'}
+                ? `${list.length} RDV passés attendent leur issue : les stats sont datées du jour du RDV.`
+                : 'Un RDV passé attend son issue : les stats sont datées du jour du RDV.'}
             </p>
 
             {list.map((a) => (
@@ -131,7 +131,7 @@ export function PendingOutcomes({ profile }: { profile: Profile }) {
                             toast.success(outcomeToastMessage(o))
                             if (!pointSynced) {
                               toast.error(
-                                'La maison n’a pas pu être mise à jour sur la carte — rouvrez sa fiche pour corriger',
+                                'La maison n’a pas pu être mise à jour sur la carte : rouvrez sa fiche pour corriger',
                               )
                             }
                             setList((prev) => {
@@ -141,7 +141,7 @@ export function PendingOutcomes({ profile }: { profile: Profile }) {
                             })
                           } catch (e) {
                             console.error('Issue du RDV :', e)
-                            toast.error('Issue non enregistrée — vérifiez le réseau')
+                            toast.error('Issue non enregistrée : vérifiez le réseau')
                           } finally {
                             setBusyId(null)
                           }

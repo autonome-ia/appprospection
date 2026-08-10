@@ -54,7 +54,7 @@ export function WeatherChip({ className }: { className?: string }) {
   return (
     <span
       className={`weather-chip${className ? ` ${className}` : ''}`}
-      title={`${label} — données MET Norway (CC BY 4.0)`}
+      title={`${label} · données MET Norway (CC BY 4.0)`}
       aria-label={`Météo : ${label}, ${Math.round(w.temp)} degrés`}
     >
       <Icon size={15} strokeWidth={1.9} className={`w-${tone}`} aria-hidden="true" />

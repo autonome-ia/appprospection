@@ -24,9 +24,9 @@ function frenchAuthError(message: string): string {
   if (m.includes('already registered')) return 'Un compte existe déjà avec cet email.'
   if (m.includes('password should be')) return 'Mot de passe : 6 caractères minimum.'
   if (m.includes('valid email')) return 'Adresse email invalide.'
-  if (m.includes('not confirmed')) return 'Email non confirmé — vérifie ta boîte mail.'
+  if (m.includes('not confirmed')) return 'Email non confirmé : vérifie ta boîte mail.'
   if (m.includes('database error'))
-    return 'Le code d’invitation n’a pas été accepté — vérifie-le et réessaie.'
+    return 'Le code d’invitation n’a pas été accepté : vérifie-le et réessaie.'
   return message
 }
 
@@ -62,13 +62,13 @@ export function AuthScreen() {
         setCodeCheck({
           state: 'bad',
           message: closed
-            ? 'L’inscription n’est pas encore ouverte — réessaie plus tard.'
-            : 'Vérification impossible — réessaie.',
+            ? 'L’inscription n’est pas encore ouverte : réessaie plus tard.'
+            : 'Vérification impossible : réessaie.',
         })
         return
       }
       if (typeof data === 'string' && data.length > 0) setCodeCheck({ state: 'ok', org: data })
-      else setCodeCheck({ state: 'bad', message: 'Code inconnu — vérifie auprès de ton manager.' })
+      else setCodeCheck({ state: 'bad', message: 'Code inconnu : vérifie auprès de ton manager.' })
     })()
   }, [code, mode])
 
@@ -212,7 +212,7 @@ export function AuthScreen() {
             className="auth-switch"
             onClick={() => switchMode(mode === 'login' ? 'signup' : 'login')}
           >
-            {mode === 'login' ? 'J’ai un code d’invitation — créer mon compte' : 'Déjà un compte ? Se connecter'}
+            {mode === 'login' ? 'J’ai un code d’invitation : créer mon compte' : 'Déjà un compte ? Se connecter'}
           </button>
         </form>
       )}

@@ -103,7 +103,7 @@ export function RoofReport({
   // fichiers n'est pas disponible).
   const shareText = () =>
     [
-      `Rapport de toiture${address ? ` — ${address}` : ''}`,
+      `Rapport de toiture${address ? ` - ${address}` : ''}`,
       maisonM2 != null ? `Toit de la maison : ${maisonM2} m² (mesure laser IGN LiDAR HD)` : null,
       totalM2 != null && totalM2 !== maisonM2 ? `Total avec annexes : ${totalM2} m²` : null,
       showSelection ? `Surface retenue ensemble : ${selectionM2} m²` : null,
@@ -170,7 +170,7 @@ export function RoofReport({
       // Partage annulé par l'utilisateur = pas une erreur.
       if ((e as Error).name !== 'AbortError') {
         console.error('Partage du rapport :', e)
-        toast.error('Partage impossible — réessayez')
+        toast.error('Partage impossible : réessayez')
       }
     } finally {
       setSharing(false)
@@ -203,7 +203,7 @@ export function RoofReport({
           <h2>Rapport de toiture</h2>
           {address && <p className="roof-report-address">{address}</p>}
           <p className="roof-report-source">
-            Mesure au laser aéroporté — nuage de points IGN LiDAR HD
+            Mesure au laser aéroporté · nuage de points IGN LiDAR HD
             {survol ? ` · survol ${survol}` : ''} · précision ±5 %
           </p>
           <p className="roof-report-ident">{identLine}</p>
@@ -252,7 +252,7 @@ export function RoofReport({
                     <td>{letter}{off ? ' · exclu' : ''}</td>
                     <td>{pan.m2} m²</td>
                     <td>{pan.pente_deg}°</td>
-                    <td>{pan.type === 'plat' ? '—' : exposition(pan.azimut_deg)}</td>
+                    <td>{pan.type === 'plat' ? '-' : exposition(pan.azimut_deg)}</td>
                   </tr>
                 )
               })}

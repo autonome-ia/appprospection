@@ -107,7 +107,7 @@ function layout(ctx: CanvasRenderingContext2D, inp: ReportImageInput, draw: bool
     y += 22
   }
   text(
-    `Mesure au laser aéroporté — nuage de points IGN LiDAR HD${inp.survol ? ` · survol ${inp.survol}` : ''} · précision ±5 %`,
+    `Mesure au laser aéroporté · nuage de points IGN LiDAR HD${inp.survol ? ` · survol ${inp.survol}` : ''} · précision ±5 %`,
     M,
     y + 13,
     `400 11.5px ${SANS}`,
@@ -243,7 +243,7 @@ function layout(ctx: CanvasRenderingContext2D, inp: ReportImageInput, draw: bool
           off ? `${letter} · exclu` : letter,
           `${pan.m2} m²`,
           `${pan.pente_deg}°`,
-          pan.type === 'plat' ? '—' : exposition(pan.azimut_deg),
+          pan.type === 'plat' ? '-' : exposition(pan.azimut_deg),
         ],
         muted: off,
       }

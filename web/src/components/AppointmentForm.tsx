@@ -377,7 +377,7 @@ export function AppointmentForm({
                   onSaved()
                 } catch (e) {
                   console.error('Suppression :', e)
-                  toast.error('Suppression impossible — vérifiez le réseau')
+                  toast.error('Suppression impossible : vérifiez le réseau')
                 } finally {
                   setSaving(false)
                 }

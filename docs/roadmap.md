@@ -304,6 +304,14 @@ phrase, halo orange sur la cible).
   `WeatherChip.tsx`, sondes lecture seule `probe-meteo.mjs` (2 thèmes, géoloc simulée à Lesneven)
   et `check-meteo-pluie.mjs` (teinte pluie via cache factice).
 
+- [x] **Plus de tirets longs dans les textes** (retour briac : « fait pas pro ») : les ~78 tirets
+  cadratins (— et –) des chaînes VISIBLES (toasts, guides, labels, tooltips, descriptions de
+  statuts, messages d'erreur) remplacés au cas par cas — deux-points pour les explications
+  (« Impossible d’enregistrer : vérifiez le réseau »), virgule/point quand la phrase le demande,
+  `·` pour les séparateurs de données (title météo, mention LiDAR du rapport), `-` pour les
+  intervalles de dates et les cellules vides du rapport. Les commentaires de code et console.warn
+  (invisibles à l'écran) gardent leur typographie.
+
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)
 - Carnet de contacts / mini-CRM (clients à rappeler, R2)

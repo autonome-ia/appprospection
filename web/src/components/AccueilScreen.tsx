@@ -149,7 +149,7 @@ export function AccueilScreen({
       load()
     } catch (e) {
       console.error('Tâche faite :', e)
-      toast.error('Impossible d’enregistrer — vérifiez le réseau')
+      toast.error('Impossible d’enregistrer : vérifiez le réseau')
     } finally {
       setBusyTask(null)
     }
@@ -225,7 +225,7 @@ export function AccueilScreen({
 
       {loadError && (
         <div className="load-error">
-          <span>Impossible de charger les données — vérifiez le réseau.</span>
+          <span>Impossible de charger les données : vérifiez le réseau.</span>
           <button type="button" className="text-btn" onClick={load}>
             Réessayer
           </button>
@@ -330,7 +330,7 @@ export function AccueilScreen({
             <p className="screen-empty">
               Aucun RDV aujourd’hui
               {relances.length > 0
-                ? ` — ${relances.length} maison${relances.length > 1 ? 's' : ''} à relancer.`
+                ? ` : ${relances.length} maison${relances.length > 1 ? 's' : ''} à relancer.`
                 : '.'}
             </p>
           ) : (

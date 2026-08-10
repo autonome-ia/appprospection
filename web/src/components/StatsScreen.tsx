@@ -339,7 +339,7 @@ export function StatsScreen({
   const rangeLabel =
     period === 'jour'
       ? fmtDay(shownRange.start)
-      : `${fmtDay(shownRange.start)} – ${fmtDay(new Date(shownRange.end.getTime() - 86400000))}`
+      : `${fmtDay(shownRange.start)} - ${fmtDay(new Date(shownRange.end.getTime() - 86400000))}`
 
   const showChart = period !== 'jour' && data
   // Objectif hebdo : par commercial en drill-down/vue perso, AGRÉGÉ en vue
@@ -358,7 +358,7 @@ export function StatsScreen({
       toast.success('Objectif mis à jour')
     } catch (e) {
       console.error('Objectif hebdo :', e)
-      toast.error('Objectif non enregistré — vérifiez le réseau')
+      toast.error('Objectif non enregistré : vérifiez le réseau')
     }
   }
 
@@ -416,7 +416,7 @@ export function StatsScreen({
 
       {loadError && (
         <div className="load-error">
-          <span>Statistiques impossibles à charger — vérifiez le réseau.</span>
+          <span>Statistiques impossibles à charger : vérifiez le réseau.</span>
           <button type="button" className="text-btn" onClick={loadStats}>
             Réessayer
           </button>
