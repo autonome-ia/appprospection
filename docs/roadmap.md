@@ -317,6 +317,22 @@ phrase, halo orange sur la cible).
   masquées par défaut, dépliées au tap, bouton accent + compteur quand un filtre est actif même
   replié. Sonde `probe-agenda-couleurs.mjs` adaptée (capture fermée + dépliée + filtrée, 2 thèmes).
 
+- [x] **Chargement de la carte accéléré** (retour briac : lenteur d'ouverture + rectangles blancs
+  au pan — audité par 2 agents : code + doc MapLibre/CGU IGN avec mesures réelles sur
+  data.geopf.fr). 6 leviers, zéro perte de qualité : (1) **cache service worker** des ressources
+  IGN (Workbox : CacheFirst 21 j plafonné 1 500 tuiles ortho + 1 000 tuiles plan, SWR 30 j
+  style/glyphes/sprites — les CGU Géoplateforme tolèrent le cache, le serveur annonce lui-même
+  max-age 21 j ; BAN/WFS exclus) → le quartier d'hier s'affiche instantanément ; (2) **fond
+  `ortho-fond` vert-gris ton ortho** sous la photo + `raster-fade-duration: 0` → fini le
+  rectangle BLANC, la tuile s'affiche au premier octet ; (3) **preconnect data.geopf.fr**
+  (index.html) ; (4) **`maxTileCacheZoomLevels: 10`** → parents en mémoire, flou-puis-net au
+  lieu de blanc ; (5) **`setMaxParallelImageRequests(32)`** (HTTP/2 vérifié, limite IGN
+  400 req/s) ; (6) **démarrage sur la dernière caméra connue** (`map-camera-v1` localStorage,
+  sauvée au moveend) au lieu de France z5 → vol géoloc — la garde « ne pas voler la caméra »
+  compare désormais à la caméra d'ouverture. Écarté : `maplibre-preload` (plugin tiers à
+  valider), lazy-import de MapView (contredit la carte persistante). Vérifié : probe-geoloc +
+  test caméra au reload + caches présents dans dist/sw.js.
+
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)
 - Carnet de contacts / mini-CRM (clients à rappeler, R2)

@@ -234,14 +234,60 @@ export function MapView({
   useEffect(() => {
     if (!containerRef.current) return
 
+    // Perf tuiles (audit carte 10/08) : data.geopf.fr est en HTTP/2 et
+    // tolère 400 req/s — 32 requêtes multiplexées au lieu de 16, le premier
+    // écran de tuiles arrive d'un bloc.
+    maplibregl.setMaxParallelImageRequests(32)
+
+    // Démarrage sur la DERNIÈRE caméra connue (le secteur d'hier) au lieu de
+    // France z5 → vol vers la géoloc : les bons parents de tuiles se chargent
+    // dès la première frame. Repli France si jamais de caméra sauvée.
+    let initCenter: [number, number] = FRANCE_CENTER
+    let initZoom = FRANCE_ZOOM
+    try {
+      const saved = JSON.parse(localStorage.getItem('map-camera-v1') ?? 'null') as {
+        lng?: number
+        lat?: number
+        zoom?: number
+      } | null
+      if (
+        saved &&
+        Number.isFinite(saved.lng) &&
+        Number.isFinite(saved.lat) &&
+        Number.isFinite(saved.zoom)
+      ) {
+        initCenter = [saved.lng as number, saved.lat as number]
+        initZoom = saved.zoom as number
+      }
+    } catch {
+      /* stockage indisponible : départ France */
+    }
+
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: PLAN_IGN_STYLE_URL,
-      center: FRANCE_CENTER,
-      zoom: FRANCE_ZOOM,
+      center: initCenter,
+      zoom: initZoom,
       attributionControl: { compact: true },
+      // Parents gardés en mémoire sur 10 niveaux (défaut 5) : en re-pannant,
+      // MapLibre affiche le flou-puis-net au lieu d'un carré blanc.
+      maxTileCacheZoomLevels: 10,
     })
     mapRef.current = map
+
+    // Caméra persistée à chaque arrêt de mouvement (le boot suivant repart
+    // d'ici). moveend est rare, l'écriture est négligeable.
+    map.on('moveend', () => {
+      try {
+        const c = map.getCenter()
+        localStorage.setItem(
+          'map-camera-v1',
+          JSON.stringify({ lng: c.lng, lat: c.lat, zoom: map.getZoom() }),
+        )
+      } catch {
+        /* stockage plein : tant pis */
+      }
+    })
 
     // --- Position vivante (retour terrain 27/07 : « le point ne me suit
     // pas »). Le GeolocateControl de MapLibre couple le point et la caméra :
@@ -267,14 +313,15 @@ export function MapView({
       src?.setData(userFC())
       // Zoom d'accueil sur le 1er fix — seulement si l'utilisateur n'a pas
       // déjà navigué (recherche, « Voir sur la carte ») : on ne vole pas la
-      // caméra à qui s'en sert (même garde que l'ancien one-shot).
+      // caméra à qui s'en sert (même garde que l'ancien one-shot). Référence
+      // = caméra d'OUVERTURE (restaurée ou France), plus la France en dur.
       if (first) {
         const c = map.getCenter()
         const untouched =
-          Math.abs(c.lng - FRANCE_CENTER[0]) < 1e-6 &&
-          Math.abs(c.lat - FRANCE_CENTER[1]) < 1e-6 &&
-          Math.abs(map.getZoom() - FRANCE_ZOOM) < 0.01
-        if (untouched) map.easeTo({ center: lastFix, zoom: 16, duration: 1200 })
+          Math.abs(c.lng - initCenter[0]) < 1e-6 &&
+          Math.abs(c.lat - initCenter[1]) < 1e-6 &&
+          Math.abs(map.getZoom() - initZoom) < 0.01
+        if (untouched) map.easeTo({ center: lastFix, zoom: Math.max(map.getZoom(), 16), duration: 1200 })
       }
     }
     const startWatch = () => {
@@ -379,7 +426,18 @@ export function MapView({
         'raster-saturation': ['interpolate', ['linear'], ['zoom'], 13, 0.25, 17, 0.15, 19, 0.08],
         'raster-contrast': ['interpolate', ['linear'], ['zoom'], 13, 0.12, 17, 0.07, 19, 0.03],
         'raster-brightness-max': ['interpolate', ['linear'], ['zoom'], 13, 0.95, 19, 0.99],
+        // Tuile affichée dès le premier octet reçu (défaut : fondu 300 ms qui
+        // fait « arriver la photo en retard » — audit carte 10/08).
+        'raster-fade-duration': 0,
       } as maplibregl.RasterLayerSpecification['paint']
+
+      // Sous la photo : un fond vert-gris « ton ortho » (encre littérale, pas
+      // de token — même règle que les canvas). Une tuile pas encore arrivée
+      // se voit à peine, au lieu d'un rectangle BLANC criard.
+      map.addLayer(
+        { id: 'ortho-fond', type: 'background', paint: { 'background-color': '#3d4a3a' } },
+        beforeLabels,
+      )
 
       // Affichage UNIQUE : l'ortho IGN — la plus nette gratuite en France
       // (les alternatives HD/Esri ont été testées puis écartées le 25/07).
