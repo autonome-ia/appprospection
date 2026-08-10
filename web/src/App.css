@@ -1769,6 +1769,45 @@
     opacity: 0;
   }
 }
+/* Icône teintée par famille (retour briac : « mise en valeur ») — couleur =
+   donnée, comme les statuts ; teintes cousines des --st-*, éclaircies en
+   sombre. La température, elle, reste en encre. */
+.weather-chip .w-soleil {
+  color: #dc9a06;
+}
+.weather-chip .w-lune {
+  color: #7583c9;
+}
+.weather-chip .w-nuage {
+  color: #7d8898;
+}
+.weather-chip .w-pluie {
+  color: #2f6bff;
+}
+.weather-chip .w-neige {
+  color: #45a3d6;
+}
+.weather-chip .w-orage {
+  color: #6d4fa1;
+}
+[data-theme='dark'] .weather-chip .w-soleil {
+  color: #f2b929;
+}
+[data-theme='dark'] .weather-chip .w-lune {
+  color: #98a5e6;
+}
+[data-theme='dark'] .weather-chip .w-nuage {
+  color: #939aa8;
+}
+[data-theme='dark'] .weather-chip .w-pluie {
+  color: #6591ff;
+}
+[data-theme='dark'] .weather-chip .w-neige {
+  color: #6cc0e8;
+}
+[data-theme='dark'] .weather-chip .w-orage {
+  color: #9d7fd1;
+}
 /* En bout de ligne du label de la carte « Aujourd'hui » (emplacement choisi
    par briac le 10/08 sur captures, vs en-tête à côté du Bonjour). */
 .today-head {

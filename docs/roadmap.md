@@ -298,8 +298,11 @@ phrase, halo orange sur la cible).
   header custom (pas de préflight), lat/lon 3 décimales, cache 30 min, attribution dans le title.
   Géoloc **one-shot, uniquement si la permission est déjà accordée** (pas de prompt surprise sur
   l'Accueil — elle l'est dès la 1re utilisation de la carte) ; TOUT échec (géoloc, API, réseau) =
-  silence, le chip n'apparaît pas. `data/weather.ts` + `WeatherChip.tsx`, sonde lecture seule
-  `probe-meteo.mjs` (2 thèmes, géoloc simulée à Lesneven).
+  silence, le chip n'apparaît pas. **Icône teintée par famille** (retour briac : soleil doré,
+  pluie bleue, neige bleu glacier, orage violet, nuages ardoise — couleur = donnée comme les
+  statuts, température en encre ; variantes éclaircies en sombre). `data/weather.ts` +
+  `WeatherChip.tsx`, sondes lecture seule `probe-meteo.mjs` (2 thèmes, géoloc simulée à Lesneven)
+  et `check-meteo-pluie.mjs` (teinte pluie via cache factice).
 
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)
