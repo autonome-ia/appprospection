@@ -22,6 +22,7 @@ import { PointSheet } from './PointSheet'
 import { AppointmentForm } from './AppointmentForm'
 import { GuideSection } from './Guide'
 import { ProfileSheet } from './ProfileSheet'
+import { WeatherChip } from './WeatherChip'
 import { isSupervisorRole, roleLabel, type MapPoint } from '../domain/types'
 
 function relanceLabel(iso: string): string {
@@ -248,7 +249,10 @@ export function AccueilScreen({
           initial="hidden"
           animate="show"
         >
-          <p className="eyebrow">Aujourd’hui</p>
+          <div className="today-head">
+            <p className="eyebrow">Aujourd’hui</p>
+            <WeatherChip />
+          </div>
           <div className="today-figures">
             <div className="today-figure">
               <span className="today-num tnum">{portesJour}</span>

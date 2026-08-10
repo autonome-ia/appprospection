@@ -1752,6 +1752,30 @@
   font-size: 12px;
   color: var(--ink-3);
 }
+/* Météo du jour : une DONNÉE (pas d'accent) — icône Lucide + température en
+   mono, encre secondaire. Absente en silence si géoloc/API indisponibles. */
+.weather-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  animation: weather-in 0.4s ease both;
+}
+@keyframes weather-in {
+  from {
+    opacity: 0;
+  }
+}
+/* En bout de ligne du label de la carte « Aujourd'hui » (emplacement choisi
+   par briac le 10/08 sur captures, vs en-tête à côté du Bonjour). */
+.today-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 /* Heure du RDV dans les lignes « Mes RDV aujourd'hui ». */
 .rdv-row-time {
   flex: 0 0 auto;

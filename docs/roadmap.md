@@ -286,6 +286,18 @@ phrase, halo orange sur la cible).
   (`GUIDE_EMAIL` = son compte perso aujourd'hui → les sondes tournent sur la PROD) ; `full_name`
   des 4 comptes migrés (emails bruts affichés en attendant).
 
+## Petites améliorations UX (10/08/2026)
+- [x] **Météo du jour sur l'Accueil** : chip discret (icône Lucide + température en mono) en bout
+  de ligne du label de la carte « Aujourd'hui » (emplacement choisi par briac sur captures, vs
+  en-tête à côté du « Bonjour »). **Open-Meteo** (gratuit, sans clé, CORS ouvert — même famille
+  que BAN/IGN), attribution CC-BY dans le title. Géoloc **one-shot, uniquement si la permission
+  est déjà accordée** (pas de prompt surprise sur l'Accueil — elle l'est dès la 1re utilisation
+  de la carte) ; cache localStorage 30 min ; TOUT échec (géoloc, API, réseau) = silence, le chip
+  n'apparaît pas. `data/weather.ts` + `WeatherChip.tsx`, sonde lecture seule `probe-meteo.mjs`
+  (2 thèmes, géoloc simulée à Lesneven). ⚠ Le palier gratuit d'Open-Meteo est réservé au
+  NON-commercial : OK outil interne, à repasser en plan payant (~29 €/mois) ou changer de source
+  si l'app devient un SaaS facturé.
+
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)
 - Carnet de contacts / mini-CRM (clients à rappeler, R2)
