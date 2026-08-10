@@ -220,35 +220,19 @@ const GUIDES: Guide[] = [
 
 /** Image de tuto avec repli DA : tant que la capture n'est pas déposée dans
     public/guide/, on montre un placeholder au lieu d'une icône d'image cassée. */
-function GuideImage({
-  src,
-  alt,
-  icon: Icon,
-  cover,
-}: {
-  src: string
-  alt: string
-  icon: LucideIcon
-  cover?: boolean
-}) {
+function GuideImage({ src, alt, icon: Icon }: { src: string; alt: string; icon: LucideIcon }) {
   const [failed, setFailed] = useState(false)
   useEffect(() => setFailed(false), [src])
   if (failed) {
     return (
-      <span className={cover ? 'guide-ph is-cover' : 'guide-ph'}>
-        <Icon size={cover ? 22 : 30} strokeWidth={1.5} />
-        {!cover && <span className="guide-ph-note">Capture à venir</span>}
+      <span className="guide-ph">
+        <Icon size={30} strokeWidth={1.5} />
+        <span className="guide-ph-note">Capture à venir</span>
       </span>
     )
   }
   return (
-    <img
-      className={cover ? 'guide-img is-cover' : 'guide-img'}
-      src={src}
-      alt={alt}
-      loading="lazy"
-      onError={() => setFailed(true)}
-    />
+    <img className="guide-img" src={src} alt={alt} loading="lazy" onError={() => setFailed(true)} />
   )
 }
 
@@ -361,14 +345,21 @@ export function GuideSection() {
       </p>
       {/* Axe verrouillé (convention défilement horizontal). */}
       <div className="guide-scroll">
-        {GUIDES.map((g) => (
-          <button key={g.id} type="button" className="guide-card" onClick={() => setOpen(g)}>
-            <span className="guide-cover">
-              <GuideImage cover src={g.steps[0].img} alt={g.title} icon={g.icon} />
-            </span>
-            <span className="guide-card-title">{g.title}</span>
-          </button>
-        ))}
+        {GUIDES.map((g) => {
+          const Icon = g.icon
+          return (
+            // Cover uniforme (retour briac 10/08) : l'icône du guide dans une
+            // pastille, plus la 1re capture écrasée — les 6 cartes s'alignent.
+            <button key={g.id} type="button" className="guide-card" onClick={() => setOpen(g)}>
+              <span className="guide-cover is-icon">
+                <span className="guide-cover-disc">
+                  <Icon size={24} strokeWidth={1.7} />
+                </span>
+              </span>
+              <span className="guide-card-title">{g.title}</span>
+            </button>
+          )
+        })}
       </div>
       {open && <GuideSheet guide={open} onOpenChange={(o) => !o && setOpen(null)} />}
     </section>
