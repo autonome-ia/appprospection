@@ -351,9 +351,10 @@ phrase, halo orange sur la cible).
   `rdv_pris` (fetchRelances/fetchRevisits, filtre « À relancer » carte, champ « Revoir le » et
   suivi dans la fiche, échéance Contacts = relance à défaut de RDV) ; le bandeau « Aucun RDV
   planifié » ne s'affiche plus quand un RDV « En attente » est ouvert (il poussait au doublon).
-  **Migration `db/0020_relance_rdv_pris.sql` À EXÉCUTER (prod + démo)** : les points basculés par
+  Migration `db/0020_relance_rdv_pris.sql` **exécutée en prod le 12/08** : les points basculés par
   d'anciens « En attente » re-passent « RDV pris » (relance conservée, journal intact — les stats
-  passées ne bougent pas). Seed démo aligné (M. Léon reste bleu). CLAUDE.md mis à jour.
+  passées ne bougent pas) ; la démo a été re-semée. Seed démo aligné (M. Léon reste bleu).
+  CLAUDE.md mis à jour.
 
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)
