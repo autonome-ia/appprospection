@@ -317,10 +317,14 @@ export function StatsScreen({
 
   // Classement : ceux qui PROSPECTENT — manager compris (décision chef des
   // ventes 25/07), MAIS objectif hebdo 0 = hors classement et hors objectif
-  // équipe (profil support/dev — demande briac 09/08) ; secrétaires et
-  // comptes désactivés exclus d'office.
+  // équipe (demande briac 09/08) ; secrétaires, comptes désactivés et profils
+  // support (db/0022 — dev/test, déjà exclus des agrégats) hors d'office.
   const prospectors = profiles.filter(
-    (p) => !p.disabled_at && p.role !== 'secretaire' && (p.weekly_rdv_target ?? 0) > 0,
+    (p) =>
+      !p.disabled_at &&
+      p.role !== 'secretaire' &&
+      !p.is_support &&
+      (p.weekly_rdv_target ?? 0) > 0,
   )
   const teamTarget = prospectors.reduce((s, p) => s + (p.weekly_rdv_target ?? 0), 0)
   const ranked = [...prospectors].sort((a, b) => {

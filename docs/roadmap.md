@@ -366,6 +366,16 @@ phrase, halo orange sur la cible).
   SELECT de contrôle puis réattribution des ventes historiques mal comptées (dont celle
   d'Alexandre).
 
+- [x] **Profil support invisible (`is_support`, db/0022)** (12/08, demande briac : « mes tests ne
+  doivent ni s'afficher ni compter pour les autres ») : drapeau en base posé en SQL uniquement
+  (pas lié à l'objectif 0 — un commercial à 0 ne disparaît pas), briac seul marqué. Exclusions :
+  agrégats de stats (tunnel/activité/Accueil superviseur — filtre dans `fetchStatsRange`, cache
+  5 min des ids support), points sur la carte des autres + chip « Qui », RDV/tâches de l'agenda
+  partagé + chip légende, relances et contacts des autres, classement/objectifs. Le compte
+  support voit tout (il teste) et garde ses droits manager. Repli si colonne absente (l'ordre
+  migration/déploiement est indifférent). **`db/0022_profil_support.sql` À EXÉCUTER en prod**
+  (démo optionnelle).
+
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)
 - Carnet de contacts / mini-CRM (clients à rappeler, R2)

@@ -73,10 +73,16 @@ l'UI ne fait que suivre. Helpers : `is_supervisor()` (manager OU chef_ventes) c�
   appartiennent au commercial, en UN insert : elle n'a aucun droit d'UPDATE ensuite). Ni issues, ni
   création/décalage de RDV, ni tâches, ni relances. Elle voit TOUS les contacts (standard tél.).
 - **commercial** : inchangé (ses points — carte privée —, ses stats, agenda partagé).
-- **Objectif hebdo 0 = profil SUPPORT** (demande briac 09/08) : hors classement des commerciaux et
-  hors objectif équipe (Stats + Accueil) — briac (manager support/dev) est à 0 ; secrétaires et
-  comptes désactivés exclus d'office. Remettre un objectif > 0 réintègre (stepper du drill-down,
-  ou SQL si le profil n'est plus drillable).
+- **Objectif hebdo 0** (demande briac 09/08) : hors classement des commerciaux et hors objectif
+  équipe (Stats + Accueil) ; secrétaires et comptes désactivés exclus d'office. Remettre un
+  objectif > 0 réintègre (stepper du drill-down, ou SQL si le profil n'est plus drillable).
+- **`profiles.is_support` = compte dev/test INVISIBLE pour l'équipe** (db/0022, 12/08 — briac) :
+  ses événements/RDV sortent de TOUS les agrégats de stats (data/stats.ts, cache 5 min), ses
+  points de la carte des autres, ses RDV/tâches de l'agenda partagé, ses relances/contacts des
+  listes ; sa chip disparaît des filtres « Qui »/légende. LUI voit tout (il teste) et garde ses
+  droits de manager. Posé en SQL UNIQUEMENT (pas d'UI, c'est voulu) ; filtre d'affichage côté
+  client, pas un mur RLS — supprimer un point de test nettoie son journal (cascade). Indépendant
+  de l'objectif 0. Repli : colonne absente → personne n'est support (fetchOrgProfiles).
 - **Invitations** : un code par agence (`organization_invites`, lisible superviseurs, rotation RPC
   manager), inscription par code OBLIGATOIRE → arrive commercial. « Supprimer un compte » =
   désactivation (`profiles.disabled_at` — kill-switch `current_org_id()`, écran « compte

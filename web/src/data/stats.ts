@@ -109,6 +109,20 @@ function emptyStats(id: string): CommercialStats {
   return { commercial_id: id, portes: 0, absents: 0, rdv_pris: 0, rdv_planifies: 0, rdv_effectues: 0, ventes: 0, parStatut: {} }
 }
 
+/** Profils support (db/0022 — dev/test) : leur activité ne compte dans AUCUN
+    agrégat. Cache 5 min (le drapeau change une fois par an, en SQL). Colonne
+    absente (migration pas passée) ou erreur → personne n'est support. */
+let supportCache: { at: number; ids: Set<string> } | null = null
+async function fetchSupportIds(): Promise<Set<string>> {
+  if (!supabase) return new Set()
+  if (supportCache && Date.now() - supportCache.at < 5 * 60_000) return supportCache.ids
+  const { data, error } = await supabase.from('profiles').select('id').eq('is_support', true)
+  if (error) return new Set()
+  const ids = new Set((data ?? []).map((r) => r.id as string))
+  supportCache = { at: Date.now(), ids }
+  return ids
+}
+
 async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
   const result: StatsResult = { byCommercial: {}, team: emptyStats('team'), activityByDay: {}, activityByDayBy: {} }
   if (!supabase) return result
@@ -116,7 +130,8 @@ async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
   const startISO = start.toISOString()
   const endISO = end.toISOString()
 
-  const [events, appts] = await Promise.all([
+  const [support, events, appts] = await Promise.all([
+    fetchSupportIds(),
     fetchAllRows('point_events', 'author_id, status, occurred_at', 'occurred_at', startISO, endISO),
     // `kind` : les TÂCHES d'agenda (db/0016) ne comptent dans aucun taux —
     // repli sans la colonne si la migration n'est pas passée (tout est RDV).
@@ -147,6 +162,8 @@ async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
 
   for (const ev of events ?? []) {
     const e = ev as { author_id: string | null; status: PointStatus; occurred_at: string }
+    // L'activité d'un profil support (tests) ne compte nulle part.
+    if (e.author_id && support.has(e.author_id)) continue
     bump(e.author_id, 'portes')
     bumpStatut(e.author_id, e.status)
     if (e.status === 'absent') bump(e.author_id, 'absents')
@@ -165,6 +182,7 @@ async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
   for (const ap of appts ?? []) {
     const a = ap as { commercial_id: string | null; status: string; scheduled_at: string; kind?: string }
     if (a.kind === 'tache') continue // tâche d'agenda : hors tunnel
+    if (a.commercial_id && support.has(a.commercial_id)) continue // RDV de test
     // Un RDV ANNULÉ n'est pas un RDV raté (décision briac 29/07) : il sort
     // des deux compteurs — il sera replanifié (et compté à sa vraie date).
     if (a.status === 'annule') continue

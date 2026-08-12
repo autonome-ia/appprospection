@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import {
@@ -169,6 +169,13 @@ export function MapView({
   const [whoFilter, setWhoFilter] = useState<ReadonlySet<string>>(new Set())
   const [orgProfiles, setOrgProfiles] = useState<OrgProfile[]>([])
   const isSupervisor = isSupervisorRole(profile?.role)
+  // Profils support (db/0022 — dev/test) : leurs points sont invisibles pour
+  // les AUTRES (eux voient les leurs), leur chip sort du filtre « Qui ».
+  const supportIds = useMemo(
+    () => new Set(orgProfiles.filter((p) => p.is_support).map((p) => p.id)),
+    [orgProfiles],
+  )
+  const whoChips = useMemo(() => orgProfiles.filter((p) => !p.is_support), [orgProfiles])
   useEffect(() => {
     if (!isSupervisor) return
     fetchOrgProfiles().then(setOrgProfiles).catch((e) => console.error('Profils :', e))
@@ -1063,6 +1070,8 @@ export function MapView({
         // locaux, created_by null, sont forcément à lui) ; le superviseur
         // voit tout, filtrable par commercial.
         p.id !== dragId && // l'original est masqué pendant le drag (fantôme au doigt)
+        // Point d'un profil support : invisible sauf pour son auteur (12/08).
+        !(p.created_by !== null && p.created_by !== profile?.id && supportIds.has(p.created_by)) &&
         (isSupervisor
           ? whoFilter.size === 0 || p.created_by === null || whoFilter.has(p.created_by)
           : p.created_by === null || p.created_by === profile?.id) &&
@@ -1074,7 +1083,7 @@ export function MapView({
             p.revisit_at <= today)),
     )
     source?.setData(toFeatureCollection(visible))
-  }, [points, mapLoaded, statusFilter, ageFilter, whoFilter, dueOnly, isSupervisor, profile?.id, dragId])
+  }, [points, mapLoaded, statusFilter, ageFilter, whoFilter, dueOnly, isSupervisor, profile?.id, dragId, supportIds])
 
   // Surbrillance du point sélectionné.
   useEffect(() => {
@@ -1174,9 +1183,9 @@ export function MapView({
               ))}
             </div>
             {/* Superviseur : filtre par commercial (décision chef des ventes). */}
-            {isSupervisor && orgProfiles.length > 1 && (
+            {isSupervisor && whoChips.length > 1 && (
               <div className="map-filterrow">
-                {orgProfiles.map((op) => (
+                {whoChips.map((op) => (
                   <button
                     key={op.id}
                     type="button"

@@ -102,9 +102,13 @@ export function AccueilScreen({
       .then(([r, sj, sw, appts, profs]) => {
         // Carte privée (décision chef des ventes, 25/07) : le commercial ne
         // relance que SES portes — une relance d'un collègue ouvrirait une
-        // carte où le point est invisible pour lui. Superviseur : tout.
+        // carte où le point est invisible pour lui. Superviseur : tout, SAUF
+        // les tests des profils support (db/0022 — les siens restent).
+        const support = new Set(profs.filter((p) => p.is_support).map((p) => p.id))
         setRelances(
-          isSupervisorRole(profile?.role) ? r : r.filter((p) => p.created_by === profile?.id),
+          isSupervisorRole(profile?.role)
+            ? r.filter((p) => p.created_by === profile?.id || !support.has(p.created_by ?? ''))
+            : r.filter((p) => p.created_by === profile?.id),
         )
         setStatsJour(sj)
         setStatsSemaine(sw)
@@ -180,7 +184,7 @@ export function AccueilScreen({
   // classement — même règle que les Stats) ; secrétaires/désactivés exclus.
   const objTarget = isSupervisor
     ? orgProfiles
-        .filter((p) => !p.disabled_at && p.role !== 'secretaire')
+        .filter((p) => !p.disabled_at && p.role !== 'secretaire' && !p.is_support)
         .reduce((s, p) => s + (p.weekly_rdv_target ?? 0), 0)
     : (orgProfiles.find((p) => p.id === meId)?.weekly_rdv_target ?? 0)
 

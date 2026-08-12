@@ -9,16 +9,29 @@ export interface OrgProfile {
   weekly_rdv_target: number
   /** Compte désactivé par le manager (db/0019) — kill-switch RLS. */
   disabled_at: string | null
+  /** Compte dev/test (db/0022, posé en SQL uniquement) : son activité est
+      invisible pour le reste de l'équipe — stats, carte, agenda, listes. */
+  is_support: boolean
 }
 
 /** Tous les profils de l'organisation (RLS scope automatiquement). */
 export async function fetchOrgProfiles(): Promise<OrgProfile[]> {
   if (!supabase) return []
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, role, color, weekly_rdv_target, disabled_at')
+    .select('id, full_name, role, color, weekly_rdv_target, disabled_at, is_support')
+  // Migration 0022 pas encore passée : repli sans la colonne (personne n'est
+  // support) plutôt que de casser tous les écrans qui chargent les profils.
+  if (error && /is_support/.test(error.message)) {
+    ;({ data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, role, color, weekly_rdv_target, disabled_at'))
+  }
   if (error) throw error
-  return (data ?? []) as OrgProfile[]
+  return (data ?? []).map((r) => ({
+    ...r,
+    is_support: (r as { is_support?: boolean }).is_support ?? false,
+  })) as OrgProfile[]
 }
 
 /** Le manager fixe l'objectif hebdomadaire de RDV d'un commercial. */

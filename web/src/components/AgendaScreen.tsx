@@ -605,13 +605,23 @@ export function AgendaScreen({
     return m
   }, [profiles])
 
+  // Profils support (db/0022 — dev/test) : leurs RDV, relances et contacts
+  // sont invisibles pour les AUTRES (eux voient les leurs).
+  const supportIds = useMemo(
+    () => new Set(profiles.filter((p) => p.is_support).map((p) => p.id)),
+    [profiles],
+  )
+  const isSupport = (id: string | null) =>
+    id !== null && id !== profile?.id && supportIds.has(id)
+
   // RDV affichés : tous (agenda partagé) ou les membres filtrés.
   const shownAppts = useMemo(
     () =>
-      whoFilter.size === 0
+      (whoFilter.size === 0
         ? appts
-        : appts.filter((a) => a.commercial_id !== null && whoFilter.has(a.commercial_id)),
-    [appts, whoFilter],
+        : appts.filter((a) => a.commercial_id !== null && whoFilter.has(a.commercial_id))
+      ).filter((a) => !isSupport(a.commercial_id)),
+    [appts, whoFilter, supportIds, profile?.id],
   )
 
   // Regroupe les RDV par jour.
@@ -630,10 +640,11 @@ export function AgendaScreen({
     const m: Record<string, MapPoint[]> = {}
     for (const p of revisits) {
       if (whoFilter.size > 0 && (p.created_by === null || !whoFilter.has(p.created_by))) continue
+      if (isSupport(p.created_by)) continue
       if (p.revisit_at) (m[p.revisit_at] ??= []).push(p)
     }
     return m
-  }, [revisits, whoFilter])
+  }, [revisits, whoFilter, supportIds, profile?.id])
 
   // Prochain RDV « à venir » par point (tolérance 1 h, comme le planning) :
   // sous-titre/tri de la liste Contacts + ligne d'échéance de la fiche.
@@ -667,6 +678,7 @@ export function AgendaScreen({
     return contacts
       // La chip « Client » (valeur ancien_client) matche aussi les points
       // `vendu` — même statut à l'écran (fusion 29/07).
+      .filter((p) => !isSupport(p.created_by))
       .filter((p) => (contactFilter ? sameDisplayStatus(p.status, contactFilter) : true))
       .filter(
         (p) =>
@@ -680,7 +692,7 @@ export function AgendaScreen({
         if (a.due !== null && b.due !== null && a.due !== b.due) return a.due - b.due
         return (b.p.visited_at ?? '').localeCompare(a.p.visited_at ?? '')
       })
-  }, [contacts, contactFilter, clientQuery, nextRdvByPoint])
+  }, [contacts, contactFilter, clientQuery, nextRdvByPoint, supportIds, profile?.id])
 
   if (!profile) return <div className="placeholder">Connexion requise.</div>
 
@@ -942,7 +954,13 @@ export function AgendaScreen({
           </button>
           {whoOpen &&
             profiles
-              .filter((p) => !p.disabled_at && p.role !== 'secretaire')
+              // Support : sa chip n'existe que pour lui-même (ses tests).
+              .filter(
+                (p) =>
+                  !p.disabled_at &&
+                  p.role !== 'secretaire' &&
+                  (!p.is_support || p.id === profile.id),
+              )
               .sort((a, b) =>
                 a.id === profile.id ? -1 : b.id === profile.id ? 1 : (a.full_name ?? '').localeCompare(b.full_name ?? ''),
               )
