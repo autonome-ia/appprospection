@@ -265,9 +265,14 @@ export async function updatePoint(
 
   const { data, error } = await supabase.from('points').update(patch).eq('id', id).select(COLS).single()
   if (error) throw error
-
-  if (changes.status !== undefined) await logEvent(profile, id, changes.status, changes.note)
   const updated = rowToPoint(data as Record<string, unknown>)
+
+  // La visite compte pour le PROPRIÉTAIRE du point (12/08) : un superviseur
+  // qui bascule le point d'un commercial (ex. « RDV pris » → « Client », une
+  // vente) crédite le commercial, pas lui-même. Sur son propre point,
+  // created_by = soi : rien ne change.
+  if (changes.status !== undefined)
+    await logEvent(profile, id, changes.status, changes.note, updated.created_by ?? undefined)
 
   // Recalcul des données de la NOUVELLE maison, en arrière-plan (le temps
   // réel propage à tous les appareils) — mêmes briques qu'insertPoint. Les

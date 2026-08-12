@@ -131,8 +131,11 @@ DA **« Encre & signal »** (choisie par briac le 26/07/2026 sur prototypes comp
   OUVERT** : le RDV continue de proposer « Vendu » / « Refus » sans limite de date (la réponse du
   prospect se donne sur le MÊME RDV — vente différée comptée ; « Vendu » efface la relance). La
   vente compte AUSSI par bascule manuelle « RDV pris » → « Client » (écrit `vendu` + synchronise le
-  RDV lié). Stats : « RDV effectués » = en attente + vendus + refusés (RDV tenus) ; les annulés ne
-  comptent nulle part. **La date du réel (30/07)** : solder un RDV « à venir » date visite/vente au
+  RDV lié). **Attribution (12/08)** : l'événement journalisé porte le TITULAIRE du RDV (issue) ou le
+  PROPRIÉTAIRE du point (bascule manuelle), jamais « qui tape » — un superviseur qui solde le RDV
+  d'un commercial crédite le commercial (RLS déjà prête : `events_insert_self`, db/0019 ;
+  réparation de l'historique : `db/0021`). Stats : « RDV effectués » = en attente + vendus +
+  refusés (RDV tenus) ; les annulés ne comptent nulle part. **La date du réel (30/07)** : solder un RDV « à venir » date visite/vente au
   JOUR DU RDV (`occurred_at = scheduled_at`) — conclure un « En attente » ou basculer à la main =
   daté du jour du geste. **Popup du matin** (`PendingOutcomes`) : 1re ouverture du jour, RDV passés sans issue →
   « Que s'est-il passé ? » (4 issues en 1 tap, « Plus tard » non bloquant) ; jamais affiché sous

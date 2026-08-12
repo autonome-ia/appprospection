@@ -250,7 +250,12 @@ export async function setAppointmentOutcome(
       const { error: e2 } = await supabase.from('point_events').insert({
         organization_id: profile.organization_id,
         point_id: appt.point_id,
-        author_id: profile.id,
+        // La vente (ou le refus) compte pour le TITULAIRE du RDV, pas pour
+        // qui tape (12/08 : Alexis soldant « Vendu » le RDV d'Alexandre
+        // s'attribuait sa vente) — même attribution que « RDV effectués ».
+        // La RLS l'autorise (events_insert_self, db/0019 : superviseur →
+        // n'importe quel membre de l'agence).
+        author_id: appt.commercial_id ?? profile.id,
         status: pointPatch.status,
         occurred_at: when, // stats datées du réel (jour du RDV, pas du tap)
       })

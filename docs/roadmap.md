@@ -356,6 +356,16 @@ phrase, halo orange sur la cible).
   passées ne bougent pas) ; la démo a été re-semée. Seed démo aligné (M. Léon reste bleu).
   CLAUDE.md mis à jour.
 
+- [x] **La vente au titulaire** (12/08, cas réel : Alexis solde « Vendu » le RDV d'Alexandre → la
+  vente était comptée pour Alexis) : l'événement journalisé portait « qui tape ». Corrigé aux deux
+  endroits — issue de RDV (fiche, rail du jour, popup du matin : `author_id` = titulaire du RDV,
+  même attribution que « RDV effectués ») et bascule manuelle de statut dans la fiche (`author_id`
+  = propriétaire du point — un commercial sur son point : rien ne change). Aucune migration de
+  schéma (la RLS `events_insert_self` de db/0019 autorisait déjà le superviseur, vérifié par un
+  insert/delete réel sur la démo). **`db/0021_vente_au_titulaire.sql` À EXÉCUTER en prod** :
+  SELECT de contrôle puis réattribution des ventes historiques mal comptées (dont celle
+  d'Alexandre).
+
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)
 - Carnet de contacts / mini-CRM (clients à rappeler, R2)
