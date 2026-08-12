@@ -92,11 +92,17 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
   const shownStatus =
     shownRdv && override?.id === shownRdv.id ? override.status : (shownRdv?.status ?? null)
   // Trou silencieux (audit UX B1) : un point « RDV pris » sans AUCUN RDV « à
-  // venir » — même quand un ancien RDV soldé s'affiche au-dessus.
+  // venir » — même quand un ancien RDV soldé s'affiche au-dessus. Un RDV
+  // « En attente » (effectue) compte comme voie ouverte (12/08 : le point
+  // reste rdv_pris) : le bandeau pousserait à créer un DOUBLON alors que la
+  // conclusion se donne sur le RDV ouvert (Vendu / Refus).
   const missing =
     appts !== null &&
     point?.status === 'rdv_pris' &&
-    !appts.some((a) => (override?.id === a.id ? override.status : a.status) === 'a_venir')
+    !appts.some((a) => {
+      const s = override?.id === a.id ? override.status : a.status
+      return s === 'a_venir' || s === 'effectue'
+    })
   const missingBanner = missing ? (
     <div className="rdv-missing">
       <span>Aucun RDV planifié pour ce point</span>

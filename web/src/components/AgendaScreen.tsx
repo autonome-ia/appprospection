@@ -657,7 +657,10 @@ export function AgendaScreen({
     const due = (p: MapPoint): number | null => {
       if (p.status === 'rdv_pris') {
         const rdv = nextRdvByPoint[p.id]
-        return rdv ? Date.parse(rdv.scheduled_at) : null
+        // Plus de RDV à venir mais une relance (« En attente », 12/08) :
+        // elle sert d'échéance — le point coulait en fin de liste.
+        if (rdv) return Date.parse(rdv.scheduled_at)
+        return p.revisit_at ? Date.parse(p.revisit_at) : null
       }
       return p.revisit_at ? Date.parse(p.revisit_at) : null
     }

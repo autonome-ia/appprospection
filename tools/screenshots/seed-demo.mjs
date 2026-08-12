@@ -260,8 +260,9 @@ async function run() {
     address: abgrall.address,
     client: 'Famille Abgrall',
   })
-  // EN ATTENTE (issues Vendu/Refus encore ouvertes dans la fiche).
-  const leon = await point(julien, '18 Rue du Général de Gaulle 29260 Lesneven', 'a_revoir', {
+  // EN ATTENTE (issues Vendu/Refus encore ouvertes dans la fiche). Depuis le
+  // 12/08 le point RESTE « RDV pris » (relance posée, statut intact).
+  const leon = await point(julien, '18 Rue du Général de Gaulle 29260 Lesneven', 'rdv_pris', {
     client: 'M. Léon',
     phone: '06 52 77 41 08',
     note: 'Devis remis, réfléchit avec son fils.',

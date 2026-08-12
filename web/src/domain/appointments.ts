@@ -54,7 +54,7 @@ export function outcomeToastMessage(outcome: AppointmentStatus): string {
     case 'vendu':
       return 'Vendu : la maison passe en « Client »'
     case 'effectue':
-      return 'En attente : la maison passe en « À revoir », relance dans 7 jours'
+      return 'En attente : relance dans 7 jours, le point reste « RDV pris »'
     case 'refus':
       return 'La maison passe en « Refus »'
     case 'annule':

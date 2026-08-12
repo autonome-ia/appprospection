@@ -262,7 +262,7 @@ export function PointDetailSheet({
     status !== init.status ||
     clientName !== init.clientName ||
     clientPhone !== init.clientPhone ||
-    (status === 'a_revoir' && revisitAt !== init.revisitAt) ||
+    ((status === 'a_revoir' || status === 'rdv_pris') && revisitAt !== init.revisitAt) ||
     newNote.trim().length > 0
 
   // Journal affiché : le vrai journal, ou à défaut la dernière note connue
@@ -306,8 +306,11 @@ export function PointDetailSheet({
       changes.client_name = clientName.trim() ? clientName.trim() : null
     if (clientPhone !== init.clientPhone)
       changes.client_phone = clientPhone.trim() ? clientPhone.trim() : null
-    // Date de relance : suivie seulement pour « à revoir », effacée sinon.
-    if (status === 'a_revoir') {
+    // Date de relance : suivie pour « à revoir » ET « RDV pris » (12/08 —
+    // un « En attente » pose sa relance sans dégrader le statut), effacée
+    // en quittant ces statuts.
+    const hasRelance = status === 'a_revoir' || status === 'rdv_pris'
+    if (hasRelance) {
       if (revisitAt !== init.revisitAt) changes.revisit_at = revisitAt || null
     } else if (status !== init.status && init.revisitAt) {
       changes.revisit_at = null
@@ -334,7 +337,7 @@ export function PointDetailSheet({
           status,
           clientName,
           clientPhone,
-          revisitAt: status === 'a_revoir' ? revisitAt : '',
+          revisitAt: hasRelance ? revisitAt : '',
         }
       }
       if (newNote.trim()) await onAddNote(point.id, newNote.trim())
@@ -532,8 +535,10 @@ export function PointDetailSheet({
                 />
               </div>
               {/* Date de relance DANS la section client (retour briac 25/07),
-                  sans presets — le champ date natif suffit. */}
-              {status === 'a_revoir' && (
+                  sans presets — le champ date natif suffit. Visible aussi pour
+                  « RDV pris » (12/08) : la relance J+7 d'un « En attente »
+                  se lit et s'ajuste ici. */}
+              {(status === 'a_revoir' || status === 'rdv_pris') && (
                 <>
                   <p className="eyebrow field-label">Revoir le</p>
                   <input

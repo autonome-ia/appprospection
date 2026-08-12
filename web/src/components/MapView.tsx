@@ -1068,7 +1068,10 @@ export function MapView({
           : p.created_by === null || p.created_by === profile?.id) &&
         (statusFilter.size === 0 || statusFilter.has(p.status)) &&
         (cutoff === null || (p.visited_at !== null && Date.parse(p.visited_at) < cutoff)) &&
-        (!dueOnly || (p.status === 'a_revoir' && p.revisit_at !== null && p.revisit_at <= today)),
+        (!dueOnly ||
+          ((p.status === 'a_revoir' || p.status === 'rdv_pris') &&
+            p.revisit_at !== null &&
+            p.revisit_at <= today)),
     )
     source?.setData(toFeatureCollection(visible))
   }, [points, mapLoaded, statusFilter, ageFilter, whoFilter, dueOnly, isSupervisor, profile?.id, dragId])

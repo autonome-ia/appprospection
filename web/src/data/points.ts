@@ -326,7 +326,9 @@ export async function fetchRelances(): Promise<MapPoint[]> {
   const { data, error } = await supabase
     .from('points')
     .select(COLS)
-    .eq('status', 'a_revoir')
+    // « RDV pris » aussi (12/08) : un « En attente » pose sa relance SANS
+    // dégrader le statut — le point bleu doit remonter dans « À relancer ».
+    .in('status', ['a_revoir', 'rdv_pris'])
     .not('revisit_at', 'is', null)
     .lte('revisit_at', today)
     .order('revisit_at')
@@ -334,13 +336,14 @@ export async function fetchRelances(): Promise<MapPoint[]> {
   return (data ?? []).map(rowToPoint)
 }
 
-/** Tous les « à revoir » datés (affichage agenda : pastilles + liste du jour). */
+/** Toutes les relances datées (affichage agenda : pastilles + liste du jour)
+    — « à revoir » ET « RDV pris » en attente (12/08). */
 export async function fetchRevisits(): Promise<MapPoint[]> {
   if (!supabase) return []
   const { data, error } = await supabase
     .from('points')
     .select(COLS)
-    .eq('status', 'a_revoir')
+    .in('status', ['a_revoir', 'rdv_pris'])
     .not('revisit_at', 'is', null)
     .order('revisit_at')
   if (error) throw error

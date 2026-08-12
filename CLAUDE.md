@@ -119,17 +119,22 @@ DA **« Encre & signal »** (choisie par briac le 26/07/2026 sur prototypes comp
 - `appointments` = agenda partagé : **RDV et tâches libres** (colonne `kind`, db/0016 — une tâche
   « aller chercher l'acompte » n'a ni point, ni issues, et ne compte dans AUCUNE stat ; sa note est
   son titre). Poser/éditer un statut écrit dans **points ET point_events**.
-- **Issues de RDV (refonte 29/07 soir)** : chaque issue fait suivre LE POINT — « Vendu » → Client
-  (`vendu`, LA vente du tunnel), « En attente » (valeur `effectue`) → À revoir + relance J+7,
-  « Refus » (`refus`, db/0017) → Refus, « Annulé » → rien + bouton « Replanifier ». « Manqué » retiré
-  des boutons (valeur conservée pour l'historique). **« En attente » est un état OUVERT** : le RDV
-  continue de proposer « Vendu » / « Refus » sans limite de date (la réponse du prospect se donne
-  sur le MÊME RDV — vente différée comptée ; « Vendu » efface la relance). La vente compte AUSSI
-  par bascule manuelle « RDV pris » → « Client » (écrit `vendu` + synchronise le RDV lié). Stats :
-  « RDV effectués » = en attente + vendus + refusés (RDV tenus) ; les annulés ne comptent nulle part.
-  **La date du réel (30/07)** : solder un RDV « à venir » date visite/vente au JOUR DU RDV
-  (`occurred_at = scheduled_at`) — conclure un « En attente » ou basculer à la main = daté du jour
-  du geste. **Popup du matin** (`PendingOutcomes`) : 1re ouverture du jour, RDV passés sans issue →
+- **Issues de RDV (refonte 29/07 soir, amendée 12/08 — retour Alexis validé briac)** : « Vendu » →
+  Client (`vendu`, LA vente du tunnel), « Refus » (`refus`, db/0017) → Refus, « Annulé » → rien +
+  bouton « Replanifier ». **« En attente » (valeur `effectue`) ne touche PLUS le point** : il GARDE
+  son statut (un « RDV pris » reste bleu tant que le procès est ouvert), seule la relance J+7 est
+  posée, et RIEN n'est journalisé — un RDV honoré n'est pas une « porte toquée » (les portes = la
+  prospection pure ; migration `db/0020` : les points basculés par d'anciens « En attente »
+  re-passent `rdv_pris`). Le système de relances couvre donc `a_revoir` ET `rdv_pris`
+  (fetchRelances/fetchRevisits, filtre « À relancer » carte, champ « Revoir le » de la fiche).
+  « Manqué » retiré des boutons (valeur conservée pour l'historique). **« En attente » est un état
+  OUVERT** : le RDV continue de proposer « Vendu » / « Refus » sans limite de date (la réponse du
+  prospect se donne sur le MÊME RDV — vente différée comptée ; « Vendu » efface la relance). La
+  vente compte AUSSI par bascule manuelle « RDV pris » → « Client » (écrit `vendu` + synchronise le
+  RDV lié). Stats : « RDV effectués » = en attente + vendus + refusés (RDV tenus) ; les annulés ne
+  comptent nulle part. **La date du réel (30/07)** : solder un RDV « à venir » date visite/vente au
+  JOUR DU RDV (`occurred_at = scheduled_at`) — conclure un « En attente » ou basculer à la main =
+  daté du jour du geste. **Popup du matin** (`PendingOutcomes`) : 1re ouverture du jour, RDV passés sans issue →
   « Que s'est-il passé ? » (4 issues en 1 tap, « Plus tard » non bloquant) ; jamais affiché sous
   Playwright (`navigator.webdriver`), forçable par `?popup-rdv` pour les sondes dédiées.
 

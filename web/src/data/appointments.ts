@@ -194,15 +194,17 @@ function localDayPlus(n: number): string {
 }
 
 /**
- * Donne une issue à un RDV — et fait suivre LE POINT (refonte 29/07 soir :
- * chaque issue a une conséquence sur la carte, fini les culs-de-sac) :
+ * Donne une issue à un RDV — et fait suivre LE POINT (refonte 29/07 soir,
+ * amendée le 12/08 sur retour Alexis validé briac) :
  *   vendu    → point « Client » (valeur vendu : LA vente du tunnel)
- *   effectue → « En attente » : point « À revoir » + relance J+7 (le
- *              système de relances de l'Accueil prend le relais)
+ *   effectue → « En attente » : le point GARDE son statut (un « RDV pris »
+ *              reste bleu tant que le procès est ouvert) — seule la relance
+ *              J+7 est posée, et RIEN n'est journalisé : un RDV honoré n'est
+ *              pas une porte toquée (les portes = la prospection pure).
  *   refus    → point « Refus »
  *   annule   → rien (le RDV n'a pas eu lieu — « Replanifier » est proposé)
- * La visite est journalisée avec la bascule (le commercial était bien
- * devant la porte : une issue = une porte ce jour-là, comme Vendu déjà).
+ * Les bascules de statut (vendu, refus) restent journalisées : l'événement
+ * `vendu` EST la vente du tunnel.
  */
 export async function setAppointmentOutcome(
   profile: Profile,
@@ -223,7 +225,7 @@ export async function setAppointmentOutcome(
         // maison ne doit pas traîner dans « À relancer » (état ouvert 29/07).
         { status: 'vendu', revisit_at: null }
       : outcome === 'effectue'
-        ? { status: 'a_revoir', revisit_at: localDayPlus(7) }
+        ? { revisit_at: localDayPlus(7) }
         : outcome === 'refus'
           ? { status: 'impossible', revisit_at: null }
           : null
@@ -239,11 +241,12 @@ export async function setAppointmentOutcome(
     if (error || !data?.length) {
       pointSynced = false
       console.error('Bascule du point :', error?.message ?? 'refusée (RLS)')
-    } else {
-      // Journalisée SEULEMENT si la bascule a réussi : en cas d'échec, l'UI
-      // guide vers la correction par la fiche, qui journalise elle-même —
-      // l'insert inconditionnel produisait alors une DEUXIÈME vente dans les
-      // stats (contre-audit, bug 9).
+    } else if (pointPatch.status) {
+      // Journalisée SEULEMENT si le STATUT change (« En attente » ne change
+      // rien : pas de porte comptée) et si la bascule a réussi : en cas
+      // d'échec, l'UI guide vers la correction par la fiche, qui journalise
+      // elle-même — l'insert inconditionnel produisait alors une DEUXIÈME
+      // vente dans les stats (contre-audit, bug 9).
       const { error: e2 } = await supabase.from('point_events').insert({
         organization_id: profile.organization_id,
         point_id: appt.point_id,

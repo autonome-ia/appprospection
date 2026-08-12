@@ -342,6 +342,19 @@ phrase, halo orange sur la cible).
   « + Tâche » inchangés ; recalage au réveil de la PWA mirroré pour la semaine. Sonde lecture
   seule `probe-agenda-semaine.mjs` (2 thèmes, bascule + sheet).
 
+- [x] **« En attente » ne dégrade plus le point** (retour Alexis 12/08, validé briac) : l'issue
+  « En attente » laissait le point basculer en « À revoir » (refonte 29/07) — désormais le point
+  GARDE son statut (un « RDV pris » reste bleu tant que le procès est ouvert), seule la relance
+  J+7 est posée, et **plus rien n'est journalisé** (un RDV honoré n'est pas une « porte toquée » :
+  les portes = la prospection pure — arbitrage briac ; « Vendu »/« Refus » restent journalisés,
+  l'événement `vendu` EST la vente). Le système de relances couvre maintenant `a_revoir` ET
+  `rdv_pris` (fetchRelances/fetchRevisits, filtre « À relancer » carte, champ « Revoir le » et
+  suivi dans la fiche, échéance Contacts = relance à défaut de RDV) ; le bandeau « Aucun RDV
+  planifié » ne s'affiche plus quand un RDV « En attente » est ouvert (il poussait au doublon).
+  **Migration `db/0020_relance_rdv_pris.sql` À EXÉCUTER (prod + démo)** : les points basculés par
+  d'anciens « En attente » re-passent « RDV pris » (relance conservée, journal intact — les stats
+  passées ne bougent pas). Seed démo aligné (M. Léon reste bleu). CLAUDE.md mis à jour.
+
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)
 - Carnet de contacts / mini-CRM (clients à rappeler, R2)
