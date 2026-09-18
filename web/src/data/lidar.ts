@@ -480,11 +480,16 @@ interface DalleInfo {
 async function fetchDalles(bb: Bbox): Promise<DalleInfo[]> {
   const [w, s] = fromL93(bb.minx, bb.miny)
   const [e, n] = fromL93(bb.maxx, bb.maxy)
+  // ⚠ Couche `IGNF_LIDAR-HD_METADONNEE:metadata` (une entité par dalle 1 km²) :
+  // l'ancienne `IGNF_NUAGES-DE-POINTS-LIDAR-HD:dalle` a été RETIRÉE par l'IGN
+  // (« Unknown namespace », constaté le 18/09/2026 — la mesure était muette
+  // depuis). Le COPC est dans `url_npl` (nuage de points), les dérivés raster
+  // dans `url_mnh`/`url_mns`/`url_mnt` ; le JSON `metadata` garde ses clés.
   const params = new URLSearchParams({
     SERVICE: 'WFS',
     VERSION: '2.0.0',
     REQUEST: 'GetFeature',
-    TYPENAMES: 'IGNF_NUAGES-DE-POINTS-LIDAR-HD:dalle',
+    TYPENAMES: 'IGNF_LIDAR-HD_METADONNEE:metadata',
     COUNT: '4',
     SRSNAME: 'CRS:84',
     BBOX: `${w},${s},${e},${n},CRS:84`,
@@ -493,10 +498,10 @@ async function fetchDalles(bb: Bbox): Promise<DalleInfo[]> {
   const r = await fetchT(`https://data.geopf.fr/wfs/ows?${params.toString()}`)
   if (!r.ok) throw new Error(`WFS dalle LiDAR ${r.status}`)
   const j = (await r.json()) as {
-    features?: { properties?: { url?: string; metadata?: string } }[]
+    features?: { properties?: { url_npl?: string; metadata?: string } }[]
   }
   return (j.features ?? [])
-    .filter((f) => typeof f.properties?.url === 'string')
+    .filter((f) => typeof f.properties?.url_npl === 'string')
     .map((f) => {
       let acquisition: string | null = null
       let classif: string | null = null
@@ -509,7 +514,7 @@ async function fetchDalles(bb: Bbox): Promise<DalleInfo[]> {
       } catch {
         /* métadonnées absentes : non bloquant */
       }
-      return { url: f.properties!.url!, acquisition, classif, edition }
+      return { url: f.properties!.url_npl!, acquisition, classif, edition }
     })
 }
 

@@ -95,14 +95,14 @@ async function collectPoints(ring, neighbors) {
     SERVICE: 'WFS',
     VERSION: '2.0.0',
     REQUEST: 'GetFeature',
-    TYPENAMES: 'IGNF_NUAGES-DE-POINTS-LIDAR-HD:dalle',
+    TYPENAMES: 'IGNF_LIDAR-HD_METADONNEE:metadata',
     COUNT: '4',
     SRSNAME: 'CRS:84',
     BBOX: `${w},${s},${e},${n},CRS:84`,
     outputFormat: 'application/json',
   })
   const dalles = ((await (await fetch(`https://data.geopf.fr/wfs/ows?${dparams}`)).json()).features ?? []).map(
-    (f) => f.properties.url,
+    (f) => f.properties.url_npl,
   )
   const pts = []
   for (const url of dalles) {

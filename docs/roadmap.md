@@ -93,6 +93,7 @@
   - **cache COPC par dalle** (transfert ÷5-10 dès la 2e maison du quartier) ;
   - **fiche** : attributs BD TOPO enfin lus (**migration `db/0010` À EXÉCUTER**), plan coté SVG, **rapport client** imprimable/partageable, avant/après matériaux (ardoise/tuile/zinc).
 - [ ] ⬜ **Sondes terrain post-v20** : re-taper Deschard (annexe même-parcelle), une bande fusionnée (découpage RNB), une maison sous canopée (motif) — les fixtures ne couvrent pas la collecte.
+- [x] **Panne mesure LiDAR (18/09/2026, remontée Mister Toiture Brest)** : l'IGN a retiré la couche WFS `IGNF_NUAGES-DE-POINTS-LIDAR-HD:dalle` (« Unknown namespace ») : toute nouvelle maison tombait en `error` muet (badge « estimé », pas de module « Toiture mesurée » ; les maisons déjà mesurées gardaient leurs pans en base). Correctif : couche `IGNF_LIDAR-HD_METADONNEE:metadata` + champ `url_npl` (COPC sur `data.geopf.fr/telechargement/`, Range + CORS vérifiés, lisible par copc 0.0.8) dans `data/lidar.ts`, scripts du spike et SOP ; badge « mesure laser indisponible » pour le statut `error` (plus jamais muet). ⚠ Le nouveau serveur COPC a un quota de débit (429 sur ~la moitié d'une rafale de 30) : le backoff existant suffit, surveiller le temps de mesure sur dalle neuve.
 - [ ] ⬜ **Quick wins estimation actuelle** (« étage 1 », ½ j, à valider) : débords de toit, toits plats, formes en L — améliore le fallback partout où le LiDAR ne peut rien.
 
 ## Retours terrain briac (fin juillet 2026)

@@ -122,7 +122,7 @@ async function fetchDalles(bbL93) {
     SERVICE: 'WFS',
     VERSION: '2.0.0',
     REQUEST: 'GetFeature',
-    TYPENAMES: 'IGNF_NUAGES-DE-POINTS-LIDAR-HD:dalle',
+    TYPENAMES: 'IGNF_LIDAR-HD_METADONNEE:metadata',
     COUNT: '4',
     SRSNAME: 'CRS:84',
     BBOX: `${w},${s},${e},${n},CRS:84`,
@@ -133,7 +133,7 @@ async function fetchDalles(bbL93) {
   const feats = (await r.json()).features ?? []
   if (!feats.length) throw new Error('Aucune dalle LiDAR HD ici')
   return feats.map((f) => ({
-    url: f.properties.url,
+    url: f.properties.url_npl,
     acquisition: JSON.parse(f.properties.metadata ?? '{}').date_fin_acquisition,
   }))
 }

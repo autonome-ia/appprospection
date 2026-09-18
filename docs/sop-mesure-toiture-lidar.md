@@ -12,7 +12,7 @@
 | Fondation | Statut | Détail |
 |---|---|---|
 | Couverture zone de test (Lesneven 29) | ✅ | Dalle `LHD_FXX_0160_6855`, **acquisition 12/2024** (fraîche), 17,3 M pts/km² (~17 pts/m²), classification auto `IGN_AUTO_V5` |
-| Découverte de la dalle par coordonnées | ✅ | WFS `IGNF_NUAGES-DE-POINTS-LIDAR-HD:dalle` sur `data.geopf.fr/wfs/ows`, BBOX en **CRS:84 (lon,lat)** → renvoie l'URL de téléchargement + métadonnées |
+| Découverte de la dalle par coordonnées | ✅ | WFS `IGNF_LIDAR-HD_METADONNEE:metadata` sur `data.geopf.fr/wfs/ows`, BBOX en **CRS:84 (lon,lat)** → renvoie l'URL du COPC (`url_npl`) + métadonnées. ⚠ L'ancienne couche `IGNF_NUAGES-DE-POINTS-LIDAR-HD:dalle` a été retirée par l'IGN (constaté 18/09/2026, « Unknown namespace ») : la mesure était tombée en `error` muet pour toute nouvelle maison |
 | Format streamable | ✅ | **COPC** (`.copc.laz`, octree indexé) ; serveur accepte **Range 206** (testé : `bytes 0-4095/109312727`) → on lit ~quelques centaines de Ko par maison, pas 109 Mo |
 | Licence / coût | ✅ | Licence Ouverte Etalab, usage commercial OK, sans clé, 0 € — comme ortho/BAN. Attribution IGN |
 | Dérivés raster (plan B) | ✅ | Dalles MNS/MNT/MNH LiDAR HD dispo en WFS/téléchargement (`IGNF_MNS-LIDAR-HD:dalle`…) + couches de visualisation WMTS |

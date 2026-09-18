@@ -68,6 +68,17 @@ function lidarExcuse(
         'Le polygone IGN couvre un bâtiment collectif (ou une bande de maisons fusionnées) : la mesure laser porterait sur tout le bloc.',
     }
   }
+  // Panne réseau/service (ex. couche IGN retirée, 09/2026) : avant, l'échec
+  // était MUET (badge « estimé » sans explication) et passait pour un bug de
+  // l'app. Le statut `error` n'est jamais persisté : la re-tentative est
+  // automatique à la prochaine ouverture.
+  if (statut === 'error') {
+    return {
+      label: 'mesure laser indisponible',
+      title:
+        'Le service LiDAR HD de l’IGN n’a pas répondu : la mesure sera re-tentée à la prochaine ouverture de la fiche.',
+    }
+  }
   if (statut !== 'no_data') return null
   switch (diag?.motif) {
     case 'hors_couverture':
