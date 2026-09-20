@@ -31,6 +31,18 @@ export function isSecretaireRole(role: string | null | undefined): boolean {
   return role === 'secretaire'
 }
 
+/** Stats (demande briac 20/09/2026) : le MANAGER voit toute l'équipe, lui
+    compris ; pour un chef des ventes ou un commercial, le manager n'existe
+    pas dans l'onglet Stats ni dans l'objectif équipe de l'Accueil (ni ligne
+    de classement, ni activité dans les totaux). Filtre d'AFFICHAGE, pas un
+    mur RLS, comme le profil support (db/0022). */
+export function isManagerHiddenFor(
+  viewerRole: string | null | undefined,
+  targetRole: string | null | undefined,
+): boolean {
+  return targetRole === 'manager' && viewerRole !== 'manager'
+}
+
 /** Profil applicatif (table `profiles`). */
 export interface Profile {
   id: string

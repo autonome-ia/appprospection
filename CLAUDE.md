@@ -76,6 +76,11 @@ l'UI ne fait que suivre. Helpers : `is_supervisor()` (manager OU chef_ventes) c�
 - **Objectif hebdo 0** (demande briac 09/08) : hors classement des commerciaux et hors objectif
   équipe (Stats + Accueil) ; secrétaires et comptes désactivés exclus d'office. Remettre un
   objectif > 0 réintègre (stepper du drill-down, ou SQL si le profil n'est plus drillable).
+- **Le manager est INVISIBLE dans les Stats de l'équipe** (20/09/2026, briac) : un chef_ventes ou un
+  commercial ne le voit ni au classement ni dans les totaux (Stats + objectif équipe Accueil) ; le
+  manager voit tout, lui compris. Helper `isManagerHiddenFor(viewerRole, targetRole)`
+  (domain/types.ts) + `fetchHiddenIds` (data/stats.ts). Filtre d'affichage, même compromis que
+  `is_support` ; carte, agenda, relances non concernés.
 - **`profiles.is_support` = compte dev/test INVISIBLE pour l'équipe** (db/0022, 12/08 — briac) :
   ses événements/RDV sortent de TOUS les agrégats de stats (data/stats.ts, cache 5 min), ses
   points de la carte des autres, ses RDV/tâches de l'agenda partagé, ses relances/contacts des

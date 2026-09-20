@@ -23,7 +23,7 @@ import { AppointmentForm } from './AppointmentForm'
 import { GuideSection } from './Guide'
 import { ProfileSheet } from './ProfileSheet'
 import { WeatherChip } from './WeatherChip'
-import { isSupervisorRole, roleLabel, type MapPoint } from '../domain/types'
+import { isManagerHiddenFor, isSupervisorRole, roleLabel, type MapPoint } from '../domain/types'
 
 function relanceLabel(iso: string): string {
   // Jour LOCAL (toISOString = UTC : « aujourd'hui » était faux entre minuit
@@ -184,7 +184,15 @@ export function AccueilScreen({
   // classement — même règle que les Stats) ; secrétaires/désactivés exclus.
   const objTarget = isSupervisor
     ? orgProfiles
-        .filter((p) => !p.disabled_at && p.role !== 'secretaire' && !p.is_support)
+        .filter(
+          (p) =>
+            !p.disabled_at &&
+            p.role !== 'secretaire' &&
+            !p.is_support &&
+            // Manager masqué pour un chef des ventes (20/09) — mêmes
+            // agrégats que data/stats.ts, sinon Accueil et Stats se contredisent.
+            !isManagerHiddenFor(profile?.role, p.role),
+        )
         .reduce((s, p) => s + (p.weekly_rdv_target ?? 0), 0)
     : (orgProfiles.find((p) => p.id === meId)?.weekly_rdv_target ?? 0)
 

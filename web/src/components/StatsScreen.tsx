@@ -15,7 +15,7 @@ import { fetchOrgProfiles, updateWeeklyTarget, type OrgProfile } from '../data/p
 import { colorForCommercial } from '../domain/colors'
 import { CLIENT_STATUSES, DISPLAY_STATUSES, isClientStatus } from '../domain/status'
 import { markerDataUrl } from '../config/markers'
-import { isSupervisorRole, type Profile } from '../domain/types'
+import { isManagerHiddenFor, isSupervisorRole, type Profile } from '../domain/types'
 
 const PERIODS: { value: Period; label: string }[] = [
   { value: 'jour', label: 'Jour' },
@@ -319,11 +319,15 @@ export function StatsScreen({
   // ventes 25/07), MAIS objectif hebdo 0 = hors classement et hors objectif
   // équipe (demande briac 09/08) ; secrétaires, comptes désactivés et profils
   // support (db/0022 — dev/test, déjà exclus des agrégats) hors d'office.
+  // Manager masqué pour l'équipe (demande briac 20/09) : même règle que les
+  // agrégats (data/stats.ts) — le classement et l'objectif équipe d'un chef
+  // des ventes ou d'un commercial ne le comptent pas ; le manager se voit.
   const prospectors = profiles.filter(
     (p) =>
       !p.disabled_at &&
       p.role !== 'secretaire' &&
       !p.is_support &&
+      !isManagerHiddenFor(profile?.role, p.role) &&
       (p.weekly_rdv_target ?? 0) > 0,
   )
   const teamTarget = prospectors.reduce((s, p) => s + (p.weekly_rdv_target ?? 0), 0)
