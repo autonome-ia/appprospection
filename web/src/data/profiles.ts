@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { registerTeamColors } from '../domain/colors'
 import type { UserRole } from '../domain/types'
 
 export interface OrgProfile {
@@ -12,6 +13,8 @@ export interface OrgProfile {
   /** Compte dev/test (db/0022, posé en SQL uniquement) : son activité est
       invisible pour le reste de l'équipe — stats, carte, agenda, listes. */
   is_support: boolean
+  /** Ordre d'arrivée : sert à l'attribution automatique des couleurs. */
+  created_at: string | null
 }
 
 /** Tous les profils de l'organisation (RLS scope automatiquement). */
@@ -19,19 +22,24 @@ export async function fetchOrgProfiles(): Promise<OrgProfile[]> {
   if (!supabase) return []
   let { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, role, color, weekly_rdv_target, disabled_at, is_support')
+    .select('id, full_name, role, color, weekly_rdv_target, disabled_at, is_support, created_at')
   // Migration 0022 pas encore passée : repli sans la colonne (personne n'est
   // support) plutôt que de casser tous les écrans qui chargent les profils.
   if (error && /is_support/.test(error.message)) {
     ;({ data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, role, color, weekly_rdv_target, disabled_at'))
+      .select('id, full_name, role, color, weekly_rdv_target, disabled_at, created_at'))
   }
   if (error) throw error
-  return (data ?? []).map((r) => ({
+  const list = (data ?? []).map((r) => ({
     ...r,
     is_support: (r as { is_support?: boolean }).is_support ?? false,
   })) as OrgProfile[]
+  // Garde-fou couleurs : la table d'attribution se calcule sur TOUTE
+  // l'agence (les appelants filtrent ensuite support/désactivés) — même
+  // résultat sur chaque appareil.
+  registerTeamColors(list)
+  return list
 }
 
 /** Le manager fixe l'objectif hebdomadaire de RDV d'un commercial. */

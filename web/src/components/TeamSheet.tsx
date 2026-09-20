@@ -156,6 +156,12 @@ export function TeamSheet({
     }
   }
 
+  // Garde-fou (20/09) : une teinte portée par un autre membre (choisie OU
+  // attribuée automatiquement) ne se propose plus — deux commerciaux ne
+  // peuvent plus se retrouver de la même couleur dans l'agenda.
+  const takenBy = new Map<string, OrgProfile>()
+  for (const p of members) takenBy.set(colorForCommercial(p.id, p.color), p)
+
   const changeColor = async (m: OrgProfile, color: string) => {
     if (busy || color === m.color) return
     setBusy(true)
@@ -342,17 +348,26 @@ export function TeamSheet({
                           — deux commerciaux ne prennent pas la même teinte. */}
                       <p className="eyebrow field-label">Couleur d’agenda</p>
                       <div className="team-swatches">
-                        {TEAM_PALETTE.map((c) => (
-                          <button
-                            key={c}
-                            type="button"
-                            className={`team-swatch ${colorForCommercial(m.id, m.color) === c ? 'is-active' : ''}`}
-                            style={{ background: c }}
-                            onClick={() => void changeColor(m, c)}
-                            disabled={busy}
-                            aria-label={`Couleur ${c}`}
-                          />
-                        ))}
+                        {TEAM_PALETTE.map((c) => {
+                          const owner = takenBy.get(c)
+                          const taken = owner !== undefined && owner.id !== m.id
+                          return (
+                            <button
+                              key={c}
+                              type="button"
+                              className={`team-swatch ${colorForCommercial(m.id, m.color) === c ? 'is-active' : ''} ${taken ? 'is-taken' : ''}`}
+                              style={{ background: c }}
+                              onClick={() => void changeColor(m, c)}
+                              disabled={busy || taken}
+                              aria-label={
+                                taken
+                                  ? `Couleur ${c}, déjà prise par ${owner.full_name ?? 'un membre'}`
+                                  : `Couleur ${c}`
+                              }
+                              title={taken ? `Déjà prise par ${owner.full_name ?? 'un membre'}` : undefined}
+                            />
+                          )
+                        })}
                       </div>
 
                       <p className="eyebrow field-label">Rôle</p>
