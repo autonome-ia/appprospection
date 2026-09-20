@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
-import { Check, Copy, RefreshCw, Share2, X } from 'lucide-react'
+import { Check, Copy, RefreshCw, Share2, X, CheckSquare, Square } from 'lucide-react'
 import {
   fetchOrgProfiles,
+  updateStatsVisible,
   setMemberDisabled,
   updateMemberColor,
   updateMemberName,
@@ -162,6 +163,26 @@ export function TeamSheet({
   const takenBy = new Map<string, OrgProfile>()
   for (const p of members) takenBy.set(colorForCommercial(p.id, p.color), p)
 
+  // Manager : figurer ou non au classement des stats vus par l'équipe
+  // (db/0023, décoché par défaut). Ses chiffres comptent dans les totaux
+  // quoi qu'il arrive ; lui voit toujours toute l'équipe.
+  const meRow = members.find((p) => p.id === profile.id)
+  const toggleStatsVisible = async () => {
+    if (busy || !meRow) return
+    const next = !meRow.stats_visible
+    setBusy(true)
+    try {
+      await updateStatsVisible(profile.id, next)
+      toast.success(next ? 'Tu apparais dans les stats de l’équipe' : 'Tu n’apparais plus dans les stats de l’équipe')
+      load()
+    } catch (e) {
+      console.error('Visibilité stats :', e)
+      toast.error('Modification refusée')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const changeColor = async (m: OrgProfile, color: string) => {
     if (busy || color === m.color) return
     setBusy(true)
@@ -280,6 +301,31 @@ export function TeamSheet({
                   )}
                 </div>
               </div>
+            )}
+
+            {/* --- Visibilité du manager dans les stats (db/0023) --- */}
+            {isManager && meRow && (
+              <button
+                type="button"
+                className={`team-check ${meRow.stats_visible ? 'is-on' : ''}`}
+                onClick={() => void toggleStatsVisible()}
+                disabled={busy}
+                role="checkbox"
+                aria-checked={meRow.stats_visible}
+              >
+                {meRow.stats_visible ? (
+                  <CheckSquare size={20} strokeWidth={2} />
+                ) : (
+                  <Square size={20} strokeWidth={1.8} />
+                )}
+                <span className="team-check-texts">
+                  <span className="team-check-label">M’afficher dans les stats de l’équipe</span>
+                  <span className="team-check-hint">
+                    Décoché : tes chiffres comptent dans les totaux, mais ton nom n’apparaît pas
+                    au classement des commerciaux et chefs des ventes. Toi, tu vois tout le monde.
+                  </span>
+                </span>
+              </button>
             )}
 
             {/* --- Membres --- */}

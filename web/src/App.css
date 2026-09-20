@@ -3307,6 +3307,44 @@ select.field-input {
   border-radius: 50%;
   flex: none;
 }
+/* Case « M'afficher dans les stats de l'équipe » (manager, db/0023) : ligne
+   cochable pleine largeur, icône encre → accent quand cochée. */
+.team-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 12px 12px;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink);
+  text-align: left;
+}
+.team-check svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--ink-3);
+}
+.team-check.is-on svg {
+  color: var(--accent);
+}
+.team-check-texts {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.team-check-label {
+  font-size: 15px;
+  font-weight: 600;
+}
+.team-check-hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
 /* Teinte déjà portée par un autre membre : visible mais inerte (garde-fou). */
 .team-swatch.is-taken {
   opacity: 0.22;

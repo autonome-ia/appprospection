@@ -319,19 +319,21 @@ export function StatsScreen({
   // ventes 25/07), MAIS objectif hebdo 0 = hors classement et hors objectif
   // équipe (demande briac 09/08) ; secrétaires, comptes désactivés et profils
   // support (db/0022 — dev/test, déjà exclus des agrégats) hors d'office.
-  // Manager masqué pour l'équipe (demande briac 20/09) : même règle que les
-  // agrégats (data/stats.ts) — le classement et l'objectif équipe d'un chef
-  // des ventes ou d'un commercial ne le comptent pas ; le manager se voit.
   const prospectors = profiles.filter(
     (p) =>
       !p.disabled_at &&
       p.role !== 'secretaire' &&
       !p.is_support &&
-      !isManagerHiddenFor(profile?.role, p.role) &&
       (p.weekly_rdv_target ?? 0) > 0,
   )
+  // L'objectif équipe compte TOUT le monde (le manager aussi : ses chiffres
+  // sont dans les totaux) ; seul le CLASSEMENT masque le manager aux chefs
+  // des ventes / commerciaux tant qu'il n'a pas coché « M'afficher dans les
+  // stats de l'équipe » (écran Équipe, db/0023 — demande briac 20/09).
   const teamTarget = prospectors.reduce((s, p) => s + (p.weekly_rdv_target ?? 0), 0)
-  const ranked = [...prospectors].sort((a, b) => {
+  const ranked = prospectors
+    .filter((p) => !isManagerHiddenFor(profile?.role, p))
+    .sort((a, b) => {
     const sa = data?.current.byCommercial[a.id]?.ventes ?? 0
     const sb = data?.current.byCommercial[b.id]?.ventes ?? 0
     const ra = data?.current.byCommercial[a.id]?.rdv_pris ?? 0

@@ -15,31 +15,55 @@ export interface OrgProfile {
   is_support: boolean
   /** Ordre d'arrivée : sert à l'attribution automatique des couleurs. */
   created_at: string | null
+  /** Manager : coché = figure au classement des stats de l'équipe (db/0023).
+      Sans effet pour les autres rôles. */
+  stats_visible: boolean
 }
 
 /** Tous les profils de l'organisation (RLS scope automatiquement). */
 export async function fetchOrgProfiles(): Promise<OrgProfile[]> {
   if (!supabase) return []
-  let { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, role, color, weekly_rdv_target, disabled_at, is_support, created_at')
-  // Migration 0022 pas encore passée : repli sans la colonne (personne n'est
-  // support) plutôt que de casser tous les écrans qui chargent les profils.
-  if (error && /is_support/.test(error.message)) {
-    ;({ data, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, role, color, weekly_rdv_target, disabled_at, created_at'))
+  const BASE = 'id, full_name, role, color, weekly_rdv_target, disabled_at, created_at'
+  // Colonnes optionnelles (migrations 0022 / 0023) : si l'une manque en base,
+  // on la retire et on réessaie — repli neutre (personne n'est support,
+  // aucun manager visible) plutôt que de casser tous les écrans qui chargent
+  // les profils. L'ordre migration/déploiement est indifférent.
+  const optional = ['is_support', 'stats_visible']
+  let data: Record<string, unknown>[] | null = null
+  for (;;) {
+    const cols = [BASE, ...optional].join(', ')
+    const r = await supabase.from('profiles').select(cols)
+    if (!r.error) {
+      data = (r.data ?? []) as unknown as Record<string, unknown>[]
+      break
+    }
+    const missing = optional.find((c) => r.error!.message.includes(c))
+    if (!missing) throw r.error
+    optional.splice(optional.indexOf(missing), 1)
   }
-  if (error) throw error
   const list = (data ?? []).map((r) => ({
     ...r,
-    is_support: (r as { is_support?: boolean }).is_support ?? false,
+    is_support: (r.is_support as boolean | undefined) ?? false,
+    stats_visible: (r.stats_visible as boolean | undefined) ?? false,
   })) as OrgProfile[]
   // Garde-fou couleurs : la table d'attribution se calcule sur TOUTE
   // l'agence (les appelants filtrent ensuite support/désactivés) — même
   // résultat sur chaque appareil.
   registerTeamColors(list)
   return list
+}
+
+/** Le manager choisit de figurer (ou non) au classement des stats vus par
+    l'équipe (db/0023) — sa propre ligne, via profiles_update_self. */
+export async function updateStatsVisible(id: string, visible: boolean): Promise<void> {
+  if (!supabase) throw new Error('Hors ligne')
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ stats_visible: visible })
+    .eq('id', id)
+    .select('id')
+  if (error) throw error
+  if (!data || data.length === 0) throw new Error('Modification refusée')
 }
 
 /** Le manager fixe l'objectif hebdomadaire de RDV d'un commercial. */

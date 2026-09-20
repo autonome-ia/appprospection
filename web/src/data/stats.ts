@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase'
-import { isManagerHiddenFor } from '../domain/types'
 import type { PointStatus } from '../domain/status'
 
 export type Period = 'jour' | 'semaine' | 'mois'
@@ -110,34 +109,19 @@ function emptyStats(id: string): CommercialStats {
   return { commercial_id: id, portes: 0, absents: 0, rdv_pris: 0, rdv_planifies: 0, rdv_effectues: 0, ventes: 0, parStatut: {} }
 }
 
-/** Identifiants dont l'activité ne compte dans AUCUN agrégat pour le
-    spectateur courant :
-    - profils support (db/0022 — dev/test), pour tout le monde ;
-    - managers, quand le spectateur n'est PAS manager (demande briac 20/09 :
-      le manager voit tout, lui compris ; l'équipe ne le voit pas).
-    Cache 5 min par utilisateur connecté (changement de compte = recalcul).
-    Colonne is_support absente (migration pas passée) → repli sans elle ;
-    erreur → personne n'est masqué. */
-let hiddenCache: { at: number; uid: string | null; ids: Set<string> } | null = null
-async function fetchHiddenIds(): Promise<Set<string>> {
+/** Profils support (db/0022 — dev/test) : leur activité ne compte dans AUCUN
+    agrégat. Cache 5 min (le drapeau change une fois par an, en SQL). Colonne
+    absente (migration pas passée) ou erreur → personne n'est support.
+    NB : le manager masqué au classement (db/0023) COMPTE dans les totaux —
+    seule sa ligne est filtrée, côté écran (StatsScreen). */
+let supportCache: { at: number; ids: Set<string> } | null = null
+async function fetchSupportIds(): Promise<Set<string>> {
   if (!supabase) return new Set()
-  const uid = (await supabase.auth.getSession()).data.session?.user.id ?? null
-  if (hiddenCache && hiddenCache.uid === uid && Date.now() - hiddenCache.at < 5 * 60_000) {
-    return hiddenCache.ids
-  }
-  type Row = { id: string; role: string | null; is_support?: boolean | null }
-  let { data, error } = await supabase.from('profiles').select('id, role, is_support')
-  if (error && /is_support/.test(error.message)) {
-    ;({ data, error } = await supabase.from('profiles').select('id, role'))
-  }
+  if (supportCache && Date.now() - supportCache.at < 5 * 60_000) return supportCache.ids
+  const { data, error } = await supabase.from('profiles').select('id').eq('is_support', true)
   if (error) return new Set()
-  const rows = (data ?? []) as Row[]
-  const viewerRole = rows.find((r) => r.id === uid)?.role ?? null
-  const ids = new Set<string>()
-  for (const r of rows) {
-    if (r.is_support || isManagerHiddenFor(viewerRole, r.role)) ids.add(r.id)
-  }
-  hiddenCache = { at: Date.now(), uid, ids }
+  const ids = new Set((data ?? []).map((r) => r.id as string))
+  supportCache = { at: Date.now(), ids }
   return ids
 }
 
@@ -148,8 +132,8 @@ async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
   const startISO = start.toISOString()
   const endISO = end.toISOString()
 
-  const [hidden, events, appts] = await Promise.all([
-    fetchHiddenIds(),
+  const [support, events, appts] = await Promise.all([
+    fetchSupportIds(),
     fetchAllRows('point_events', 'author_id, status, occurred_at', 'occurred_at', startISO, endISO),
     // `kind` : les TÂCHES d'agenda (db/0016) ne comptent dans aucun taux —
     // repli sans la colonne si la migration n'est pas passée (tout est RDV).
@@ -180,8 +164,8 @@ async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
 
   for (const ev of events ?? []) {
     const e = ev as { author_id: string | null; status: PointStatus; occurred_at: string }
-    // Profil support (tests) ou manager masqué pour ce spectateur : rien.
-    if (e.author_id && hidden.has(e.author_id)) continue
+    // L'activité d'un profil support (tests) ne compte nulle part.
+    if (e.author_id && support.has(e.author_id)) continue
     bump(e.author_id, 'portes')
     bumpStatut(e.author_id, e.status)
     if (e.status === 'absent') bump(e.author_id, 'absents')
@@ -200,7 +184,7 @@ async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
   for (const ap of appts ?? []) {
     const a = ap as { commercial_id: string | null; status: string; scheduled_at: string; kind?: string }
     if (a.kind === 'tache') continue // tâche d'agenda : hors tunnel
-    if (a.commercial_id && hidden.has(a.commercial_id)) continue // test ou manager masqué
+    if (a.commercial_id && support.has(a.commercial_id)) continue // RDV de test
     // Un RDV ANNULÉ n'est pas un RDV raté (décision briac 29/07) : il sort
     // des deux compteurs — il sera replanifié (et compté à sa vraie date).
     if (a.status === 'annule') continue
