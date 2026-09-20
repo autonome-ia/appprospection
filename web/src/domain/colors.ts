@@ -2,10 +2,13 @@
 // sauf si le profil a une couleur explicite (assignée par le manager dans
 // l'écran Équipe — refonte couleurs agenda, retour Alexis 10/08).
 
-/** Palette FERMÉE des couleurs de commerciaux : 8 teintes distinctes entre
+/** Palette FERMÉE des couleurs de commerciaux : teintes distinctes entre
     elles ET éloignées des couleurs sémantiques (orange accent, ambre
     « à revoir », vert « vendu », bleu « RDV pris », rouge danger) — l'ancienne
-    palette auto contenait orange/ambre/vert/rouge, source de confusion. */
+    palette auto contenait orange/ambre/vert/rouge, source de confusion.
+    Étendue de 8 à 12 le 20/09/2026 (demande briac, équipe qui grandit) :
+    les 4 dernières restent hors des familles réservées (le marine est
+    volontairement très sombre pour ne pas se confondre avec le bleu RDV). */
 export const TEAM_PALETTE = [
   '#4263eb', // indigo
   '#7048e8', // violet
@@ -15,9 +18,17 @@ export const TEAM_PALETTE = [
   '#66a80f', // olive
   '#9c36b5', // pourpre
   '#5f6b7a', // ardoise
+  '#8a5a2b', // tabac
+  '#8b1e3f', // bordeaux
+  '#e64980', // rose
+  '#1b4f9c', // marine
 ]
 
-const PALETTE = TEAM_PALETTE
+/** Attribution AUTOMATIQUE (profil sans couleur choisie) : figée sur les 8
+    teintes historiques — étendre le modulo aurait changé la couleur de
+    commerciaux existants du jour au lendemain. Les nouvelles teintes se
+    prennent explicitement dans l'écran Équipe. */
+const PALETTE = TEAM_PALETTE.slice(0, 8)
 
 function hash(str: string): number {
   let h = 0

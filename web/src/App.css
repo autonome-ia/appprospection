@@ -3294,7 +3294,7 @@ select.field-input {
   gap: 8px;
   margin-bottom: 4px;
 }
-/* Sélecteur de couleur d'agenda (8 teintes de TEAM_PALETTE). */
+/* Sélecteur de couleur d'agenda (teintes de TEAM_PALETTE, 12 depuis le 20/09). */
 .team-swatches {
   display: flex;
   gap: 9px;
