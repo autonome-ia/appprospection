@@ -63,16 +63,19 @@ function endOfToday(): number {
 export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, showNav }: Props) {
   const [busy, setBusy] = useState(false)
   // Chacun ses RDV (retour chef des ventes, 10/08) : issues et « Modifier »
-  // réservés au TITULAIRE du RDV et aux superviseurs — la secrétaire reste
-  // en lecture partout. La RLS refuse déjà les autres ; on ne montre plus
-  // des boutons qui échouent.
+  // réservés au TITULAIRE du RDV et aux superviseurs. La secrétaire (matrice
+  // v2, 20/09) PLANIFIE et DÉCALE au nom du commercial mais ne solde jamais.
+  // La RLS refuse déjà les autres ; on ne montre plus des boutons qui échouent.
   const secretaire = isSecretaireRole(profile.role)
   const supervisor = isSupervisorRole(profile.role)
   // « Planifier » (point « RDV pris » sans RDV) : l'auteur du point ou un
   // superviseur — pas un collègue de passage sur la fiche.
   const canPlan =
-    !secretaire &&
-    (supervisor || !point || point.created_by === null || point.created_by === profile.id)
+    secretaire ||
+    supervisor ||
+    !point ||
+    point.created_by === null ||
+    point.created_by === profile.id
   // Issue donnée depuis CE bloc : reflétée sans attendre le reload du parent.
   const [override, setOverride] = useState<{ id: string; status: AppointmentStatus } | null>(null)
   useEffect(() => {
@@ -119,6 +122,8 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
   if (!shownRdv || shownStatus === null) return missingBanner
 
   const canAct = !secretaire && (supervisor || shownRdv.commercial_id === profile.id)
+  // « Modifier » (décaler, réattribuer, annuler) : les mêmes + la secrétaire.
+  const canEdit = canAct || secretaire
 
   // RDV encore modifiable = « à venir » (même passé de date : un RDV oublié
   // se DÉCALE, on n'en recrée pas un deuxième — piège corrigé le 29/07).
@@ -196,7 +201,7 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
         </div>
       )}
 
-      {((showNav && (phone || waze)) || (editable && onEdit && canAct)) && (
+      {((showNav && (phone || waze)) || (editable && onEdit && canEdit)) && (
         <span className="rdv-actions">
           {showNav && phone && (
             <a className="text-btn" href={`tel:${phone}`}>
@@ -208,7 +213,7 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
               <Navigation size={14} /> Y aller
             </a>
           )}
-          {editable && onEdit && canAct && (
+          {editable && onEdit && canEdit && (
             <button type="button" className="text-btn" onClick={() => onEdit(editable)}>
               <Pencil size={14} /> Modifier
             </button>

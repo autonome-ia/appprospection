@@ -290,6 +290,45 @@ async function run() {
   r = await rest(s.secretaire.token, 'PATCH', `appointments?id=eq.${a1}`, { status: 'vendu' })
   verdict(refused(r), 'secrétaire NE solde PAS le RDV d’un commercial')
 
+  // ---- matrice v2 secrétaire (db/0024) ----
+  r = await rest(s.secretaire.token, 'PATCH', `appointments?id=eq.${a1}`, { scheduled_at: new Date(Date.now() + 7200e3).toISOString() })
+  verdict(okRows(r), 'v2 : secrétaire DÉCALE le RDV d’un commercial')
+
+  r = await rest(s.secretaire.token, 'PATCH', `appointments?id=eq.${a1}`, { commercial_id: s.k2.id })
+  verdict(okRows(r), 'v2 : secrétaire RÉATTRIBUE le RDV à un autre commercial')
+
+  r = await rest(s.secretaire.token, 'PATCH', `appointments?id=eq.${a1}`, { commercial_id: crypto.randomUUID() })
+  verdict(refused(r), 'v2 : réattribution hors agence refusée')
+
+  r = await rest(s.k.token, 'POST', 'appointments', RDV(s.k.id, s.k.id, 'tache'))
+  const t1 = r.data?.[0]?.id
+  if (t1) cleanup.appointments.push(t1)
+  r = await rest(s.secretaire.token, 'PATCH', `appointments?id=eq.${t1}`, { notes: 'RLS TEST s' })
+  verdict(refused(r), 'v2 : secrétaire NE touche PAS une tâche')
+
+  r = await rest(s.secretaire.token, 'DELETE', `appointments?id=eq.${a1}`)
+  verdict(refused(r), 'v2 : secrétaire NE supprime PAS un RDV')
+
+  r = await api('/rest/v1/rpc/book_rdv_for', { method: 'POST', token: s.secretaire.token, body: { p_point_id: p1, p_commercial_id: s.k.id, p_scheduled_at: new Date(Date.now() + 86400e3).toISOString(), p_client_name: 'RLS TEST book' } })
+  verdict(r.status === 200 && typeof r.data === 'string', 'v2 : book_rdv_for — secrétaire lie un RDV au point d’un commercial', JSON.stringify(r.data))
+  if (typeof r.data === 'string') cleanup.appointments.push(r.data)
+  r = await rest(s.manager.token, 'GET', `points?id=eq.${p1}&select=status,client_name`)
+  verdict(r.data?.[0]?.status === 'rdv_pris' && r.data?.[0]?.client_name === 'RLS TEST book', 'v2 : le point est passé « RDV pris », client synchronisé', JSON.stringify(r.data))
+  r = await rest(s.manager.token, 'GET', `point_events?point_id=eq.${p1}&status=eq.rdv_pris&select=author_id`)
+  verdict(r.data?.some((e) => e.author_id === s.k.id), 'v2 : le journal « RDV pris » est signé du COMMERCIAL')
+
+  r = await api('/rest/v1/rpc/book_rdv_for', { method: 'POST', token: s.k.token, body: { p_point_id: p1, p_commercial_id: s.k2.id, p_scheduled_at: new Date().toISOString() } })
+  verdict(r.status >= 400, 'v2 : book_rdv_for — un commercial NE prend PAS de RDV pour un collègue')
+
+  r = await api('/rest/v1/rpc/book_rdv_for', { method: 'POST', token: s.secretaire.token, body: { p_point_id: p1, p_commercial_id: crypto.randomUUID(), p_scheduled_at: new Date().toISOString() } })
+  verdict(r.status >= 400, 'v2 : book_rdv_for — titulaire hors agence refusé')
+
+  r = await rest(s.secretaire.token, 'PATCH', `appointments?id=eq.${a1}`, { status: 'annule' })
+  verdict(okRows(r), 'v2 : secrétaire ANNULE le RDV d’un commercial')
+
+  r = await rest(s.secretaire.token, 'PATCH', `appointments?id=eq.${a1}`, { scheduled_at: new Date().toISOString() })
+  verdict(refused(r), 'v2 : un RDV annulé n’est plus modifiable par la secrétaire')
+
   r = await rest(s.secretaire.token, 'PATCH', `appointments?id=eq.${a2}`, { scheduled_at: new Date(Date.now() + 3600e3).toISOString() })
   verdict(okRows(r), 'secrétaire décale le RDV qu’elle a créé')
 

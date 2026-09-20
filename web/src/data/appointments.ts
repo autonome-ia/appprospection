@@ -5,7 +5,7 @@ import type { Appointment, AppointmentStatus } from '../domain/appointments'
 // `point:points(...)` = jointure PostgREST sur le point lié : contexte
 // terrain (note de la maison) + coordonnées pour « Voir sur la carte ».
 const COLS =
-  'id, point_id, commercial_id, scheduled_at, address, client_name, client_phone, status, notes, kind, point:points(id, lng, lat, notes)'
+  'id, point_id, commercial_id, created_by, scheduled_at, address, client_name, client_phone, status, notes, kind, point:points(id, lng, lat, notes)'
 // Migration db/0016 (colonne kind) pas encore passée : repli sans la colonne
 // (tout est alors un RDV) plutôt qu'un agenda cassé — même filet que
 // fetchContacts pour db/0015.
@@ -120,7 +120,9 @@ export async function createAppointment(
 
 export async function updateAppointment(
   id: string,
-  changes: Partial<Pick<Appointment, 'scheduled_at' | 'client_name' | 'client_phone' | 'address' | 'notes' | 'status'>>,
+  changes: Partial<
+    Pick<Appointment, 'scheduled_at' | 'client_name' | 'client_phone' | 'address' | 'notes' | 'status' | 'commercial_id'>
+  >,
 ): Promise<Appointment> {
   if (!supabase) throw new Error('Supabase non configuré')
   let { data, error } = await supabase.from('appointments').update(changes).eq('id', id).select(COLS).single()
@@ -135,6 +137,43 @@ export async function updateAppointment(
   }
   if (error) throw error
   return withKind([data])[0]
+}
+
+/**
+ * RDV lié à un client EXISTANT, pris au nom d'un commercial (secrétaire —
+ * matrice v2, db/0024 ; aussi superviseurs et le commercial pour lui-même) :
+ * la fonction SQL `book_rdv_for` écrit le RDV, passe le point « RDV pris »
+ * (s'il ne l'est pas déjà) et journalise `rdv_pris` signé du TITULAIRE, en
+ * une transaction — la secrétaire n'a aucun droit d'UPDATE sur les points.
+ * Retourne l'id du RDV créé.
+ */
+export async function bookRdvFor(params: {
+  point_id: string
+  commercial_id: string
+  scheduled_at: string
+  address?: string | null
+  client_name?: string | null
+  client_phone?: string | null
+  notes?: string | null
+}): Promise<string> {
+  if (!supabase) throw new Error('Supabase non configuré')
+  const { data, error } = await supabase.rpc('book_rdv_for', {
+    p_point_id: params.point_id,
+    p_commercial_id: params.commercial_id,
+    p_scheduled_at: params.scheduled_at,
+    p_address: params.address ?? null,
+    p_client_name: params.client_name ?? null,
+    p_client_phone: params.client_phone ?? null,
+    p_notes: params.notes ?? null,
+  })
+  if (error) {
+    // Migration 0024 pas passée : message actionnable plutôt qu'un 404 muet.
+    if (/book_rdv_for/.test(error.message) && /function|schema/i.test(error.message)) {
+      throw new Error('Prise de RDV indisponible : exécuter db/0024_secretaire_rdv.sql')
+    }
+    throw error
+  }
+  return data as string
 }
 
 export async function deleteAppointment(id: string): Promise<void> {

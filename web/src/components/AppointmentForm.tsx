@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
-import { MapPin, Trash2, X } from 'lucide-react'
-import { createAppointment, deleteAppointment, updateAppointment } from '../data/appointments'
+import { CalendarX, MapPin, Trash2, X } from 'lucide-react'
+import { bookRdvFor, createAppointment, deleteAppointment, updateAppointment } from '../data/appointments'
 import { addPointNote, syncPointClient } from '../data/points'
 import { searchAddresses, type AddressResult } from './AddressSearch'
 import type { Appointment, AppointmentKind } from '../domain/appointments'
-import { isSupervisorRole, type Profile } from '../domain/types'
+import { isSecretaireRole, isSupervisorRole, type Profile } from '../domain/types'
+import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
 
 interface Props {
   open: boolean
@@ -28,6 +29,9 @@ interface Props {
       client/adresse facultatifs, ni point ni issues, hors stats. En
       édition, la nature vient de `existing.kind`. */
   kind?: AppointmentKind
+  /** Titulaire proposé à la secrétaire (matrice v2, 20/09) : le propriétaire
+      du point (fiche) ou celui du RDV annulé (Replanifier). */
+  defaultCommercialId?: string | null
   onSaved: () => void
 }
 
@@ -63,9 +67,28 @@ export function AppointmentForm({
   defaultClientPhone,
   defaultAt,
   kind = 'rdv',
+  defaultCommercialId,
   onSaved,
 }: Props) {
   const isTache = (existing?.kind ?? kind) === 'tache'
+  // Secrétaire (matrice v2, db/0024) : elle prend, décale, réattribue et
+  // annule des RDV AU NOM d'un commercial — sélecteur obligatoire, comme
+  // dans « Nouveau contact ». Jamais d'issue terrain ni de tâche.
+  const secretaire = isSecretaireRole(profile.role)
+  const [ownerId, setOwnerId] = useState(existing?.commercial_id ?? defaultCommercialId ?? '')
+  const [team, setTeam] = useState<OrgProfile[]>([])
+  useEffect(() => {
+    if (!secretaire) return
+    fetchOrgProfiles()
+      .then((profs) =>
+        setTeam(
+          profs
+            .filter((p) => !p.disabled_at && p.role !== 'secretaire')
+            .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? '')),
+        ),
+      )
+      .catch((e) => console.error('Profils :', e))
+  }, [secretaire])
   const init = existing ? new Date(existing.scheduled_at) : (defaultAt ?? defaultDate())
   const [dateStr, setDateStr] = useState(toDateInput(init))
   const [timeStr, setTimeStr] = useState(toTimeInput(init))
@@ -88,6 +111,12 @@ export function AppointmentForm({
   const [confirmDel, setConfirmDel] = useState(false)
   const canDelete =
     !!existing && (isSupervisorRole(profile.role) || existing.commercial_id === profile.id)
+  // « Annuler ce RDV » (20/09) : un RDV « à venir » s'annule depuis l'édition,
+  // quelle que soit sa date — avant, hors du jour J, la seule issue était la
+  // suppression (historique perdu). Titulaire, superviseur, secrétaire.
+  const [confirmCancel, setConfirmCancel] = useState(false)
+  const canCancel =
+    !!existing && !isTache && existing.status === 'a_venir' && (canDelete || secretaire)
 
   useEffect(() => {
     if (!addrFocus) return
@@ -135,6 +164,10 @@ export function AppointmentForm({
   }, [coords, existing, address])
 
   async function save() {
+    if (secretaire && !isTache && !ownerId) {
+      toast.error('Choisissez le commercial du rendez-vous')
+      return
+    }
     setSaving(true)
     try {
       const scheduled_at = new Date(`${dateStr}T${timeStr}`).toISOString()
@@ -158,21 +191,40 @@ export function AppointmentForm({
         if (payload.client_phone !== (existing.client_phone ?? null)) changes.client_phone = payload.client_phone
         if (payload.address !== (existing.address ?? null)) changes.address = payload.address
         if (payload.notes !== (existing.notes ?? null)) changes.notes = payload.notes
-        if (Object.keys(changes).length) await updateAppointment(existing.id, changes)
+        // Réattribution (secrétaire, 20/09) : le RDV change de titulaire —
+        // la RLS exige un membre de l'agence (db/0024).
+        const reassign: { commercial_id?: string } =
+          secretaire && ownerId && ownerId !== existing.commercial_id ? { commercial_id: ownerId } : {}
+        if (Object.keys(changes).length || reassign.commercial_id) {
+          await updateAppointment(existing.id, { ...changes, ...reassign })
+        }
+      } else if (secretaire && pointId) {
+        // Client existant : RDV + bascule « RDV pris » + journal AU NOM du
+        // commercial, en UNE transaction (book_rdv_for, db/0024).
+        await bookRdvFor({
+          point_id: pointId,
+          commercial_id: ownerId,
+          scheduled_at,
+          ...payload,
+        })
       } else {
         await createAppointment(profile, {
           point_id: pointId ?? null,
           scheduled_at,
           ...payload,
           ...(isTache ? { kind: 'tache' as const } : {}),
+          ...(secretaire && ownerId ? { commercial_id: ownerId } : {}),
         })
       }
       // Le point lié hérite du contexte saisi ici (fiche maison cohérente) :
       // nom du client synchronisé, note du RDV ajoutée au journal de la
       // maison (à la création seulement, pour ne pas dupliquer à chaque
       // modification). Best effort : un échec n'annule pas le RDV.
+      // Secrétaire : la synchro nom/téléphone est faite par book_rdv_for à la
+      // création ; ensuite elle n'a aucun droit d'UPDATE sur le point, et la
+      // note reste celle du RDV (pas une note terrain signée d'elle).
       const linkedPointId = existing ? existing.point_id : (pointId ?? null)
-      if (linkedPointId) {
+      if (linkedPointId && !secretaire) {
         // Synchronisés SEULEMENT s'ils ont réellement changé dans CE
         // formulaire : décaler l'heure d'un RDV repoussait l'ancien nom sur
         // le point, écrasant une correction faite entre-temps sur la fiche
@@ -249,6 +301,30 @@ export function AppointmentForm({
           {/* Les presets « Demain / Après-demain / Samedi » (A15) ont été
               RETIRÉS (décision briac 25/07) : de la place pour rien — la
               roue iOS suffit. */}
+          {secretaire && !isTache && (
+            <>
+              <p className="eyebrow field-label">Pour quel commercial</p>
+              <select
+                className="field-input"
+                value={ownerId}
+                onChange={(e) => setOwnerId(e.target.value)}
+              >
+                <option value="" disabled>
+                  Choisir…
+                </option>
+                {team.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.full_name ?? 'Sans nom'}
+                  </option>
+                ))}
+              </select>
+              <p className="field-hint">
+                {existing
+                  ? 'Changer de commercial déplace le RDV dans son agenda.'
+                  : 'Le RDV appartiendra à ce commercial (son agenda, ses stats).'}
+              </p>
+            </>
+          )}
           <div className="field-grid">
             <div>
               <p className="eyebrow field-label">Date</p>
@@ -358,6 +434,35 @@ export function AppointmentForm({
             </>
           )}
 
+          {canCancel && (
+            <button
+              type="button"
+              className="text-btn drawer-delete"
+              disabled={saving}
+              onClick={async () => {
+                if (!confirmCancel) {
+                  setConfirmCancel(true)
+                  window.setTimeout(() => setConfirmCancel(false), 4000)
+                  return
+                }
+                setSaving(true)
+                try {
+                  await updateAppointment(existing!.id, { status: 'annule' })
+                  toast('RDV annulé : il reste dans l’historique, « Replanifier » est proposé')
+                  onOpenChange(false)
+                  onSaved()
+                } catch (e) {
+                  console.error('Annulation :', e)
+                  toast.error('Annulation impossible : vérifiez le réseau')
+                } finally {
+                  setSaving(false)
+                }
+              }}
+            >
+              <CalendarX size={14} strokeWidth={1.8} />{' '}
+              {confirmCancel ? 'Confirmer l’annulation ?' : 'Annuler ce RDV'}
+            </button>
+          )}
           {canDelete && (
             <button
               type="button"
@@ -400,7 +505,7 @@ export function AppointmentForm({
               type="button"
               className="btn btn-primary"
               onClick={save}
-              disabled={saving || (isTache && !notes.trim())}
+              disabled={saving || (isTache && !notes.trim()) || (secretaire && !isTache && !ownerId)}
             >
               {saving ? 'Enregistrement…' : 'Enregistrer'}
             </button>

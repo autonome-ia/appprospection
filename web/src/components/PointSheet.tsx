@@ -113,6 +113,7 @@ export function PointSheet({
           pointNote={rdvTarget.point.note}
           defaultClientName={rdvTarget.point.client_name}
           defaultClientPhone={rdvTarget.point.client_phone}
+          defaultCommercialId={rdvTarget.point.created_by}
           onSaved={() => {
             setRdvTarget(null)
             setApptsVersion((v) => v + 1)

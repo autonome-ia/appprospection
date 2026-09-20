@@ -33,7 +33,7 @@ import {
   sameDisplayStatus,
   type PointStatus,
 } from '../domain/status'
-import type { MapPoint } from '../domain/types'
+import { isSecretaireRole, type MapPoint } from '../domain/types'
 
 interface Props {
   open: boolean
@@ -97,6 +97,11 @@ export function PointDetailSheet({
   onApptsChanged,
 }: Props) {
   const { profile: me } = useSession()
+  // Secrétaire (matrice v2, 20/09) : le POINT reste en lecture — statut,
+  // client, relance, suppression sont au commercial (la RLS le refuse de
+  // toute façon). Elle garde le bloc RDV (planifier / décaler au nom du
+  // commercial, db/0024) et peut laisser une note signée d'elle.
+  const readOnlyPoint = isSecretaireRole(me?.role)
   const [detail, setDetail] = useState<PointDetail | null>(null)
   const [status, setStatus] = useState<PointStatus>('absent')
   // Chips de statut repliées derrière « Modifier » (réorganisation briac
@@ -258,12 +263,13 @@ export function PointDetailSheet({
   if (!point) return null
 
   const init = initialRef.current
-  const dirty =
-    status !== init.status ||
-    clientName !== init.clientName ||
-    clientPhone !== init.clientPhone ||
-    ((status === 'a_revoir' || status === 'rdv_pris') && revisitAt !== init.revisitAt) ||
-    newNote.trim().length > 0
+  const dirty = readOnlyPoint
+    ? newNote.trim().length > 0
+    : status !== init.status ||
+      clientName !== init.clientName ||
+      clientPhone !== init.clientPhone ||
+      ((status === 'a_revoir' || status === 'rdv_pris') && revisitAt !== init.revisitAt) ||
+      newNote.trim().length > 0
 
   // Journal affiché : le vrai journal, ou à défaut la dernière note connue
   // du point (ancienne donnée pas encore migrée, ou fetch en cours).
@@ -525,6 +531,7 @@ export function PointDetailSheet({
                   placeholder="Nom (facultatif)"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
+                  disabled={readOnlyPoint}
                 />
                 <input
                   className="field-input"
@@ -532,6 +539,7 @@ export function PointDetailSheet({
                   placeholder="06 …"
                   value={clientPhone}
                   onChange={(e) => setClientPhone(e.target.value)}
+                  disabled={readOnlyPoint}
                 />
               </div>
               {/* Date de relance DANS la section client (retour briac 25/07),
@@ -546,6 +554,7 @@ export function PointDetailSheet({
                     type="date"
                     value={revisitAt}
                     onChange={(e) => setRevisitAt(e.target.value)}
+                    disabled={readOnlyPoint}
                   />
                 </>
               )}
@@ -641,9 +650,11 @@ export function PointDetailSheet({
                 <img className="chip-marker" src={markerDataUrl(status)} alt="" />
                 {STATUS_BY_VALUE[status].label}
               </span>
-              <button type="button" className="text-btn" onClick={() => setStatusOpen(true)}>
-                Modifier
-              </button>
+              {!readOnlyPoint && (
+                <button type="button" className="text-btn" onClick={() => setStatusOpen(true)}>
+                  Modifier
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -677,14 +688,16 @@ export function PointDetailSheet({
           {/* Destructif déclassé : plus de rangée à égalité avec Enregistrer,
               où le pouce arrivait lancé en fin de scroll (audit UX, A3).
               La confirmation en deux taps est conservée. */}
-          <button
-            type="button"
-            className="text-btn danger drawer-delete"
-            onClick={remove}
-            disabled={saving}
-          >
-            <Trash2 size={14} /> {confirmDelete ? 'Confirmer la suppression ?' : 'Supprimer le point'}
-          </button>
+          {!readOnlyPoint && (
+            <button
+              type="button"
+              className="text-btn danger drawer-delete"
+              onClick={remove}
+              disabled={saving}
+            >
+              <Trash2 size={14} /> {confirmDelete ? 'Confirmer la suppression ?' : 'Supprimer le point'}
+            </button>
+          )}
 
           {hasHouseInfo && (
             <p className="data-attribution">Données IGN BD TOPO · BDNB (CSTB)</p>
@@ -708,7 +721,7 @@ export function PointDetailSheet({
               </button>
             )}
             <button type="button" className="btn btn-primary" onClick={save} disabled={saving || !dirty}>
-              {saving ? 'Enregistrement…' : 'Enregistrer'}
+              {saving ? 'Enregistrement…' : readOnlyPoint ? 'Ajouter la note' : 'Enregistrer'}
             </button>
           </div>
           </div>

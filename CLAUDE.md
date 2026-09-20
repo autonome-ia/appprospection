@@ -67,11 +67,16 @@ l'UI ne fait que suivre. Helpers : `is_supervisor()` (manager OU chef_ventes) c�
 - **chef_ventes** : mêmes vues ET pouvoirs TERRAIN que le manager (carte équipe + filtre « Qui »,
   drag des points d'autrui, stats + drill-down + classement, relances/contacts de tous, issues des
   RDV des autres, suppression RDV/journal/notes), liste Équipe + code d'invitation en LECTURE.
-- **secretaire** : agenda partagé en LECTURE (App.tsx la borne à l'onglet Agenda, sans nav ni
-  carte ; roue Réglages dans l'en-tête Agenda → ProfileSheet) ; UNE action : **ajouter des contacts
-  AU NOM d'un commercial** (sélecteur obligatoire dans ContactForm — le point, le journal ET le RDV
-  appartiennent au commercial, en UN insert : elle n'a aucun droit d'UPDATE ensuite). Ni issues, ni
-  création/décalage de RDV, ni tâches, ni relances. Elle voit TOUS les contacts (standard tél.).
+- **secretaire (matrice v2, 20/09/2026 — retour Alexis/Caroline)** : agenda partagé = toute son app
+  (App.tsx la borne à l'onglet Agenda, sans nav ni carte ; roue Réglages dans l'en-tête Agenda →
+  ProfileSheet). Elle agit TOUJOURS au nom d'un commercial : ajouter des contacts (ContactForm,
+  sélecteur obligatoire, un insert), **créer un RDV** pour un commercial choisi (AppointmentForm,
+  sélecteur obligatoire ; client existant → RPC `book_rdv_for` db/0024 : RDV + point « RDV pris » +
+  journal signé du COMMERCIAL en une transaction), **décaler / réattribuer / annuler** un RDV « à
+  venir » (policy appts_update db/0024 ; jamais Vendu / En attente / Refus, jamais de tâche, jamais
+  de DELETE). Fiche point en LECTURE (statut, client, relance, suppression masqués ; note signée
+  d'elle et bloc RDV actifs). Elle voit TOUS les contacts (standard tél.). L'agenda affiche « pris
+  par Prénom » quand le saisisseur ≠ titulaire.
 - **commercial** : inchangé (ses points — carte privée —, ses stats, agenda partagé).
 - **Objectif hebdo 0** (demande briac 09/08) : hors classement des commerciaux et hors objectif
   équipe (Stats + Accueil) ; secrétaires et comptes désactivés exclus d'office. Remettre un

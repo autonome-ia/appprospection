@@ -75,14 +75,28 @@ interface CardProps {
   onOpenClient: (a: Appointment) => void
   /** RDV annulé → nouveau RDV pré-rempli du même point (refonte 29/07). */
   onReplan?: (a: Appointment) => void
-  /** Secrétaire (étape 4) : les agendas de tous en LECTURE — ni issues, ni
-      « Fait ✓ », ni fiche ; Appeler / Itinéraire restent (son quotidien). */
+  /** Secrétaire (matrice v2, 20/09) : aucune ISSUE ni « Fait ✓ » (terrain),
+      mais le tap ouvre la fiche / l'édition d'un RDV (décaler, réattribuer,
+      annuler au nom du commercial) et « Replanifier » lui est proposé. */
   readOnly?: boolean
+  /** Qui a saisi le RDV quand ce n'est pas le titulaire (secrétaire,
+      superviseur) : « pris par Caroline » — le commercial sait d'où vient
+      le créneau. */
+  bookedBy?: OrgProfile
 }
 
 /** RDV en « rail horaire » (refonte 26/07) : heure mono à gauche, barre à la
     couleur du commercial, contenu aéré — plus de cadre de carte. */
-function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan, readOnly }: CardProps) {
+function AppointmentCard({
+  appt,
+  who,
+  profile,
+  onChanged,
+  onOpenClient,
+  onReplan,
+  readOnly,
+  bookedBy,
+}: CardProps) {
   const meta = APPOINTMENT_STATUS_META[appt.status]
   const color = who ? colorForCommercial(who.id, who.color) : '#98a2b3'
   // Tâche d'agenda (29/07) : sa note est son TITRE, client/adresse en
@@ -102,7 +116,11 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
   const canAct =
     !readOnly && (isSupervisorRole(profile.role) || appt.commercial_id === profile.id)
   // Une tâche d'un collègue reste lisible mais inerte (le tap ouvre l'édition).
-  const inert = readOnly || (isTache && !canAct)
+  // Secrétaire : les tâches sont inertes ; un RDV s'ouvre (fiche du point,
+  // ou édition s'il n'a pas de point et reste « à venir »).
+  const inert = readOnly
+    ? isTache || (!appt.point && appt.status !== 'a_venir')
+    : isTache && !canAct
   // Même règle que RdvSection (la fiche) : toutes les issues dès le jour J,
   // Vendu / Refus tant que le RDV est « En attente ».
   const railOutcomes =
@@ -155,6 +173,9 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
               notes, retour briac 25/07) — la barre porte déjà sa couleur. */}
           {who && who.id !== profile.id && (
             <span className="appt-owner">{displayName(who)}</span>
+          )}
+          {!isTache && bookedBy && (
+            <span className="appt-owner">pris par {displayName(bookedBy)}</span>
           )}
           {/* Les notes sont LE contexte du commercial : toujours visibles.
               Filet neutre = note du RDV, filet accent = note terrain du
@@ -253,7 +274,7 @@ function AppointmentCard({ appt, who, profile, onChanged, onOpenClient, onReplan
 
         {/* RDV annulé : la suite en 1 tap (refonte des issues 29/07) — un
             NOUVEAU RDV pré-rempli, l'annulé reste dans l'historique. */}
-        {!isTache && canAct && appt.status === 'annule' && appt.point && onReplan && (
+        {!isTache && (canAct || readOnly) && appt.status === 'annule' && appt.point && onReplan && (
           <div className="appt-outcomes">
             <button type="button" className="outcome-btn" onClick={() => onReplan(appt)}>
               <CalendarPlus size={14} strokeWidth={1.9} /> Replanifier
@@ -332,7 +353,7 @@ interface DaySheetProps {
   onCreateTask: () => void
   /** RDV annulé → nouveau RDV pré-rempli (refonte des issues 29/07). */
   onReplan: (a: Appointment) => void
-  /** Secrétaire : planning en lecture — ni issues ni création. */
+  /** Secrétaire (matrice v2) : ni issues ni tâches — mais « RDV ce jour ». */
   readOnly?: boolean
 }
 
@@ -391,6 +412,11 @@ function DaySheet({
                     onOpenClient={onOpenClient}
                     onReplan={onReplan}
                     readOnly={readOnly}
+                    bookedBy={
+                      a.created_by && a.created_by !== a.commercial_id
+                        ? whoById[a.created_by]
+                        : undefined
+                    }
                   />
                 ))}
                 {/* Maisons « à revoir » planifiées ce jour (pas des RDV : un
@@ -421,18 +447,19 @@ function DaySheet({
               </>
             )}
 
-            {!readOnly && (
-              <div className="drawer-footer">
-                {/* Tâche libre (29/07, demande chef des ventes) : même jour,
-                    même formulaire — la note devient le titre, hors stats. */}
+            <div className="drawer-footer">
+              {/* Tâche libre (29/07, demande chef des ventes) : même jour,
+                  même formulaire — la note devient le titre, hors stats.
+                  Pas pour la secrétaire (terrain) ; le RDV, si (v2, 20/09). */}
+              {!readOnly && (
                 <button type="button" className="btn btn-ghost" onClick={onCreateTask}>
                   <ClipboardList size={15} strokeWidth={1.9} /> Tâche
                 </button>
-                <button type="button" className="btn btn-primary" onClick={onCreate}>
-                  <Plus size={15} strokeWidth={2.2} /> RDV ce jour
-                </button>
-              </div>
-            )}
+              )}
+              <button type="button" className="btn btn-primary" onClick={onCreate}>
+                <Plus size={15} strokeWidth={2.2} /> RDV ce jour
+              </button>
+            </div>
           </div>
         </Drawer.Content>
       </Drawer.Portal>
@@ -1249,6 +1276,7 @@ export function AgendaScreen({
           pointNote={replan.point.notes}
           defaultClientName={replan.client_name}
           defaultClientPhone={replan.client_phone}
+          defaultCommercialId={replan.commercial_id}
           onSaved={() => {
             setReplan(null)
             reload()

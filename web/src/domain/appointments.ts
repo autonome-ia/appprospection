@@ -9,6 +9,9 @@ export interface Appointment {
   id: string
   point_id: string | null
   commercial_id: string | null
+  /** Qui a saisi le RDV — ≠ titulaire quand la secrétaire (ou un
+      superviseur) l'a pris au nom du commercial : l'agenda dit « pris par ». */
+  created_by: string | null
   scheduled_at: string
   address: string | null
   client_name: string | null
