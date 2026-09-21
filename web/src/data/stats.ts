@@ -83,7 +83,14 @@ async function fetchAllRows(
 
 export interface CommercialStats {
   commercial_id: string
+  /** TOUTES les portes toquées (travail fait) : classement, Accueil, graphe,
+      ligne d'en-tête, « Points posés ». */
   portes: number
+  /** Base du TUNNEL (retour Alexis 21/09/2026) : portes SANS les « hors
+      cible » ni les maisons déjà clientes (`ancien_client`) — à qui on ne
+      peut rien vendre. Le tunnel garde le libellé « Portes » (choix briac),
+      une mention sous le tunnel explique l'écart avec l'en-tête. */
+  prospects: number
   absents: number
   rdv_pris: number
   /** RDV de la période déjà ÉCHUS (ou soldés) : dénominateur du taux
@@ -106,7 +113,7 @@ export interface StatsResult {
 }
 
 function emptyStats(id: string): CommercialStats {
-  return { commercial_id: id, portes: 0, absents: 0, rdv_pris: 0, rdv_planifies: 0, rdv_effectues: 0, ventes: 0, parStatut: {} }
+  return { commercial_id: id, portes: 0, prospects: 0, absents: 0, rdv_pris: 0, rdv_planifies: 0, rdv_effectues: 0, ventes: 0, parStatut: {} }
 }
 
 /** Profils support (db/0022 — dev/test) : leur activité ne compte dans AUCUN
@@ -167,6 +174,9 @@ async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
     // L'activité d'un profil support (tests) ne compte nulle part.
     if (e.author_id && support.has(e.author_id)) continue
     bump(e.author_id, 'portes')
+    // Hors cible et client existant : une porte (travail), pas un prospect
+    // (aucune vente possible) — ils sortent de la base du tunnel.
+    if (e.status !== 'hors_cible' && e.status !== 'ancien_client') bump(e.author_id, 'prospects')
     bumpStatut(e.author_id, e.status)
     if (e.status === 'absent') bump(e.author_id, 'absents')
     if (e.status === 'rdv_pris') bump(e.author_id, 'rdv_pris')

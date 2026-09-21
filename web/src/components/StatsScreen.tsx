@@ -28,6 +28,7 @@ const pct1 = (r: number) => `${(r * 100).toFixed(1)}%`
 const EMPTY: CommercialStats = {
   commercial_id: '',
   portes: 0,
+  prospects: 0,
   absents: 0,
   rdv_pris: 0,
   rdv_planifies: 0,
@@ -78,10 +79,15 @@ function HeroDelta({ value, period }: { value: number; period: Period }) {
 // peut être fait la suivante) — peut dépasser 100 % sur une petite période ;
 // taux « métier » assumé, qui remplace la cohorte du 25/07 à l'affichage.
 const STEPS: { key: keyof CommercialStats; label: string; from?: keyof CommercialStats }[] = [
-  { key: 'portes', label: 'Portes' },
+  // Base du tunnel = PROSPECTS (retour Alexis 21/09) : les portes SANS les
+  // hors cible ni les maisons déjà clientes — on ne peut rien leur vendre,
+  // ils ne doivent pas peser sur le taux de prise. Le libellé reste
+  // « Portes » (choix briac) ; la mention du pied explique l'écart avec la
+  // ligne d'en-tête, qui compte TOUTES les portes (le travail).
+  { key: 'prospects', label: 'Portes' },
   // Taux de prise AFFICHÉ (retour briac 27/07) mais hors logique de blocage :
   // 5-30 % est structurel au porte-à-porte, il serait rouge en permanence.
-  { key: 'rdv_pris', label: 'RDV pris', from: 'portes' },
+  { key: 'rdv_pris', label: 'RDV pris', from: 'prospects' },
   { key: 'rdv_effectues', label: 'Effectués', from: 'rdv_pris' },
   { key: 'ventes', label: 'Ventes', from: 'rdv_effectues' },
 ]
@@ -131,6 +137,11 @@ function Funnel({ s }: { s: CommercialStats }) {
               le tunnel d'un coup, personne ne s'en servait. */}
           Conversion <b className="tnum">{pct1(ratio(s.ventes, s.rdv_effectues))}</b>
         </span>
+        {s.portes > s.prospects && (
+          <span className="funnel-absents">
+            hors <span className="tnum">{s.portes - s.prospects}</span> hors cible / déjà clients
+          </span>
+        )}
       </div>
     </div>
   )
