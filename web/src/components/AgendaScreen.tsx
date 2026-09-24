@@ -30,6 +30,7 @@ import { wazeUrl } from '../lib/nav'
 import { ContactForm } from './ContactForm'
 import {
   APPOINTMENT_STATUS_META,
+  outcomeButtonLabel,
   outcomeButtonStyle,
   APPOINTMENT_OUTCOMES,
   FOLLOW_UP_OUTCOMES,
@@ -245,6 +246,7 @@ function AppointmentCard({
                   key={o}
                   type="button"
                   className="outcome-btn"
+                  data-outcome={o}
                   style={outcomeButtonStyle(m)}
                   disabled={busy}
                   onClick={async () => {
@@ -267,7 +269,7 @@ function AppointmentCard({
                     }
                   }}
                 >
-                  {m.label}
+                  {outcomeButtonLabel(o)}
                 </button>
               )
             })}
@@ -468,6 +470,11 @@ function DaySheet({
     </Drawer.Root>
   )
 }
+
+/** Pilules du mois (≈ 6 caractères visibles) : « M. et Mme Caradec » →
+    « Caradec » — la civilité mangeait tout le nom (audit design 24/09). */
+const withoutCivility = (name: string) =>
+  name.replace(/^(m\.?\s*et\s*mme|mme|mlle|mr|m\.|famille)\s+/i, '') || name
 
 export function AgendaScreen({
   profile,
@@ -903,15 +910,6 @@ export function AgendaScreen({
             {calMode === 'mois' ? monthLabel : weekLabel}
           </span>
           <div className="cal-nav-controls">
-            <Segmented
-              className="seg-mini"
-              options={[
-                { value: 'mois', label: 'Mois' },
-                { value: 'semaine', label: 'Semaine' },
-              ]}
-              value={calMode}
-              onChange={switchMode}
-            />
             <button
               type="button"
               className="icon-btn"
@@ -952,6 +950,17 @@ export function AgendaScreen({
             surligné quand un filtre est actif, comme sur la carte. Utile à la
             secrétaire aussi (lecture) ; « + Tâche » reste hors de sa portée. */}
         <div className="chip-row agenda-mine">
+          {/* Mois/Semaine descend ici (audit design 24/09) : sur la ligne du
+              titre, « Septembre 2026 » passait sur deux lignes. */}
+          <Segmented
+            className="seg-mini"
+            options={[
+              { value: 'mois', label: 'Mois' },
+              { value: 'semaine', label: 'Semaine' },
+            ]}
+            value={calMode}
+            onChange={switchMode}
+          />
           <button
             type="button"
             className={`chip chip-sm agenda-who-btn ${whoOpen || whoFilter.size > 0 ? 'is-active' : ''}`}
@@ -1116,7 +1125,9 @@ export function AgendaScreen({
                 label:
                   a.kind === 'tache'
                     ? (a.notes ?? 'Tâche')
-                    : (a.client_name ?? a.address ?? 'RDV'),
+                    : a.client_name
+                      ? withoutCivility(a.client_name)
+                      : (a.address ?? 'RDV'),
                 color: a.commercial_id
                   ? colorForCommercial(a.commercial_id, whoById[a.commercial_id]?.color)
                   : '#98a2b3',
@@ -1125,7 +1136,7 @@ export function AgendaScreen({
                 dot: a.kind === 'tache' ? null : APPOINTMENT_STATUS_META[a.status].color,
               })),
               ...dayRevisits.map((p) => ({
-                label: p.client_name ?? p.address ?? 'À revoir',
+                label: p.client_name ? withoutCivility(p.client_name) : (p.address ?? 'À revoir'),
                 color: p.created_by
                   ? colorForCommercial(p.created_by, whoById[p.created_by]?.color)
                   : '#98a2b3',

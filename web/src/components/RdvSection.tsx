@@ -5,6 +5,7 @@ import { setAppointmentOutcome } from '../data/appointments'
 import {
   APPOINTMENT_OUTCOMES,
   APPOINTMENT_STATUS_META,
+  outcomeButtonLabel,
   outcomeButtonStyle,
   FOLLOW_UP_OUTCOMES,
   outcomeToastMessage,
@@ -175,6 +176,7 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
                 key={o}
                 type="button"
                 className="outcome-btn"
+                data-outcome={o}
                 style={outcomeButtonStyle(m)}
                 disabled={busy}
                 onClick={async () => {
@@ -198,7 +200,7 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
                   }
                 }}
               >
-                {m.label}
+                {outcomeButtonLabel(o)}
               </button>
             )
           })}

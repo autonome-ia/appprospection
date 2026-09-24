@@ -854,7 +854,7 @@
 .appt-outcomes {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: 8px;
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--line);
@@ -917,7 +917,10 @@
 }
 .agenda-screen .cal-grid {
   flex: 1 1 auto;
-  grid-auto-rows: 1fr; /* semaines d'égale hauteur, qui grandissent avec l'écran */
+  /* Les semaines se partagent la hauteur de l'écran, mais une semaine
+     chargée prend la place de ses RDV avant les semaines vides (audit
+     design 24/09 : trois semaines vides aussi hautes que la pleine). */
+  grid-auto-rows: minmax(64px, auto);
 }
 .cal-nav {
   display: flex;
@@ -960,6 +963,7 @@
   font-weight: 650;
   letter-spacing: -0.02em;
   padding-left: 2px;
+  white-space: nowrap;
 }
 .cal-weekdays {
   display: grid;
@@ -1039,7 +1043,7 @@
 .cal-event {
   display: block;
   max-width: 100%;
-  padding: 2.5px 3px;
+  padding: 3px 4px;
   border-radius: 4px;
   font-size: 10px;
   font-weight: 600;
@@ -3489,4 +3493,28 @@ select.field-input {
 }
 .stats-screen.is-pending > :not(.seg):not(.stats-rangebar) {
   opacity: 0.45;
+}
+
+/* Issues d'un RDV (audit design 24/09) : les trois vraies issues en une
+   rangée de largeurs égales ; « Annulé » (le RDV n'a pas eu lieu) passe en
+   lien discret dessous — quatre contours de même poids débordaient sur deux
+   lignes au hasard de la largeur. */
+.appt-outcomes .outcome-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 10px 6px;
+  white-space: nowrap;
+}
+.rdv-block .appt-outcomes {
+  align-self: stretch;
+}
+.appt-outcomes .outcome-btn[data-outcome='annule'] {
+  flex: 1 0 100%;
+  justify-content: flex-start;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 4px 2px;
+  color: var(--ink-3) !important;
+  font-weight: 500;
 }

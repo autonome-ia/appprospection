@@ -39,6 +39,12 @@ export const outcomeButtonStyle = (m: AppointmentStatusMeta) => ({
   borderColor: `color-mix(in srgb, ${m.css} 35%, transparent)`,
 })
 
+/** Libellé d'un BOUTON d'issue : « Annulé », relégué en lien sous les trois
+    vraies issues, dit ce qu'il signifie (audit design 24/09). Le libellé
+    court reste celui des badges et de l'historique. */
+export const outcomeButtonLabel = (s: AppointmentStatus) =>
+  s === 'annule' ? 'Le RDV n’a pas eu lieu' : APPOINTMENT_STATUS_META[s].label
+
 /** Badge d'issue : texte coloré sur un voile de la même couleur. */
 export const outcomeBadgeStyle = (m: AppointmentStatusMeta) => ({
   color: m.css,

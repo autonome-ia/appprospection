@@ -6,6 +6,7 @@ import { fetchPendingOutcomes, setAppointmentOutcome } from '../data/appointment
 import {
   APPOINTMENT_OUTCOMES,
   APPOINTMENT_STATUS_META,
+  outcomeButtonLabel,
   outcomeButtonStyle,
   outcomeToastMessage,
   type Appointment,
@@ -122,6 +123,7 @@ export function PendingOutcomes({ profile }: { profile: Profile }) {
                         key={o}
                         type="button"
                         className="outcome-btn"
+                        data-outcome={o}
                         style={outcomeButtonStyle(m)}
                         disabled={busyId === a.id}
                         onClick={async () => {
@@ -148,7 +150,7 @@ export function PendingOutcomes({ profile }: { profile: Profile }) {
                           }
                         }}
                       >
-                        {m.label}
+                        {outcomeButtonLabel(o)}
                       </button>
                     )
                   })}
