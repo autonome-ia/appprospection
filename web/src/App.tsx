@@ -173,10 +173,16 @@ export default function App() {
           position="top-center"
           theme={dark ? 'dark' : 'light'}
           toastOptions={{
+            // Relief de la DA (chantier design 24/09) : rayon des cartes,
+            // ombre franche, corps 15 — le toast est la confirmation de
+            // chaque pose, il doit avoir la qualité du reste.
             style: {
               fontFamily: 'var(--font-sans)',
-              borderRadius: '12px',
+              fontSize: '15px',
+              borderRadius: 'var(--r-lg)',
               border: '1px solid var(--line)',
+              boxShadow: 'var(--shadow-lg)',
+              padding: '14px 16px',
             },
           }}
         />

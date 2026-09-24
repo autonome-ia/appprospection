@@ -58,6 +58,13 @@
 .map-filterrow::-webkit-scrollbar {
   display: none;
 }
+/* Chips qui défilent : fondu au bord droit plutôt qu'une coupe nette
+   (audit design 24/09) — on devine qu'il y en a d'autres. */
+.map-filterrow {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+  padding-right: 16px;
+}
 .map-filterbar .chip {
   background: var(--surface);
   box-shadow: var(--shadow-md);
