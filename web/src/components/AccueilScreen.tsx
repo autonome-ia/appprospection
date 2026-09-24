@@ -23,6 +23,7 @@ import { AppointmentForm } from './AppointmentForm'
 import { GuideSection } from './Guide'
 import { ProfileSheet } from './ProfileSheet'
 import { WeatherChip } from './WeatherChip'
+import { Num } from './ui/Num'
 import { isSupervisorRole, type MapPoint } from '../domain/types'
 
 function relanceLabel(iso: string): string {
@@ -269,19 +270,23 @@ export function AccueilScreen({
           </div>
           <div className="today-figures">
             <div className="today-figure">
-              <span className="today-num tnum">{portesJour}</span>
+              <span className="today-num tnum">
+                <Num value={portesJour ?? 0} fromZero={!introPlayed} />
+              </span>
               <span className="today-cap">{isSupervisor ? 'portes équipe' : 'portes toquées'}</span>
             </div>
             <div className="today-figure">
               {/* Les tâches d'agenda (29/07) restent dans la LISTE du jour
                   mais hors compteur : « RDV du jour » = des vrais RDV. */}
               <span className="today-num tnum">
-                {todayAppts.filter((a) => a.kind !== 'tache').length}
+                <Num value={todayAppts.filter((a) => a.kind !== 'tache').length} fromZero={!introPlayed} />
               </span>
               <span className="today-cap">RDV du jour</span>
             </div>
             <div className="today-figure">
-              <span className="today-num tnum">{relances.length}</span>
+              <span className="today-num tnum">
+                <Num value={relances.length} fromZero={!introPlayed} />
+              </span>
               <span className="today-cap">à relancer</span>
             </div>
           </div>

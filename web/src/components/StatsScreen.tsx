@@ -16,6 +16,7 @@ import { CLIENT_STATUSES, DISPLAY_STATUSES, isClientStatus } from '../domain/sta
 import { markerDataUrl } from '../config/markers'
 import { isManagerHiddenFor, isSupervisorRole, type Profile } from '../domain/types'
 import { Segmented } from './ui/Segmented'
+import { Num } from './ui/Num'
 
 const PERIODS: { value: Period; label: string }[] = [
   { value: 'jour', label: 'Jour' },
@@ -124,7 +125,9 @@ function Funnel({ s }: { s: CommercialStats }) {
                   className={`fun-bar fun-bar-${i}`}
                   style={{ width: `${Math.max(2, (v / max) * 100)}%` }}
                 />
-                <span className="fun-value tnum">{v}</span>
+                <span className="fun-value tnum">
+                  <Num value={v} />
+                </span>
               </div>
             </div>
           </div>
@@ -215,7 +218,9 @@ function Chart({ daily, days }: { daily: Record<string, number>; days: string[] 
           Semaine (en Mois, 31 barres — les chiffres ne rentrent pas). */}
       <div className="chart-head">
         <p className="eyebrow">Portes toquées par jour</p>
-        <span className="chart-total tnum">{total}</span>
+        <span className="chart-total tnum">
+          <Num value={total} />
+        </span>
       </div>
       <div className="chart-bars">
         {days.map((d) => {
@@ -237,6 +242,10 @@ function Chart({ daily, days }: { daily: Record<string, number>; days: string[] 
     </div>
   )
 }
+
+// Le chiffre héros part de 0 à la PREMIÈRE ouverture des Stats de la session
+// (moment « démo ») ; ensuite il roule seulement quand la valeur change.
+let heroPlayed = false
 
 export function StatsScreen({
   profile,
@@ -302,6 +311,11 @@ export function StatsScreen({
 
   // Changer de commercial ferme l'éditeur d'objectif.
   useEffect(() => setTargetEdit(null), [drillId])
+
+  // Héros joué dès que les premiers chiffres sont peints (voir heroPlayed).
+  useEffect(() => {
+    if (data) heroPlayed = true
+  }, [data])
 
   useEffect(() => {
     loadStats()
@@ -463,7 +477,9 @@ export function StatsScreen({
         <section className="stats-hero">
           <p className="eyebrow">{focusId ? nameOf(focusId) : 'Équipe'}</p>
           <div className="hero-line">
-            <span className="hero-value tnum">{cur.ventes}</span>
+            <span className="hero-value tnum">
+              <Num value={cur.ventes} fromZero={!heroPlayed} />
+            </span>
             <span className="hero-unit">vente{cur.ventes > 1 ? 's' : ''}</span>
             <HeroDelta value={cur.ventes - prev.ventes} period={period} />
           </div>
@@ -505,7 +521,7 @@ export function StatsScreen({
               {focusId ? 'Objectif hebdo de RDV' : 'Objectif hebdo équipe'}
             </span>
             <span className="obj-big tnum">
-              {cur.rdv_pris} / {objectiveTarget}
+              <Num value={cur.rdv_pris} /> / {objectiveTarget}
             </span>
             {/* Le crayon vit ici, plus dans les lignes du classement où il
                 brouillait le drill-down (audit UX A25). */}
