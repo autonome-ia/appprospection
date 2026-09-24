@@ -40,6 +40,7 @@ import { STATUS_BY_VALUE, sameDisplayStatus } from '../domain/status'
 import { colorForCommercial } from '../domain/colors'
 import { ProfileSheet } from './ProfileSheet'
 import { isSecretaireRole, isSupervisorRole, type MapPoint, type Profile } from '../domain/types'
+import { Segmented } from './ui/Segmented'
 
 function fmt(iso: string, timeOnly = false): string {
   return new Intl.DateTimeFormat(
@@ -792,24 +793,14 @@ export function AgendaScreen({
       )}
 
       <div className="agenda-top">
-        <div className="seg">
-          {(
-            [
-              ['agenda', 'Agenda'],
-              ['contacts', 'Contacts'],
-            ] as ['agenda' | 'contacts', string][]
-          ).map(([v, label]) => (
-            <button
-              key={v}
-              type="button"
-              className={`seg-btn ${view === v ? 'is-active' : ''}`}
-              onClick={() => setView(v)}
-            >
-              {view === v && <span className="seg-ind" />}
-              <span className="seg-text">{label}</span>
-            </button>
-          ))}
-        </div>
+        <Segmented
+          options={[
+            { value: 'agenda', label: 'Agenda' },
+            { value: 'contacts', label: 'Contacts' },
+          ]}
+          value={view}
+          onChange={setView}
+        />
         {/* Secrétaire : pas d'onglet Accueil — thème et déconnexion ici. */}
         {secretaire && (
           <button
@@ -911,24 +902,15 @@ export function AgendaScreen({
             {calMode === 'mois' ? monthLabel : weekLabel}
           </span>
           <div className="cal-nav-controls">
-            <div className="seg seg-mini">
-              {(
-                [
-                  ['mois', 'Mois'],
-                  ['semaine', 'Semaine'],
-                ] as ['mois' | 'semaine', string][]
-              ).map(([m, label]) => (
-                <button
-                  key={m}
-                  type="button"
-                  className={`seg-btn ${calMode === m ? 'is-active' : ''}`}
-                  onClick={() => switchMode(m)}
-                >
-                  {calMode === m && <span className="seg-ind" />}
-                  <span className="seg-text">{label}</span>
-                </button>
-              ))}
-            </div>
+            <Segmented
+              className="seg-mini"
+              options={[
+                { value: 'mois', label: 'Mois' },
+                { value: 'semaine', label: 'Semaine' },
+              ]}
+              value={calMode}
+              onChange={switchMode}
+            />
             <button
               type="button"
               className="icon-btn"

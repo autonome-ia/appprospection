@@ -1150,7 +1150,7 @@
   margin: -1px 5px 0 0;
 }
 
-/* --- Stats : sélecteur de période (segmented) --- */
+/* --- Sélecteur segmenté (components/ui/Segmented.tsx) --- */
 .seg {
   position: relative;
   display: flex;
@@ -3434,4 +3434,12 @@ select.field-input {
   color: #fff;
   font: 600 11px/16px var(--font-sans);
   pointer-events: none;
+}
+
+/* Segmenté en sombre : l'indicateur (--surface) était PLUS foncé que la
+   piste (--surface-2) et se lisait « creusé » — on le fait monter (audit
+   design 24/09). */
+[data-theme='dark'] .seg-ind {
+  background: #2c2c31;
+  box-shadow: 0 0 0 1px var(--line-strong);
 }

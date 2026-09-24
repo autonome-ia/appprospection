@@ -5,6 +5,7 @@ import { useSession } from '../lib/session'
 import { setThemePref, useThemePref, type ThemePref } from '../lib/theme'
 import { isSupervisorRole, roleLabel } from '../domain/types'
 import { TeamSheet } from './TeamSheet'
+import { Segmented } from './ui/Segmented'
 
 /**
  * Sheet « Profil & réglages » (extraite de l'Accueil au chantier Équipe) :
@@ -72,19 +73,7 @@ export function ProfileSheet({
                   à chaud — « Auto » suit le réglage du téléphone. */}
               <div className="theme-pick">
                 <span className="eyebrow">Thème</span>
-                <div className="seg">
-                  {THEMES.map((t) => (
-                    <button
-                      key={t.value}
-                      type="button"
-                      className={`seg-btn ${themeChoice === t.value ? 'is-active' : ''}`}
-                      onClick={() => setThemePref(t.value)}
-                    >
-                      {themeChoice === t.value && <span className="seg-ind" />}
-                      <span className="seg-text">{t.label}</span>
-                    </button>
-                  ))}
-                </div>
+                <Segmented options={THEMES} value={themeChoice} onChange={setThemePref} />
                 <p className="theme-hint">Auto : suit le réglage du téléphone.</p>
               </div>
               {isSupervisorRole(profile?.role) && (

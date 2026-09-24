@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { motion } from 'motion/react'
 import { ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, Minus, Pencil, Plus } from 'lucide-react'
 import {
   fetchStatsComparison,
@@ -16,6 +15,7 @@ import { colorForCommercial } from '../domain/colors'
 import { CLIENT_STATUSES, DISPLAY_STATUSES, isClientStatus } from '../domain/status'
 import { markerDataUrl } from '../config/markers'
 import { isManagerHiddenFor, isSupervisorRole, type Profile } from '../domain/types'
+import { Segmented } from './ui/Segmented'
 
 const PERIODS: { value: Period; label: string }[] = [
   { value: 'jour', label: 'Jour' },
@@ -390,24 +390,14 @@ export function StatsScreen({
     // Pas d'en-tête « Statistiques » (refonte 26/07, même logique que
     // l'agenda) : le segmented ouvre l'écran, la période est le titre.
     <div className="screen">
-      <div className="seg">
-        {PERIODS.map((p) => (
-          <button
-            key={p.value}
-            type="button"
-            className={`seg-btn ${period === p.value ? 'is-active' : ''}`}
-            onClick={() => {
-              setPeriod(p.value)
-              setOffset(0) // « semaine -2 » n'a pas de sens transposé en jours
-            }}
-          >
-            {period === p.value && (
-              <motion.span layoutId="seg-indicator" className="seg-ind" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />
-            )}
-            <span className="seg-text">{p.label}</span>
-          </button>
-        ))}
-      </div>
+      <Segmented
+        options={PERIODS}
+        value={period}
+        onChange={(v) => {
+          setPeriod(v)
+          setOffset(0) // « semaine -2 » n'a pas de sens transposé en jours
+        }}
+      />
       {/* Navigation vers les périodes passées (audit UX B8). */}
       <div className="stats-rangebar">
         <button
