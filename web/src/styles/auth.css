@@ -1,0 +1,141 @@
+/* Écran de connexion / inscription par code.
+   Tranche contiguë de l'ancien App.css (découpage mécanique 24/09) :
+   l'ordre d'import dans App.css EST l'ordre de cascade — ne pas le changer. */
+
+/* --- Écran de connexion / inscription par code (Encre & signal, 09/08) --- */
+.auth-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  min-height: 100%;
+  padding: 24px 20px calc(24px + env(safe-area-inset-bottom));
+  background: var(--bg);
+}
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.auth-mark {
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+/* Le point orange : la seule touche d'accent « marque » de l'écran. */
+.auth-mark-dot {
+  color: var(--accent);
+}
+.auth-tagline {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.auth-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  padding: 20px 18px 16px;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+}
+.auth-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+}
+.auth-subtitle {
+  margin: 3px 0 2px;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.45;
+}
+/* Le code est une DONNÉE : mono, espacé, capitales. */
+.auth-code {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.auth-code-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 7px 2px 0;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.auth-code-status.is-ok {
+  color: var(--st-vendu);
+  font-weight: 600;
+}
+.auth-code-status.is-bad {
+  color: var(--danger);
+}
+.auth-submit {
+  margin-top: 18px;
+}
+/* Identifiants en un bloc (réglages iOS) : deux champs, un filet entre. */
+.field-group {
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  overflow: hidden;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.field-group:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.field-group-input {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 14px;
+  font-size: 15px;
+  color: var(--ink);
+  outline: none;
+}
+.field-group-input + .sr-only + .field-group-input {
+  border-top: 1px solid var(--line);
+}
+.field-group-input::placeholder {
+  color: var(--ink-3);
+}
+/* Envoi en cours : spinner DANS le bouton, libellé et largeur inchangés. */
+.btn-spinner {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 0.7s linear infinite;
+}
+.auth-switch {
+  align-self: center;
+  margin-top: 10px;
+  padding: 8px 6px;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+}
+.auth-error {
+  margin: 10px 2px 0;
+  color: var(--danger);
+  font-size: 13px;
+}
+.auth-mail-icon {
+  color: var(--st-vendu);
+  margin-bottom: 8px;
+}

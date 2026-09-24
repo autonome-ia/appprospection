@@ -115,7 +115,7 @@ DA **« Encre & signal »** (choisie par briac le 26/07/2026 sur prototypes comp
   tailles hors échelle. Graisses : 400/500 (courant), 600 (emphase), 650 (chiffres/titres forts).
 - Icônes **Lucide** — **JAMAIS d'emojis** comme icônes.
 - **Vaul** (bottom sheets / drawers), **Sonner** (toasts), **Motion** (animations).
-- Tokens CSS dans `web/src/index.css` ; DA aussi cuite en TS : `config/markers.ts` (marqueurs/clusters),
+- Tokens CSS dans `web/src/index.css` (dont mouvement : `--ease-*`, `--dur-*`, `--press-scale`, miroir JS `lib/motion.ts`) ; styles par zone dans `web/src/styles/*.css`, importés dans l'ordre par `App.css` (ordre = cascade, sombre en fin) + `styles/interactions.css` (retour au toucher) ; DA aussi cuite en TS : `config/markers.ts` (marqueurs/clusters),
   `MapView.tsx` (ACCENT halos/réticule), `lib/report-image.ts` (rapport client) — à garder alignés.
 - **Mode sombre optionnel (29/07/2026, variante « Ligné » choisie sur planches)** : `[data-theme="dark"]`
   sur `<html>` — tokens dans `index.css`, préférence localStorage (`lib/theme.ts`), sélecteur

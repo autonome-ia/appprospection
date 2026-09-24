@@ -1,0 +1,523 @@
+/* Agenda : planning du jour, calendrier mois, vue semaine.
+   Tranche contiguë de l'ancien App.css (découpage mécanique 24/09) :
+   l'ordre d'import dans App.css EST l'ordre de cascade — ne pas le changer. */
+
+/* --- Agenda --- */
+.appt-section {
+  margin-bottom: 4px;
+}
+/* RDV en « rail horaire » (refonte 26/07, réf. Fantastical/Things) : heure
+   mono à gauche, barre verticale à la couleur du COMMERCIAL (agenda partagé :
+   qui a ce RDV, d'un coup d'œil — décision chef des ventes 25/07), contenu
+   aéré — les blocs se séparent par l'air, plus de cadre de carte. */
+.appt-item {
+  display: grid;
+  /* 48px mini : « 11:00 » en mono 15px fait ~45px — à 44px l'heure cassait
+     sur deux lignes (« 11:0 / 0 », constat audit guides 27/07). */
+  grid-template-columns: 48px 3px minmax(0, 1fr);
+  gap: 0 12px;
+  padding: 4px 2px 18px;
+}
+.appt-time {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  padding-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.appt-rail {
+  border-radius: var(--r-full);
+  background: var(--who, var(--line-strong));
+}
+.appt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.appt-main {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+}
+.appt-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Tâche d'agenda (29/07) : petit marqueur « liste » devant l'objet — la
+   barre garde la couleur du commercial, l'icône dit « pas un RDV client ». */
+.appt-task-icon {
+  flex: 0 0 auto;
+  color: var(--ink-3);
+}
+/* Boucle « Fait ✓ » (29/07 soir) : toggle unique de la tâche. À faire =
+   neutre ; faite = remplie de vert (le teal d'origine était orphelin et se
+   confondait avec la couleur d'un commercial — audit design 24/09). */
+.task-done-btn {
+  color: var(--ink-2);
+  border-color: var(--line-strong);
+}
+.task-done-btn.is-done {
+  background: var(--st-vendu);
+  border-color: var(--st-vendu);
+  color: #ffffff;
+}
+/* Tâche faite : l'objet se raye et s'éteint, la carte reste lisible. */
+.appt-item.is-task-done .appt-name {
+  text-decoration: line-through;
+  color: var(--ink-3);
+}
+.cal-event.is-done {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.appt-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.appt-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+}
+.appt-status .status-dot {
+  width: 7px;
+  height: 7px;
+}
+.appt-addr {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.appt-owner {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+/* Notes en citation : filet neutre = note du RDV, filet accent = contexte
+   terrain du point lié. */
+.appt-quote {
+  border-left: 2px solid var(--line-strong);
+  padding: 1px 0 1px 9px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+.appt-quote.is-context {
+  border-left-color: var(--accent);
+}
+.appt-quick {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+/* Issues dans le rail : l'air fait la séparation, pas de trait. */
+.appt-item .appt-outcomes {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+/* Fantôme du point pendant le drag (appui long → déplacer au doigt). */
+/* Fantôme de drag : le VRAI marqueur, légèrement grossi (« soulevé »). */
+.drag-ghost {
+  width: 44px;
+  height: 44px;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: var(--r-full);
+}
+/* Recherche de la vue Clients (audit UX A18). */
+.clients-search {
+  position: relative;
+  margin-bottom: 12px;
+}
+/* Filtre de la vue Contacts (chips RDV pris / À revoir) sous la recherche. */
+.contacts-filter {
+  margin-bottom: 14px;
+}
+/* Barre recherche + bouton « + » (saisie manuelle d'un contact, 27/07). */
+.contacts-bar {
+  display: flex;
+  gap: 8px;
+}
+.contacts-bar .clients-search {
+  flex: 1;
+}
+.contacts-add {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+.contacts-add:active {
+  transform: scale(0.96);
+}
+/* Aide sous un champ (adresse du contact : suggestion à choisir). */
+.field-hint {
+  margin: 6px 2px 0;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.clients-search svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-3);
+  pointer-events: none;
+}
+.clients-search .field-input {
+  padding-left: 36px;
+}
+.appt-call {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+}
+.appt-outcomes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.outcome-btn {
+  border: 1px solid;
+  background: var(--surface);
+  border-radius: var(--r-full);
+  padding: 10px 14px; /* cible tactile ~40 px : c'est l'action qui écrit les stats */
+  font-size: 13px;
+  font-weight: 600;
+}
+.text-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: none;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0;
+}
+/* Cible tactile ~44 px de haut (texte de ~18 px sinon) ; -6 px latéral
+   seulement : Modifier / Supprimer ne sont espacés que de 16 px. */
+.text-btn::after {
+  content: '';
+  position: absolute;
+  inset: -12px -6px;
+}
+.text-btn.danger {
+  color: var(--danger);
+}
+
+/* --- Calendrier --- */
+/* Agenda plein écran (refonte 26/07) : la grille du mois occupe TOUTE la
+   hauteur restante — flex-grow sans shrink : si l'écran est trop petit
+   (paysage), l'écran défile au lieu d'écraser les cellules. */
+.agenda-screen {
+  display: flex;
+  flex-direction: column;
+}
+.agenda-screen > * {
+  flex: 0 0 auto;
+}
+.cal {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 12px 10px 14px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 8px;
+}
+.agenda-screen .cal {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+}
+.agenda-screen .cal-grid {
+  flex: 1 1 auto;
+  /* Les semaines se partagent la hauteur de l'écran, mais une semaine
+     chargée prend la place de ses RDV avant les semaines vides (audit
+     design 24/09 : trois semaines vides aussi hautes que la pleine). */
+  grid-auto-rows: minmax(64px, auto);
+}
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 2px 8px;
+}
+.cal-nav-controls {
+  display: flex;
+  align-items: center;
+}
+.agenda-mine {
+  margin: 0 2px 10px;
+}
+/* Bouton qui déplie la légende-filtre (repli 10/08) : une action → accent
+   via is-active ; le chiffre = nb de membres filtrés. */
+.agenda-who-btn {
+  gap: 4px;
+  color: var(--ink-2);
+}
+/* « + Tâche » en 1 tap depuis le mois (29/07) : action → accent (jamais
+   pour de la donnée), poussé à droite de la chip « Mes RDV ». */
+.agenda-add-task {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+  border-color: var(--accent-ring);
+  font-weight: 600;
+}
+.cal-today {
+  color: var(--accent);
+  font-weight: 600;
+  padding: 0 8px;
+}
+.cal-month {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  padding-left: 2px;
+  white-space: nowrap;
+}
+.cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid var(--line);
+}
+.cal-weekdays span {
+  text-align: center;
+  /* Des LETTRES, pas des chiffres : Geist, pas de mono (règle DA). */
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+  padding: 4px 0 6px;
+}
+.cal-grid {
+  display: grid;
+  /* minmax(0, 1fr) : sans le 0, une piste 1fr refuse de descendre sous la
+     largeur du contenu — les étiquettes nowrap faisaient déborder la grille
+     de l'écran sur mobile au lieu d'être coupées. */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  /* Bord à bord : les hairlines entre semaines courent d'un trait. */
+  gap: 0;
+}
+/* Cases « mois » façon agenda iOS (référence capture briac) : hautes, avec
+   les RDV en étiquettes NOMMÉES — on voit qui on a sur tout le mois.
+   Hairlines horizontales entre les semaines (réf. Fantastical/Notion Cal). */
+.cal-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  border: none;
+  border-top: 1px solid var(--line);
+  background: none;
+  padding: 4px 2px 6px;
+  border-radius: 0;
+  min-height: 78px;
+  min-width: 0; /* autorise la case à rétrécir : le texte se coupe dedans */
+  overflow: hidden;
+}
+.cal-cell:nth-child(-n + 7) {
+  border-top: none; /* la 1re semaine s'appuie sur le trait des jours L-D */
+}
+.cal-cell:active {
+  background: var(--surface-2);
+}
+.cal-daynum {
+  display: grid;
+  place-items: center;
+  align-self: flex-end;
+  width: 20px;
+  height: 20px;
+  margin-right: 1px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.cal-cell.is-out .cal-daynum {
+  color: var(--ink-3);
+  opacity: 0.55;
+}
+.cal-cell.is-today .cal-daynum {
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+}
+.cal-events {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+}
+.cal-event {
+  display: block;
+  max-width: 100%;
+  padding: 3px 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.15;
+  color: #ffffff;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* coupé net, dernier glyphe tranché en deux sinon */
+}
+/* Pastille de TYPE en tête de pilule (refonte couleurs 10/08) : mêmes
+   couleurs sémantiques que la carte, liseré blanc pour se détacher de
+   n'importe quel fond commercial. Carré blanc = tâche. */
+.cal-dot {
+  display: inline-block;
+  vertical-align: middle;
+  width: 5px;
+  height: 5px;
+  margin: -1px 3px 0 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85);
+}
+.cal-dot.is-task {
+  border-radius: 1px;
+  background: #ffffff;
+  box-shadow: none;
+  opacity: 0.9;
+}
+.cal-cell.is-out .cal-event {
+  opacity: 0.45;
+}
+.cal-more {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  text-align: right;
+  padding-right: 2px;
+}
+/* --- Vue Semaine (demande Alexis 10/08) : une rangée par jour, pilules du
+   mois agrandies + heure mono. Tap sur le jour = sheet du jour. --- */
+.week-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+}
+.week-day {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  padding: 9px 2px;
+  min-height: 44px; /* cible tap, même les jours vides */
+}
+.week-day:last-child {
+  border-bottom: none;
+}
+.week-day:active {
+  background: var(--surface-2);
+}
+.week-day-head {
+  flex: 0 0 72px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.week-daynum {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 650;
+}
+.week-day.is-today .week-daynum {
+  background: var(--accent);
+  color: #ffffff;
+}
+.week-dayname {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.week-rows {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 3px;
+}
+.week-event {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.week-time {
+  flex: 0 0 38px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+/* Pilule du mois, en lisible : plus grande, elle occupe la largeur. */
+.week-event .cal-event {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  padding: 4.5px 8px;
+  border-radius: 6px;
+}
+.week-event .cal-dot {
+  width: 7px;
+  height: 7px;
+  margin: -1px 5px 0 0;
+}

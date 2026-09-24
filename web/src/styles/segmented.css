@@ -1,0 +1,52 @@
+/* Sélecteur segmenté (components/ui/Segmented.tsx).
+   Tranche contiguë de l'ancien App.css (découpage mécanique 24/09) :
+   l'ordre d'import dans App.css EST l'ordre de cascade — ne pas le changer. */
+
+/* --- Sélecteur segmenté (components/ui/Segmented.tsx) --- */
+.seg {
+  position: relative;
+  display: flex;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  padding: 3px;
+  margin-bottom: 14px;
+}
+.seg-btn {
+  position: relative;
+  flex: 1;
+  border: none;
+  background: none;
+  border-radius: var(--r-full);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.seg-ind {
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  border-radius: var(--r-full);
+  box-shadow: var(--shadow-sm);
+  z-index: 0;
+}
+.seg-text {
+  position: relative;
+  z-index: 1;
+}
+.seg-btn.is-active {
+  color: var(--ink);
+}
+/* Segmented compact (bascule Mois/Semaine de l'agenda) : mêmes états, la
+   place d'un bouton. */
+.seg-mini {
+  margin-bottom: 0;
+  margin-right: 4px;
+  padding: 2px;
+}
+.seg-mini .seg-btn {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  font-size: 12px;
+}

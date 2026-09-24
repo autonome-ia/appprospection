@@ -1,0 +1,210 @@
+/* Fiche point : bloc RDV, client, historique.
+   Tranche contiguë de l'ancien App.css (découpage mécanique 24/09) :
+   l'ordre d'import dans App.css EST l'ordre de cascade — ne pas le changer. */
+
+/* --- Bloc « Rendez-vous » en tête de fiche point (audit UX B1) --- */
+.rdv-block {
+  /* Colonne alignée à gauche (retour briac 25/07) : la ligne d'actions
+     partait à droite, décrochée de la date. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0 2px;
+  padding: 10px 12px;
+  /* Fond blanc + bordure (retour briac 25/07 — le pavé bleu pâle
+     alourdissait la fiche). Bordure à la couleur du statut « RDV pris »
+     plutôt que l'accent (audit design 24/09 : l'orange = actions). */
+  border: 1px solid color-mix(in srgb, var(--st-rdv) 45%, transparent);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.rdv-block-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.rdv-when {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.rdv-when svg {
+  color: var(--st-rdv);
+}
+.rdv-outcome {
+  font-size: 12px;
+  font-weight: 600;
+}
+.rdv-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+}
+a.text-btn {
+  text-decoration: none;
+}
+/* Point « RDV pris » sans AUCUN RDV en agenda : le trou silencieux. */
+.rdv-missing {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 12px 0 2px;
+  padding: 10px 12px;
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  border-radius: var(--r-md);
+  background: rgba(217, 119, 6, 0.07);
+  font-size: 13px;
+  color: var(--ink);
+}
+.rdv-missing .text-btn {
+  color: var(--st-revoir);
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+/* Statut replié en une ligne : « Statut · ● RDV pris · Modifier ». */
+.status-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 7px;
+}
+.status-line .field-label {
+  margin: 0;
+}
+.status-line-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.status-line .text-btn {
+  margin-left: auto;
+  color: var(--accent);
+}
+/* Libellé de champ + action en vis-à-vis (« Client » · + RDV). */
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 14px 0 7px;
+}
+.field-label-row .field-label {
+  margin: 0;
+}
+.field-label {
+  margin: 14px 0 7px;
+}
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.field-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 11px 12px;
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--surface);
+  resize: none;
+}
+.field-input::placeholder {
+  color: var(--ink-3);
+}
+/* Le sélecteur d'heure (créneaux :00/:30) garde le rendu des champs texte. */
+select.field-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+.field-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.drawer-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+/* Pied d'action commun des sheets (gabarit, audit UX A3) : TOUJOURS visible,
+   le corps défile dessous — « Enregistrer » partait sous le pli dès que la
+   3D/plan était dépliée. Déborde de 4px (marges du corps) pour couvrir le
+   contenu qui défile derrière. */
+.drawer-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  gap: 10px;
+  margin: 18px -4px 0;
+  padding: 12px 4px 2px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+/* Suppression déclassée : un lien danger discret dans le flux, plus une
+   rangée pleine largeur mitoyenne d'Enregistrer. */
+.drawer-delete {
+  align-self: center;
+  margin-top: 18px;
+  color: var(--danger);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex: 1;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  font-size: 15px;
+  font-weight: 600;
+  /* Un <a> peut porter .btn (« Y aller » de la fiche maison) : pas de
+     soulignement de lien sur un bouton. */
+  text-decoration: none;
+  transition: opacity 0.15s var(--ease-out), background 0.15s var(--ease-out), transform 0.1s var(--ease-out);
+}
+.btn:active {
+  transform: scale(0.985);
+}
+.btn:disabled {
+  opacity: 0.5;
+}
+.btn-primary {
+  background: var(--ink);
+  color: #ffffff;
+}
+/* Action principale indisponible (rien à enregistrer) : pavé neutre et
+   texte discret plutôt qu'un gris « cassé » à 50 % (audit design 24/09) —
+   il reprend l'encre dès qu'il y a quelque chose à faire. */
+.btn-primary:disabled,
+[data-theme='dark'] .btn-primary:disabled {
+  opacity: 1;
+  background: var(--surface-2);
+  color: var(--ink-3);
+}
+.btn-danger {
+  background: var(--danger-weak);
+  color: var(--danger);
+}
+.btn-ghost {
+  background: var(--surface-2);
+  color: var(--ink-2);
+}

@@ -1,0 +1,442 @@
+/* Stats : plage, héros, squelettes, objectif, tunnel, graphe, classement.
+   Tranche contiguë de l'ancien App.css (découpage mécanique 24/09) :
+   l'ordre d'import dans App.css EST l'ordre de cascade — ne pas le changer. */
+
+/* --- Stats : plage, focus, drill --- */
+/* Barre ‹ plage › : navigation vers les périodes passées (audit UX B8). */
+.stats-rangebar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: -4px 0 14px;
+}
+.stats-rangebar .stats-range {
+  margin: 0 6px;
+}
+.range-nav {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: none;
+  border-radius: var(--r-full);
+  color: var(--ink-2);
+}
+/* Cible tactile ~44 px, visuel discret inchangé. */
+.range-nav::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+}
+.range-nav:disabled {
+  color: var(--line-strong);
+}
+.range-today {
+  margin-left: auto;
+  color: var(--accent);
+}
+/* La période EST le titre de l'écran (refonte 26/07) : Geist semibold,
+   plus le petit mono gris perdu sous le segmented. */
+.stats-range {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0 2px;
+  font-variant-numeric: tabular-nums;
+}
+.drill-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 0 6px;
+}
+/* Pont Stats→Carte dans le drill-down (audit UX B5). */
+.drill-map {
+  color: var(--accent);
+  margin-top: 8px;
+}
+
+/* --- Stats : chiffres héros --- */
+/* --- Squelettes de chargement (audit UX B14) : à la place des faux zéros --- */
+.sk {
+  display: block;
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  animation: badge-pulse 1.3s ease-in-out infinite;
+}
+.sk-hero {
+  height: 96px;
+  border-radius: var(--r-lg);
+  margin-bottom: 12px;
+}
+.sk-block {
+  height: 120px;
+  border-radius: var(--r-lg);
+  margin-bottom: 12px;
+}
+.sk-block-tall {
+  height: 240px;
+}
+.sk-line {
+  height: 12px;
+  width: 38%;
+  margin-bottom: 10px;
+}
+.sk-row {
+  height: 58px;
+  margin-bottom: 8px;
+}
+/* Chiffre héros : les ventes portent l'écran (refonte 26/07). */
+.stats-hero {
+  margin: 0 2px 18px;
+}
+.hero-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 4px;
+}
+.hero-value {
+  font-size: 42px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.hero-unit {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.hero-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+}
+.hero-delta.up {
+  color: var(--st-vendu);
+}
+.hero-delta.down {
+  color: var(--danger);
+}
+.hero-delta.flat {
+  color: var(--ink-3);
+}
+.hero-sub {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.hero-sub b {
+  font-weight: 600;
+  color: var(--ink);
+}
+.hero-pos {
+  margin: 5px 0 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* --- Stats : objectif --- */
+.obj-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.obj-big {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+/* --- Stats : tunnel en barres proportionnelles (refonte 26/07) --- */
+.funnel3 {
+  margin-top: 12px;
+}
+.fun-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fun-label {
+  flex: 0 0 76px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.fun-track {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fun-bar {
+  display: block;
+  height: 18px;
+  border-radius: 4px;
+  background: var(--ink-3);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+/* Tunnel aux couleurs des STATUTS (chantier design 24/09, décision briac) :
+   l'orange est réservé aux actions. Même grammaire que la carte — portes en
+   gris, RDV pris bleu, effectués ambre (« En attente »), ventes vert. */
+.fun-bar-0 {
+  background: var(--ink-3);
+  opacity: 0.55;
+}
+.fun-bar-1 {
+  background: var(--st-rdv);
+}
+.fun-bar-2 {
+  background: var(--st-revoir);
+}
+.fun-bar-3 {
+  background: var(--st-vendu);
+}
+.fun-value {
+  font-size: 15px;
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+.fun-rate {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0 4px 86px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.fun-rate svg {
+  color: var(--ink-3);
+}
+/* Le plus faible des deux taux signalé (briac 26/07) : pastille rouge
+   douce plutôt qu'un « ↓ 50 % » rouge qui se lisait comme une chute. */
+.fun-rate .tnum {
+  padding: 1px 6px;
+  margin-left: -4px;
+  border-radius: var(--r-full);
+}
+.fun-rate.is-leak .tnum {
+  color: var(--danger);
+  background: var(--danger-weak);
+}
+.funnel-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.funnel-conv b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.funnel-absents {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+/* --- Stats : graphe activité --- */
+.chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.chart-head .eyebrow {
+  margin: 0;
+}
+.chart-total {
+  font-size: 13px;
+  font-weight: 600;
+}
+.chart-bars {
+  display: flex;
+  align-items: stretch;
+  gap: 3px;
+  height: 108px;
+  margin-top: 10px;
+}
+.chart-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.chart-val {
+  height: 15px;
+  font-size: 11px;
+  color: var(--ink-2);
+  text-align: center;
+}
+.chart-stick {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+}
+/* Jours passés estompés, aujourd'hui plein : la barre du jour ressort
+   (refonte 26/07). */
+.chart-bar {
+  width: 100%;
+  min-height: 2px;
+  background: var(--ink-3);
+  border-radius: 3px 3px 0 0;
+  opacity: 0.45;
+}
+
+/* --- Stats : classement --- */
+.rank {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 0;
+  border-top: 1px solid var(--line);
+}
+.rank:first-of-type {
+  border-top: none;
+  padding-top: 6px;
+}
+.rank-pos {
+  width: 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+  padding-top: 2px;
+}
+.rank-body {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 0;
+}
+.rank-clickable {
+  cursor: pointer;
+}
+.rank-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rank-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+  font-size: 15px;
+  min-width: 0;
+}
+.rank-name .status-dot {
+  flex: 0 0 auto;
+}
+.rank-sales {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--st-vendu);
+  white-space: nowrap;
+}
+.rank-sales-unit {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.rank-metrics {
+  font-size: 12px;
+  color: var(--ink-2);
+  margin: 3px 0 7px;
+}
+.rank-obj {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.obj-bar-bg {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: var(--r-full);
+  overflow: hidden;
+}
+.obj-bar {
+  height: 100%;
+  /* L'objectif compte des RDV : bleu « RDV pris », vert une fois atteint
+     (donnée, pas action : jamais l'accent — audit design 24/09). */
+  background: var(--st-rdv);
+  border-radius: var(--r-full);
+  transition: width var(--dur-slow) var(--ease-out), background-color var(--dur-base) var(--ease-out);
+}
+.obj-bar.is-done {
+  background: var(--st-vendu);
+}
+.obj-text {
+  font-size: 11px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+/* Stepper d'objectif hebdo (audit UX A32). */
+.obj-stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+.obj-stepper .obj-big {
+  min-width: 34px;
+  text-align: center;
+}
+.obj-save {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 8px 18px;
+}
+
+/* Affordance du drill-down (audit UX A25) + étiquettes du graphe (A26). */
+.rank-chevron {
+  color: var(--ink-3);
+  flex: 0 0 auto;
+  align-self: center;
+}
+.rank-clickable:active {
+  background: var(--surface-2);
+}
+.chart-day {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-3);
+  text-align: center;
+}
+.chart-bar.is-today {
+  background: var(--ink);
+  opacity: 1;
+}
+.rank-edit {
+  position: relative;
+  border: none;
+  background: none;
+  color: var(--ink-3);
+  padding: 2px;
+  align-self: center;
+}
+.rank-edit::after {
+  content: '';
+  position: absolute;
+  inset: -10px; /* crayon 15 px : cible portée à ~40 px */
+}

@@ -1,0 +1,426 @@
+/* Accueil : guide de l'app, chargement, écran Accueil.
+   Tranche contiguë de l'ancien App.css (découpage mécanique 24/09) :
+   l'ordre d'import dans App.css EST l'ordre de cascade — ne pas le changer. */
+
+/* --- Accueil : guide de l'app (tutos pas-à-pas, 26/07) --- */
+/* Défilement horizontal : axe verrouillé (convention). */
+.guide-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  padding: 2px 2px 6px;
+  margin: 0 -2px;
+  scrollbar-width: none;
+}
+.guide-scroll::-webkit-scrollbar {
+  display: none;
+}
+.guide-card {
+  flex: 0 0 auto;
+  width: 138px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  text-align: left;
+}
+.guide-card:active {
+  transform: scale(0.98);
+}
+.guide-cover {
+  display: block;
+  height: 148px;
+  background: var(--surface-2);
+}
+/* Cover uniforme (10/08) : l'icône du guide dans une pastille en relief —
+   les captures écrasées rendaient les 6 cartes disparates. */
+.guide-cover.is-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 108px;
+}
+.guide-cover-disc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink);
+}
+.guide-card-title {
+  display: block;
+  padding: 9px 11px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  /* Une ligne garantie (titres courts) : les 6 cartes gardent la même
+     hauteur, les pastilles restent alignées. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.guide-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.guide-ph {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  color: var(--ink-3);
+}
+.guide-ph-note {
+  font-size: 12px;
+}
+/* Cadre de la capture dans la sheet : hauteur fixe, capture entière visible. */
+.guide-frame {
+  height: min(46vh, 420px);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+/* Titre court d'étape (Guide v3) au-dessus de la phrase. */
+.guide-step-eyebrow {
+  margin: 14px 2px 0;
+}
+.guide-step-text {
+  margin: 5px 2px 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.guide-footer {
+  align-items: center;
+}
+.guide-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  padding: 0 4px;
+}
+.guide-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--line-strong);
+  transition: background 0.2s var(--ease-out), width 0.2s var(--ease-out);
+}
+.guide-dot.is-active {
+  width: 16px;
+  background: var(--accent);
+}
+
+/* --- Chargement --- */
+.app-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: var(--bg);
+}
+.app-loading-mark {
+  opacity: 0;
+  animation: loading-mark 420ms var(--ease-out) 250ms forwards;
+}
+@keyframes loading-mark {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- Écran Accueil --- */
+.accueil-screen {
+  background: var(--bg);
+  padding: 30px 20px;
+  display: flex;
+  flex-direction: column;
+  /* Rythme unique de 24 px entre blocs (audit design 24/09 : 18 + 22 de
+     marge = ~40 px de vide entre la carte du jour et la liste). */
+  gap: 24px;
+}
+.accueil-screen > .card,
+.accueil-screen > .home-section {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+/* En-tête compact « la journée, pas le profil » (audit UX B4). */
+.accueil-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 0;
+}
+/* Date du jour au-dessus du prénom (audit design 24/09). */
+.accueil-date {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+/* Entrée réglages explicite (retour briac 29/07) : l'avatar ouvre toujours
+   la sheet, mais la roue dentée la rend trouvable. */
+.accueil-settings {
+  margin-left: auto;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  box-shadow: var(--shadow-sm);
+}
+.avatar-btn {
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.accueil-head-texts {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.accueil-hello {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.accueil-role {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+/* Carte « Aujourd'hui » : les chiffres du jour + l'objectif hebdo. */
+.today-card .obj-bar-bg {
+  margin-top: 12px;
+}
+.today-figures {
+  display: flex;
+  gap: 26px;
+  margin-top: 4px;
+}
+.today-figure {
+  display: flex;
+  flex-direction: column;
+}
+.today-num {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 650;
+}
+.today-cap {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.today-obj {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+/* Météo du jour : une DONNÉE (pas d'accent) — icône Lucide + température en
+   mono, encre secondaire. Absente en silence si géoloc/API indisponibles. */
+.weather-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  animation: weather-in 0.4s ease both;
+}
+@keyframes weather-in {
+  from {
+    opacity: 0;
+  }
+}
+/* Icône teintée par famille (retour briac : « mise en valeur ») — couleur =
+   donnée, comme les statuts ; teintes cousines des --st-*, éclaircies en
+   sombre. La température, elle, reste en encre. */
+.weather-chip .w-soleil {
+  color: #dc9a06;
+}
+.weather-chip .w-lune {
+  color: #7583c9;
+}
+.weather-chip .w-nuage {
+  color: #7d8898;
+}
+.weather-chip .w-pluie {
+  color: #2f6bff;
+}
+.weather-chip .w-neige {
+  color: #45a3d6;
+}
+.weather-chip .w-orage {
+  color: #6d4fa1;
+}
+[data-theme='dark'] .weather-chip .w-soleil {
+  color: #f2b929;
+}
+[data-theme='dark'] .weather-chip .w-lune {
+  color: #98a5e6;
+}
+[data-theme='dark'] .weather-chip .w-nuage {
+  color: #939aa8;
+}
+[data-theme='dark'] .weather-chip .w-pluie {
+  color: #6591ff;
+}
+[data-theme='dark'] .weather-chip .w-neige {
+  color: #6cc0e8;
+}
+[data-theme='dark'] .weather-chip .w-orage {
+  color: #9d7fd1;
+}
+/* En bout de ligne du label de la carte « Aujourd'hui » (emplacement choisi
+   par briac le 10/08 sur captures, vs en-tête à côté du Bonjour). */
+.today-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+/* Heure du RDV dans les lignes « Mes RDV aujourd'hui ». */
+.rdv-row-time {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 1px;
+}
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent-weak);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 15px;
+}
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.user-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+.user-role {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+/* Popup du matin « Que s'est-il passé ? » (30/07) : un bloc par RDV passé
+   sans issue, les 4 boutons d'issue en 1 tap. */
+.pending-intro {
+  margin: 0 2px 12px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.pending-rdv {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden; /* repli en hauteur à la sortie (Motion) */
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.pending-when {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.pending-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+.pending-sub {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* Choix du thème (sheet de profil) : segmented Clair · Sombre · Auto. */
+.theme-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.theme-pick .seg {
+  margin-bottom: 0;
+}
+.theme-hint {
+  margin: 0 2px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.row-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  transition: background 0.15s var(--ease-out);
+}
+.row-action:active {
+  background: var(--surface-2);
+}
+.row-chevron {
+  margin-left: auto;
+  color: var(--ink-3);
+}

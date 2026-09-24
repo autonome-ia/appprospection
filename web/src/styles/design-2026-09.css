@@ -1,0 +1,105 @@
+/* Ajouts du chantier design du 24/09 (repère β, issues, liste groupée…).
+   Tranche contiguë de l'ancien App.css (découpage mécanique 24/09) :
+   l'ordre d'import dans App.css EST l'ordre de cascade — ne pas le changer. */
+
+/* Repère du canal « design » (build de la branche design uniquement). */
+.beta-pill {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #f54e00;
+  color: #fff;
+  font: 600 11px/16px var(--font-sans);
+  pointer-events: none;
+}
+
+/* Segmenté en sombre : l'indicateur (--surface) était PLUS foncé que la
+   piste (--surface-2) et se lisait « creusé » — on le fait monter (audit
+   design 24/09). */
+[data-theme='dark'] .seg-ind {
+  background: #2c2c31;
+  box-shadow: 0 0 0 1px var(--line-strong);
+}
+
+/* Stats : changement de période en cours — les chiffres de l'ancienne
+   période s'estompent jusqu'à l'arrivée des nouveaux (audit design 24/09). */
+.stats-screen > :not(.seg):not(.stats-rangebar) {
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.stats-screen.is-pending > :not(.seg):not(.stats-rangebar) {
+  opacity: 0.45;
+}
+
+/* Issues d'un RDV (audit design 24/09) : les trois vraies issues en une
+   rangée de largeurs égales ; « Annulé » (le RDV n'a pas eu lieu) passe en
+   lien discret dessous — quatre contours de même poids débordaient sur deux
+   lignes au hasard de la largeur. */
+.appt-outcomes .outcome-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 10px 6px;
+  white-space: nowrap;
+}
+.rdv-block .appt-outcomes {
+  align-self: stretch;
+}
+.appt-outcomes .outcome-btn[data-outcome='annule'] {
+  flex: 1 0 100%;
+  justify-content: flex-start;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 4px 2px;
+  color: var(--ink-3) !important;
+  font-weight: 500;
+}
+
+/* Liste groupée façon Réglages iOS (Contacts — audit design 24/09) : un
+   seul bloc, filets entre les lignes décalés après la pastille. */
+.list-group {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.list-group .list-row {
+  position: relative;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  padding: 12px 14px;
+  align-items: center;
+}
+.list-group .list-row + .list-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 34px;
+  right: 0;
+  border-top: 1px solid var(--line);
+}
+.list-group .list-row:active {
+  scale: 1;
+  background: var(--surface-2);
+}
+.home-row-when {
+  white-space: nowrap;
+}
+.home-row-when.is-warn {
+  color: var(--st-revoir);
+  font-weight: 600;
+}
+
+/* « Se déconnecter » : une action (rouge), pas une ligne de navigation. */
+.row-action-danger {
+  color: var(--danger);
+}
+.row-action-danger svg {
+  color: var(--danger);
+}

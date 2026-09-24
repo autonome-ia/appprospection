@@ -1,0 +1,337 @@
+/* Langage de composants commun : drawers (Vaul), boutons, champs.
+   Tranche contiguë de l'ancien App.css (découpage mécanique 24/09) :
+   l'ordre d'import dans App.css EST l'ordre de cascade — ne pas le changer. */
+
+/* =========================================================================
+   Drawers (Vaul), boutons, champs — langage de composants commun
+   ====================================================================== */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(17, 17, 19, 0.4);
+}
+.drawer-content {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  /* dvh = viewport RÉELLEMENT visible sur iOS (vh = grand viewport, barre
+     Safari escamotée : le bas de la sheet passait sous la barre et la fin
+     du contenu restait inatteignable). Repli vh pour les vieux moteurs. */
+  max-height: 92vh;
+  max-height: 92dvh;
+  /* PAS de scroll ici : fixed + transform (vaul) + overflow sur le MÊME
+     élément fige le défilement sur iOS Safari (bug WebKit connu) — c'est
+     .drawer-body, enfant sans transform, qui défile. */
+  overflow: hidden;
+  background: var(--surface);
+  border-radius: 22px 22px 0 0;
+  padding: 8px 20px calc(20px + env(safe-area-inset-bottom, 0));
+  box-shadow: var(--shadow-lg);
+  outline: none;
+}
+/* Corps DÉFILANT des sheets : conteneur interne sans transform (le scroll
+   sur la sheet elle-même est figé par iOS, voir .drawer-content) ; porte
+   aussi data-vaul-no-drag pour que vaul laisse le geste au scroll natif.
+   La fermeture au doigt reste possible sur la poignée et l'en-tête. */
+.drawer-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Verrouillage de l'axe HORIZONTAL : un enfant à largeur intrinsèque
+     (select, ligne longue) créait une piste de glissement latéral. */
+  overflow-x: hidden;
+  /* Le clip (overflow) tranche l'anneau de focus 3px des champs, collés aux
+     bords : on élargit le corps de 4px et on les rend en padding. */
+  margin: 0 -4px;
+  padding: 0 4px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  /* Une chaîne sans espace (URL collée en note) débordait puis était
+     CLIPPÉE par overflow-x : fin du texte perdue sans indice. */
+  overflow-wrap: anywhere;
+}
+.drawer-body > * {
+  min-width: 0; /* les enfants flex acceptent de rétrécir sous leur contenu */
+  max-width: 100%;
+  /* SANS ça, les enfants à overflow non-visible (journal de notes, textarea,
+     status-picker) sont COMPRESSÉS vers 0 pour tenir dans les 92dvh au lieu
+     de faire déborder (donc défiler) le corps : le bas de fiche devenait
+     inatteignable et la zone de note un filet. */
+  flex-shrink: 0;
+}
+/* Accueil : sections « À relancer » et « Activité récente » */
+.home-section {
+  width: 100%;
+  margin-top: 22px;
+}
+.home-section .section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+.home-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.home-row.is-static {
+  cursor: default;
+}
+.home-row .status-dot {
+  flex: 0 0 auto;
+  margin-top: 5px;
+}
+.home-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.home-row-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home-row-sub {
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home-row-when {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+/* Ligne « À relancer » + bouton d'appel (audit UX B10). */
+.home-row-group {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.home-row-group .home-row {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+.home-row-call {
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--accent);
+}
+/* « Fait ✓ » d'une tâche sur l'Accueil (29/07 soir) : neutre, rempli de
+   vert quand la tâche est faite (re-tap = remise à faire). */
+.task-check {
+  color: var(--ink-3);
+}
+.task-check.is-done {
+  background: var(--st-vendu);
+  border-color: var(--st-vendu);
+  color: #ffffff;
+}
+.task-late {
+  color: var(--st-revoir);
+  font-weight: 600;
+}
+.home-row-title.is-task-done {
+  text-decoration: line-through;
+  color: var(--ink-3);
+}
+
+/* Fiche maison enrichie (open data) : badges compacts sous l'en-tête */
+.house-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 2px;
+}
+.house-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px; /* icône de provenance (laser) */
+  padding: 4px 9px;
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.house-badge.is-confirmed {
+  /* Donnée confirmée : encre pleine, pas l'accent (audit design 24/09). */
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+/* Surface MESURÉE (LiDAR) : même langage visuel que « confirmé » — donnée
+   sûre, sans le ~ d'estimation. */
+.house-badge.is-measured {
+  /* Mesure laser : encre pleine, pas l'accent (audit design 24/09). */
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+  font-weight: 600;
+}
+/* Verdicts parlants : POURQUOI il n'y a pas de mesure (discret, informatif). */
+.house-badge.is-muted {
+  color: var(--ink-3);
+}
+/* Mesure LiDAR en cours : discret et pulsé — l'estimation n'est pas montrée
+   en attendant (pas de flash estimation → mesure). */
+.house-badge.is-pending {
+  color: var(--ink-3);
+  animation: badge-pulse 1.3s ease-in-out infinite;
+}
+@keyframes badge-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Pastille « XX m² » posée sur chaque pan de toit dessiné (marqueur DOM,
+   bord teinté de la couleur du pan). Aucune interaction : le tap traverse. */
+.pan-chip {
+  padding: 2px 7px;
+  border-radius: var(--r-full);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1.5px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  /* Pastille BLANCHE dans les deux thèmes (elle vit sur la photo ou le
+     canvas 3D) : encre littérale, pas var(--ink) — en sombre l'encre
+     devient claire et les chiffres disparaissaient (retour briac 29/07).
+     Même valeur que l'encre claire : zéro pixel ne bouge en clair. */
+  color: #111113;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+  white-space: nowrap;
+  pointer-events: none;
+  /* appui long en démo client : pas de loupe/sélection iOS sur le texte */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Maquette 3D du toit mesuré (fiche maison) */
+.roof3d-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.roof3d-btn:active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.roof3d {
+  margin-top: 4px;
+}
+.roof3d-canvas {
+  position: relative;
+  height: 240px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  overflow: hidden;
+  touch-action: none;
+}
+.roof3d-canvas canvas {
+  display: block;
+}
+.roof3d-tools {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+}
+.roof3d-tools .icon-btn {
+  /* 44 px pleins : posés SUR le canvas touch-action:none — rater la croix
+     de 32 px faisait tourner la maquette au lieu de fermer, devant client. */
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #5c5c63; /* littéral : bouton blanc sur canvas, encre stable */
+  box-shadow: var(--shadow-sm);
+}
+/* Pastille m² projetée SUR le pan (position pilotée par la boucle de rendu). */
+.roof3d-chip {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+.roof3d-compass {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  pointer-events: none;
+}
+.roof3d-compass svg {
+  display: block;
+}
+/* Plein écran (portal hors de la sheet) : la maquette pour la démo client. */
+.roof3d-full {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  margin: 0;
+  /* Safe-areas des 4 côtés : en paysage (orientation naturelle pour un
+     toit), le X tombait sous l'encoche/Dynamic Island. */
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overscroll-behavior: contain; /* pas de pull-to-refresh sous la maquette */
+}
+.roof3d-full .roof3d-canvas {
+  flex: 1;
+  height: auto;
+}
+.roof3d-full .roof3d-legend {
+  justify-content: center;
+}
