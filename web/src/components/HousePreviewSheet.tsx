@@ -1,5 +1,5 @@
-import { Drawer } from 'vaul'
-import { X, Home, MapPin, Navigation } from 'lucide-react'
+import { Home, MapPin, Navigation } from 'lucide-react'
+import { Sheet } from './ui/Sheet'
 import { wazeUrl } from '../lib/nav'
 import { splitAddress } from '../lib/address'
 import { StatusPicker } from './StatusPicker'
@@ -51,33 +51,24 @@ export function HousePreviewSheet({
 
   return (
     // Non modale : la carte reste visible (la maison est surlignée dessous).
-    // repositionInputs={false} : voir PointDetailSheet (bug visualViewport iOS).
-    <Drawer.Root open={open} onOpenChange={onOpenChange} modal={false} repositionInputs={false}>
-      <Drawer.Portal>
-        <Drawer.Content className="drawer-content">
-          <div className="drawer-grip" />
-
-          {/* Même gabarit que la fiche point (chantier design 24/09) : la rue
-              en titre, « pas encore de point » à la place du statut, la ville
-              en ligne secondaire. */}
-          <div className="drawer-header">
-            <div className="sheet-head">
-              <span className="drawer-title">{address ? splitAddress(address).street : 'Maison'}</span>
-              <span className="sheet-status is-muted">
-                <Home size={14} strokeWidth={1.9} />
-                Pas encore de point
-              </span>
-            </div>
-            <button
-              type="button"
-              className="icon-btn"
-              onClick={() => onOpenChange(false)}
-              aria-label="Fermer"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
+    <Sheet
+      open={open}
+      onOpenChange={onOpenChange}
+      modal={false}
+      // Même gabarit que la fiche point (chantier design 24/09) : la rue en
+      // titre, « pas encore de point » à la place du statut, la ville en ligne
+      // secondaire.
+      title={
+        <div className="sheet-head">
+          <span className="drawer-title">{address ? splitAddress(address).street : 'Maison'}</span>
+          <span className="sheet-status is-muted">
+            <Home size={14} strokeWidth={1.9} />
+            Pas encore de point
+          </span>
+        </div>
+      }
+      meta={
+        <>
           {address && splitAddress(address).city && (
             <div className="drawer-meta">
               <span>
@@ -85,71 +76,69 @@ export function HousePreviewSheet({
               </span>
             </div>
           )}
+        </>
+      }
+    >
+      {info === null ? (
+        <p className="house-loading">Recherche des informations…</p>
+      ) : hasInfo || lidar !== null ? (
+        <HouseBadges
+          annee={info.annee_construction}
+          matCode={info.mat_toit}
+          toitM2={info.toit_surface_m2}
+          lidarM2={lidarOk ? lidar.toit_lidar_principal_m2 || lidar.toit_lidar_m2 : null}
+          lidarMillesime={lidarOk ? lidar.toit_lidar_millesime : null}
+          lidarPending={lidar === null}
+          dpe={info.dpe_classe}
+          extra={info.maison_extra}
+          lidarStatut={lidar?.toit_lidar_statut}
+          lidarDiag={lidar?.toit_lidar_diag}
+          hideMeasured={Boolean(lidarOk && lidar.toit_lidar_pans)}
+        />
+      ) : (
+        <p className="house-loading">Pas d’informations pour ce bâtiment.</p>
+      )}
 
-          <div className="drawer-body" data-vaul-no-drag>
-          {info === null ? (
-            <p className="house-loading">Recherche des informations…</p>
-          ) : hasInfo || lidar !== null ? (
-            <HouseBadges
-              annee={info.annee_construction}
-              matCode={info.mat_toit}
-              toitM2={info.toit_surface_m2}
-              lidarM2={lidarOk ? lidar.toit_lidar_principal_m2 || lidar.toit_lidar_m2 : null}
-              lidarMillesime={lidarOk ? lidar.toit_lidar_millesime : null}
-              lidarPending={lidar === null}
-              dpe={info.dpe_classe}
-              extra={info.maison_extra}
-              lidarStatut={lidar?.toit_lidar_statut}
-              lidarDiag={lidar?.toit_lidar_diag}
-              hideMeasured={Boolean(lidarOk && lidar.toit_lidar_pans)}
-            />
-          ) : (
-            <p className="house-loading">Pas d’informations pour ce bâtiment.</p>
+      {/* Picker AVANT le bloc toiture (audit UX A2) : les chips passaient
+          hors champ sous la 3D — l'acte principal reste au-dessus du pli. */}
+      {/* Pose en 1 tap (chantier design 24/09, décision briac) : le
+          statut touché EST la pose — le toast « Annuler » sert de filet. */}
+      <p className="eyebrow field-label">Poser un point</p>
+      <StatusPicker onChange={onPose} />
+
+      {lidarOk && lidar.toit_lidar_pans && (
+        // REPLIÉ comme partout (décision briac 25/07) : quand la mesure
+        // tombe, seule la ligne « Toiture mesurée · N m² » apparaît — la
+        // 3D ne surgit plus toute seule, c'est le commercial qui déplie.
+        <RoofModule
+          roof={lidar.toit_lidar_pans}
+          wastePct={suggestedWastePct(
+            info?.mat_toit ?? null,
+            null,
+            lidar.toit_lidar_pans.aretes,
           )}
+          address={address}
+          maisonM2={lidar.toit_lidar_principal_m2 || lidar.toit_lidar_m2}
+          totalM2={lidar.toit_lidar_m2}
+          millesime={lidar.toit_lidar_millesime}
+        />
+      )}
 
-          {/* Picker AVANT le bloc toiture (audit UX A2) : les chips passaient
-              hors champ sous la 3D — l'acte principal reste au-dessus du pli. */}
-          {/* Pose en 1 tap (chantier design 24/09, décision briac) : le
-              statut touché EST la pose — le toast « Annuler » sert de filet. */}
-          <p className="eyebrow field-label">Poser un point</p>
-          <StatusPicker onChange={onPose} />
+      <p className="data-attribution">Données IGN (BD TOPO, LiDAR HD) · BDNB (CSTB)</p>
 
-          {lidarOk && lidar.toit_lidar_pans && (
-            // REPLIÉ comme partout (décision briac 25/07) : quand la mesure
-            // tombe, seule la ligne « Toiture mesurée · N m² » apparaît — la
-            // 3D ne surgit plus toute seule, c'est le commercial qui déplie.
-            <RoofModule
-              roof={lidar.toit_lidar_pans}
-              wastePct={suggestedWastePct(
-                info?.mat_toit ?? null,
-                null,
-                lidar.toit_lidar_pans.aretes,
-              )}
-              address={address}
-              maisonM2={lidar.toit_lidar_principal_m2 || lidar.toit_lidar_m2}
-              totalM2={lidar.toit_lidar_m2}
-              millesime={lidar.toit_lidar_millesime}
-            />
-          )}
-
-          <p className="data-attribution">Données IGN (BD TOPO, LiDAR HD) · BDNB (CSTB)</p>
-
-          <div className="drawer-footer">
-            {/* « Y aller » AVANT tout point posé (demande briac 29/07) :
-                repérer une maison sur la carte et s'y rendre — gabarit à
-                deux boutons des autres fiches, libellé Waze de l'app. */}
-            <a
-              className="btn btn-ghost"
-              href={wazeUrl(coords, address)!}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Navigation size={15} strokeWidth={1.9} /> Y aller
-            </a>
-          </div>
-          </div>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+      <div className="drawer-footer">
+        {/* « Y aller » AVANT tout point posé (demande briac 29/07) :
+            repérer une maison sur la carte et s'y rendre — gabarit à
+            deux boutons des autres fiches, libellé Waze de l'app. */}
+        <a
+          className="btn btn-ghost"
+          href={wazeUrl(coords, address)!}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Navigation size={15} strokeWidth={1.9} /> Y aller
+        </a>
+      </div>
+    </Sheet>
   )
 }

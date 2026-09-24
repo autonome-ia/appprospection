@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Drawer } from 'vaul'
+import { Sheet } from './ui/Sheet'
 import { AnimatePresence, motion } from 'motion/react'
 import { EASE_OUT, SPRING_SMOOTH } from '../lib/motion'
 import { toast } from 'sonner'
 import { hhmm, relativeDay } from '../lib/relative-day'
 import { celebrate } from '../lib/celebrate'
-import { CalendarClock, X } from 'lucide-react'
+import { CalendarClock } from 'lucide-react'
 import { fetchPendingOutcomes, setAppointmentOutcome } from '../data/appointments'
 import {
   APPOINTMENT_OUTCOMES,
@@ -72,114 +72,96 @@ export function PendingOutcomes({ profile }: { profile: Profile }) {
   if (!open || list.length === 0) return null
 
   return (
-    // repositionInputs={false} : gabarit commun des sheets (bug iOS).
-    <Drawer.Root open onOpenChange={(o) => !o && setOpen(false)} repositionInputs={false}>
-      <Drawer.Portal>
-        <Drawer.Overlay className="drawer-overlay" />
-        <Drawer.Content className="drawer-content">
-          <div className="drawer-grip" />
+    <Sheet
+      open
+      onOpenChange={(o) => !o && setOpen(false)}
+      title="Que s’est-il passé ?"
+    >
+      <p className="pending-intro">
+        {list.length > 1
+          ? `${list.length} RDV passés attendent leur issue : les stats sont datées du jour du RDV.`
+          : 'Un RDV passé attend son issue : les stats sont datées du jour du RDV.'}
+      </p>
 
-          <div className="drawer-header">
-            <span className="drawer-title">Que s’est-il passé ?</span>
-            <button
-              type="button"
-              className="icon-btn"
-              onClick={() => setOpen(false)}
-              aria-label="Fermer"
-            >
-              <X size={18} />
-            </button>
+      {/* RDV soldé : sa carte glisse et se replie, les suivantes remontent
+          (chantier design 24/09) au lieu d'un saut sec de la liste. */}
+      <AnimatePresence initial={false}>
+      {list.map((a) => (
+        <motion.div
+          key={a.id}
+          className="pending-rdv"
+          layout
+          transition={SPRING_SMOOTH}
+          exit={{
+            opacity: 0,
+            x: -48,
+            height: 0,
+            marginTop: 0,
+            marginBottom: 0,
+            paddingTop: 0,
+            paddingBottom: 0,
+            transition: { duration: 0.24, ease: EASE_OUT },
+          }}
+        >
+          <span className="pending-when">
+            <CalendarClock size={14} strokeWidth={2} />
+            {relativeDay(new Date(a.scheduled_at))} ·{' '}
+            <span className="tnum">{hhmm(new Date(a.scheduled_at))}</span>
+          </span>
+          <span className="pending-title">
+            {a.client_name ?? a.address ?? 'Rendez-vous'}
+          </span>
+          {a.client_name && a.address && <span className="pending-sub">{a.address}</span>}
+          <div className="appt-outcomes">
+            {APPOINTMENT_OUTCOMES.map((o) => {
+              const m = APPOINTMENT_STATUS_META[o]
+              return (
+                <button
+                  key={o}
+                  type="button"
+                  className="outcome-btn"
+                  data-outcome={o}
+                  style={outcomeButtonStyle(m)}
+                  disabled={busyId === a.id}
+                  onClick={async () => {
+                    if (busyId) return
+                    setBusyId(a.id)
+                    try {
+                      const { pointSynced } = await setAppointmentOutcome(profile, a, o)
+                      toast.success(outcomeToastMessage(o))
+                      if (o === 'vendu') celebrate('Vendu')
+                      if (!pointSynced) {
+                        toast.error(
+                          'La maison n’a pas pu être mise à jour sur la carte : rouvrez sa fiche pour corriger',
+                        )
+                      }
+                      setList((prev) => {
+                        const next = prev.filter((x) => x.id !== a.id)
+                        if (next.length === 0) setOpen(false)
+                        return next
+                      })
+                    } catch (e) {
+                      console.error('Issue du RDV :', e)
+                      toast.error('Issue non enregistrée : vérifiez le réseau')
+                    } finally {
+                      setBusyId(null)
+                    }
+                  }}
+                >
+                  {outcomeButtonLabel(o)}
+                </button>
+              )
+            })}
           </div>
+        </motion.div>
+      ))}
+      </AnimatePresence>
 
-          <div className="drawer-body" data-vaul-no-drag>
-            <p className="pending-intro">
-              {list.length > 1
-                ? `${list.length} RDV passés attendent leur issue : les stats sont datées du jour du RDV.`
-                : 'Un RDV passé attend son issue : les stats sont datées du jour du RDV.'}
-            </p>
-
-            {/* RDV soldé : sa carte glisse et se replie, les suivantes remontent
-                (chantier design 24/09) au lieu d'un saut sec de la liste. */}
-            <AnimatePresence initial={false}>
-            {list.map((a) => (
-              <motion.div
-                key={a.id}
-                className="pending-rdv"
-                layout
-                transition={SPRING_SMOOTH}
-                exit={{
-                  opacity: 0,
-                  x: -48,
-                  height: 0,
-                  marginTop: 0,
-                  marginBottom: 0,
-                  paddingTop: 0,
-                  paddingBottom: 0,
-                  transition: { duration: 0.24, ease: EASE_OUT },
-                }}
-              >
-                <span className="pending-when">
-                  <CalendarClock size={14} strokeWidth={2} />
-                  {relativeDay(new Date(a.scheduled_at))} ·{' '}
-                  <span className="tnum">{hhmm(new Date(a.scheduled_at))}</span>
-                </span>
-                <span className="pending-title">
-                  {a.client_name ?? a.address ?? 'Rendez-vous'}
-                </span>
-                {a.client_name && a.address && <span className="pending-sub">{a.address}</span>}
-                <div className="appt-outcomes">
-                  {APPOINTMENT_OUTCOMES.map((o) => {
-                    const m = APPOINTMENT_STATUS_META[o]
-                    return (
-                      <button
-                        key={o}
-                        type="button"
-                        className="outcome-btn"
-                        data-outcome={o}
-                        style={outcomeButtonStyle(m)}
-                        disabled={busyId === a.id}
-                        onClick={async () => {
-                          if (busyId) return
-                          setBusyId(a.id)
-                          try {
-                            const { pointSynced } = await setAppointmentOutcome(profile, a, o)
-                            toast.success(outcomeToastMessage(o))
-                            if (o === 'vendu') celebrate('Vendu')
-                            if (!pointSynced) {
-                              toast.error(
-                                'La maison n’a pas pu être mise à jour sur la carte : rouvrez sa fiche pour corriger',
-                              )
-                            }
-                            setList((prev) => {
-                              const next = prev.filter((x) => x.id !== a.id)
-                              if (next.length === 0) setOpen(false)
-                              return next
-                            })
-                          } catch (e) {
-                            console.error('Issue du RDV :', e)
-                            toast.error('Issue non enregistrée : vérifiez le réseau')
-                          } finally {
-                            setBusyId(null)
-                          }
-                        }}
-                      >
-                        {outcomeButtonLabel(o)}
-                      </button>
-                    )
-                  })}
-                </div>
-              </motion.div>
-            ))}
-            </AnimatePresence>
-
-            <div className="drawer-footer">
-              <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>
-                Plus tard
-              </button>
-            </div>
-          </div>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+      <div className="drawer-footer">
+        <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>
+          Plus tard
+        </button>
+      </div>
+    </Sheet>
   )
 }

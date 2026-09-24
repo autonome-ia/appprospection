@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Drawer } from 'vaul'
+import { Sheet } from './ui/Sheet'
 import { toast } from 'sonner'
 import { celebrate } from '../lib/celebrate'
 import {
@@ -15,7 +15,6 @@ import {
   Search,
   Settings,
   SlidersHorizontal,
-  X,
 } from 'lucide-react'
 import {
   fetchAppointments,
@@ -336,9 +335,9 @@ function startOfWeek(d: Date): Date {
 
 // -----------------------------------------------------------------------------
 // Sheet du jour : le mois occupe tout l'écran, le planning d'une journée
-// s'ouvre au tap sur sa case (refonte agenda 26/07). Gabarit vaul commun
-// OBLIGATOIRE : en-tête fixe, corps défilant data-vaul-no-drag, pied sticky,
-// repositionInputs={false} (bug visualViewport iOS — ne jamais retirer).
+// s'ouvre au tap sur sa case (refonte agenda 26/07). Gabarit commun <Sheet>
+// (ui/Sheet.tsx) : en-tête fixe, corps défilant, pied sticky, correctifs iOS
+// verrouillés dans le composant.
 // -----------------------------------------------------------------------------
 
 interface DaySheetProps {
@@ -381,94 +380,77 @@ function DaySheet({
     new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(date),
   )
   return (
-    <Drawer.Root open onOpenChange={onOpenChange} repositionInputs={false}>
-      <Drawer.Portal>
-        <Drawer.Overlay className="drawer-overlay" />
-        <Drawer.Content className="drawer-content">
-          <div className="drawer-grip" />
-
-          <div className="drawer-header">
-            <span className="drawer-title">{dayLabel}</span>
+    <Sheet
+      open
+      onOpenChange={onOpenChange}
+      title={dayLabel}
+    >
+      {appts.length === 0 && revisits.length === 0 ? (
+        <div className="empty-state">
+          <CalendarClock size={26} strokeWidth={1.5} />
+          <p>Aucun rendez-vous ce jour.</p>
+        </div>
+      ) : (
+        <>
+          {appts.map((a) => (
+            <AppointmentCard
+              key={a.id}
+              appt={a}
+              who={a.commercial_id ? whoById[a.commercial_id] : undefined}
+              profile={profile}
+              onChanged={onChanged}
+              onOpenClient={onOpenClient}
+              onReplan={onReplan}
+              readOnly={readOnly}
+              bookedBy={
+                a.created_by && a.created_by !== a.commercial_id
+                  ? whoById[a.created_by]
+                  : undefined
+              }
+            />
+          ))}
+          {/* Maisons « à revoir » planifiées ce jour (pas des RDV : un
+              tap ouvre la fiche sur la carte). */}
+          {revisits.map((p) => (
             <button
+              key={p.id}
               type="button"
-              className="icon-btn"
-              onClick={() => onOpenChange(false)}
-              aria-label="Fermer"
+              className="home-row"
+              onClick={() => onShowOnMap?.({ pointId: p.id, lng: p.lng, lat: p.lat })}
             >
-              <X size={18} />
+              <span
+                className="status-dot"
+                style={{ background: STATUS_BY_VALUE.a_revoir.color }}
+              />
+              <span className="home-row-main">
+                <span className="home-row-title">
+                  {p.client_name ?? p.address ?? 'Maison à revoir'}
+                </span>
+                <span className="home-row-sub">
+                  {p.client_name && p.address ? `${p.address} · ` : ''}
+                  {p.note ?? ''}
+                </span>
+              </span>
+              <span className="home-row-when">À revoir</span>
             </button>
-          </div>
+          ))}
+        </>
+      )}
 
-          <div className="drawer-body" data-vaul-no-drag>
-            {appts.length === 0 && revisits.length === 0 ? (
-              <div className="empty-state">
-                <CalendarClock size={26} strokeWidth={1.5} />
-                <p>Aucun rendez-vous ce jour.</p>
-              </div>
-            ) : (
-              <>
-                {appts.map((a) => (
-                  <AppointmentCard
-                    key={a.id}
-                    appt={a}
-                    who={a.commercial_id ? whoById[a.commercial_id] : undefined}
-                    profile={profile}
-                    onChanged={onChanged}
-                    onOpenClient={onOpenClient}
-                    onReplan={onReplan}
-                    readOnly={readOnly}
-                    bookedBy={
-                      a.created_by && a.created_by !== a.commercial_id
-                        ? whoById[a.created_by]
-                        : undefined
-                    }
-                  />
-                ))}
-                {/* Maisons « à revoir » planifiées ce jour (pas des RDV : un
-                    tap ouvre la fiche sur la carte). */}
-                {revisits.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className="home-row"
-                    onClick={() => onShowOnMap?.({ pointId: p.id, lng: p.lng, lat: p.lat })}
-                  >
-                    <span
-                      className="status-dot"
-                      style={{ background: STATUS_BY_VALUE.a_revoir.color }}
-                    />
-                    <span className="home-row-main">
-                      <span className="home-row-title">
-                        {p.client_name ?? p.address ?? 'Maison à revoir'}
-                      </span>
-                      <span className="home-row-sub">
-                        {p.client_name && p.address ? `${p.address} · ` : ''}
-                        {p.note ?? ''}
-                      </span>
-                    </span>
-                    <span className="home-row-when">À revoir</span>
-                  </button>
-                ))}
-              </>
-            )}
-
-            <div className="drawer-footer">
-              {/* Tâche libre (29/07, demande chef des ventes) : même jour,
-                  même formulaire — la note devient le titre, hors stats.
-                  Pas pour la secrétaire (terrain) ; le RDV, si (v2, 20/09). */}
-              {!readOnly && (
-                <button type="button" className="btn btn-ghost" onClick={onCreateTask}>
-                  <ClipboardList size={15} strokeWidth={1.9} /> Tâche
-                </button>
-              )}
-              <button type="button" className="btn btn-primary" onClick={onCreate}>
-                <Plus size={15} strokeWidth={2.2} /> RDV ce jour
-              </button>
-            </div>
-          </div>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+      <div className="drawer-footer">
+        {/* Tâche libre (29/07, demande chef des ventes) : même jour,
+            même formulaire — la note devient le titre, hors stats.
+            Pas pour la secrétaire (terrain) ; le RDV, si (v2, 20/09). */}
+        {!readOnly && (
+          <button type="button" className="btn btn-ghost" onClick={onCreateTask}>
+            <ClipboardList size={15} strokeWidth={1.9} /> Tâche
+          </button>
+        )}
+        <button type="button" className="btn btn-primary" onClick={onCreate}>
+          <Plus size={15} strokeWidth={2.2} /> RDV ce jour
+        </button>
+      </div>
+    </Sheet>
   )
 }
 

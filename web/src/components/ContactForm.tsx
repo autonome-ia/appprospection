@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Drawer } from 'vaul'
+import { Sheet } from './ui/Sheet'
 import { toast } from 'sonner'
-import { MapPin, X } from 'lucide-react'
+import { MapPin } from 'lucide-react'
 import { FormGroup, FormRow } from './ui/Form'
 import { searchAddresses, type AddressResult } from './AddressSearch'
 import { TIME_SLOTS } from './AppointmentForm'
@@ -191,199 +191,182 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
   }
 
   return (
-    <Drawer.Root open onOpenChange={onOpenChange} repositionInputs={false}>
-      <Drawer.Portal>
-        <Drawer.Overlay className="drawer-overlay" />
-        <Drawer.Content className="drawer-content">
-          <div className="drawer-grip" />
-
-          <div className="drawer-header">
-            <span className="drawer-title">Nouveau contact</span>
-            <button
-              type="button"
-              className="icon-btn"
-              onClick={() => onOpenChange(false)}
-              aria-label="Fermer"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          <div className="drawer-body" data-vaul-no-drag>
-            <FormGroup title="Maison">
-            <input
-              className="form-input form-input-solo"
-              type="text"
-              placeholder="Adresse de la maison…"
-              value={address}
-              onChange={(e) => {
-                setAddress(e.target.value)
-                setChosen(null) // texte retouché = coordonnées à re-choisir
-              }}
-              onFocus={() => setAddrFocus(true)}
-              onBlur={() => {
-                setAddrFocus(false)
-                window.setTimeout(() => setAddrOpen(false), 150)
-              }}
-            />
-            </FormGroup>
-            {addrOpen && addrResults.length > 0 && (
-              // Liste EN FLUX (pas de dropdown absolu — même raison que le
-              // formulaire RDV : le corps de la sheet défile).
-              <ul className="address-results form-address-results">
-                {addrResults.map((r, i) => (
-                  <li key={i}>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => chooseAddress(r)}
-                    >
-                      <MapPin size={15} strokeWidth={1.8} className="address-result-icon" />
-                      <span className="address-texts">
-                        <span className="address-label">{r.label}</span>
-                        {r.context && <span className="address-context">{r.context}</span>}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {address.trim().length > 0 && !chosen && (
-              <p className="field-hint">Choisissez l’adresse dans la liste : elle place la maison sur la carte.</p>
-            )}
-
-            {secretaire && (
-              <FormGroup hint="Le contact et son RDV appartiendront à ce commercial (sa carte, ses stats).">
-                <FormRow label="Commercial" select>
-                <select
-                  className="form-input"
-                  value={ownerId}
-                  onChange={(e) => setOwnerId(e.target.value)}
-                >
-                  <option value="" disabled>
-                    Choisir…
-                  </option>
-                  {team.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.full_name ?? 'Sans nom'}
-                    </option>
-                  ))}
-                </select>
-                </FormRow>
-              </FormGroup>
-            )}
-
-            <p className="eyebrow form-section-title form-section-title-solo">Statut</p>
-            {/* « Client » (fusion 29/07, valeur `ancien_client` — jamais une
-                vente au tunnel) : ressaisir les maisons déjà vendues depuis
-                le canapé — ni RDV ni relance, juste les coordonnées. */}
-            <div className="chip-row">
-              {(['rdv_pris', 'a_revoir', 'ancien_client'] as const).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className={`chip ${status === s ? 'is-active' : ''}`}
-                  style={{ ['--chip' as string]: STATUS_BY_VALUE[s].color }}
-                  onClick={() => setStatus(s)}
-                >
-                  <img className="chip-marker" src={markerDataUrl(s)} alt="" />
-                  {STATUS_BY_VALUE[s].label}
-                </button>
-              ))}
-            </div>
-
-            <FormGroup title="Client">
-              <FormRow label="Nom">
-                <input
-                  className="form-input"
-                  type="text"
-                  placeholder="Nom (facultatif)"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </FormRow>
-              <FormRow label="Téléphone">
-                <input
-                  className="form-input"
-                  type="tel"
-                  placeholder="06…"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </FormRow>
-            </FormGroup>
-
-            {status === 'a_revoir' && (
-              <FormGroup title="Relance">
-                <FormRow label="Revoir le">
-                  <input
-                    className="form-input"
-                    type="date"
-                    value={revisitAt}
-                    onChange={(e) => setRevisitAt(e.target.value)}
-                  />
-                </FormRow>
-              </FormGroup>
-            )}
-
-            {status === 'rdv_pris' && (
-              <FormGroup title="Rendez-vous">
-                <FormRow label="Date">
-                  <input
-                    className="form-input"
-                    type="date"
-                    value={rdvDate}
-                    onChange={(e) => setRdvDate(e.target.value)}
-                  />
-                </FormRow>
-                <FormRow label="Heure" select>
-                  <select
-                    className="form-input"
-                    value={rdvTime}
-                    onChange={(e) => setRdvTime(e.target.value)}
-                  >
-                    {TIME_SLOTS.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </FormRow>
-              </FormGroup>
-            )}
-
-            <FormGroup title="Note">
-              <textarea
-                className="form-input"
-                rows={2}
-                placeholder="Contexte, consigne… (facultatif)"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-              />
-            </FormGroup>
-
-            <div className="drawer-footer">
-              <button type="button" className="btn btn-ghost" onClick={() => onOpenChange(false)}>
-                Annuler
-              </button>
+    <Sheet
+      open
+      onOpenChange={onOpenChange}
+      title="Nouveau contact"
+    >
+      <FormGroup title="Maison">
+      <input
+        className="form-input form-input-solo"
+        type="text"
+        placeholder="Adresse de la maison…"
+        value={address}
+        onChange={(e) => {
+          setAddress(e.target.value)
+          setChosen(null) // texte retouché = coordonnées à re-choisir
+        }}
+        onFocus={() => setAddrFocus(true)}
+        onBlur={() => {
+          setAddrFocus(false)
+          window.setTimeout(() => setAddrOpen(false), 150)
+        }}
+      />
+      </FormGroup>
+      {addrOpen && addrResults.length > 0 && (
+        // Liste EN FLUX (pas de dropdown absolu — même raison que le
+        // formulaire RDV : le corps de la sheet défile).
+        <ul className="address-results form-address-results">
+          {addrResults.map((r, i) => (
+            <li key={i}>
               <button
                 type="button"
-                className="btn btn-primary"
-                // Date de RDV vidée à la main : sans elle le RDV serait
-                // invalide — on verrouille plutôt que d'échouer à moitié.
-                // Secrétaire : titulaire obligatoire (le contact doit
-                // appartenir à un commercial).
-                disabled={
-                  !chosen || saving || (status === 'rdv_pris' && !rdvDate) || (secretaire && !ownerId)
-                }
-                onClick={() => void save()}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => chooseAddress(r)}
               >
-                {saving ? 'Création…' : 'Créer le contact'}
+                <MapPin size={15} strokeWidth={1.8} className="address-result-icon" />
+                <span className="address-texts">
+                  <span className="address-label">{r.label}</span>
+                  {r.context && <span className="address-context">{r.context}</span>}
+                </span>
               </button>
-            </div>
-          </div>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+            </li>
+          ))}
+        </ul>
+      )}
+      {address.trim().length > 0 && !chosen && (
+        <p className="field-hint">Choisissez l’adresse dans la liste : elle place la maison sur la carte.</p>
+      )}
+
+      {secretaire && (
+        <FormGroup hint="Le contact et son RDV appartiendront à ce commercial (sa carte, ses stats).">
+          <FormRow label="Commercial" select>
+          <select
+            className="form-input"
+            value={ownerId}
+            onChange={(e) => setOwnerId(e.target.value)}
+          >
+            <option value="" disabled>
+              Choisir…
+            </option>
+            {team.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.full_name ?? 'Sans nom'}
+              </option>
+            ))}
+          </select>
+          </FormRow>
+        </FormGroup>
+      )}
+
+      <p className="eyebrow form-section-title form-section-title-solo">Statut</p>
+      {/* « Client » (fusion 29/07, valeur `ancien_client` — jamais une
+          vente au tunnel) : ressaisir les maisons déjà vendues depuis
+          le canapé — ni RDV ni relance, juste les coordonnées. */}
+      <div className="chip-row">
+        {(['rdv_pris', 'a_revoir', 'ancien_client'] as const).map((s) => (
+          <button
+            key={s}
+            type="button"
+            className={`chip ${status === s ? 'is-active' : ''}`}
+            style={{ ['--chip' as string]: STATUS_BY_VALUE[s].color }}
+            onClick={() => setStatus(s)}
+          >
+            <img className="chip-marker" src={markerDataUrl(s)} alt="" />
+            {STATUS_BY_VALUE[s].label}
+          </button>
+        ))}
+      </div>
+
+      <FormGroup title="Client">
+        <FormRow label="Nom">
+          <input
+            className="form-input"
+            type="text"
+            placeholder="Nom (facultatif)"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </FormRow>
+        <FormRow label="Téléphone">
+          <input
+            className="form-input"
+            type="tel"
+            placeholder="06…"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+        </FormRow>
+      </FormGroup>
+
+      {status === 'a_revoir' && (
+        <FormGroup title="Relance">
+          <FormRow label="Revoir le">
+            <input
+              className="form-input"
+              type="date"
+              value={revisitAt}
+              onChange={(e) => setRevisitAt(e.target.value)}
+            />
+          </FormRow>
+        </FormGroup>
+      )}
+
+      {status === 'rdv_pris' && (
+        <FormGroup title="Rendez-vous">
+          <FormRow label="Date">
+            <input
+              className="form-input"
+              type="date"
+              value={rdvDate}
+              onChange={(e) => setRdvDate(e.target.value)}
+            />
+          </FormRow>
+          <FormRow label="Heure" select>
+            <select
+              className="form-input"
+              value={rdvTime}
+              onChange={(e) => setRdvTime(e.target.value)}
+            >
+              {TIME_SLOTS.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </FormRow>
+        </FormGroup>
+      )}
+
+      <FormGroup title="Note">
+        <textarea
+          className="form-input"
+          rows={2}
+          placeholder="Contexte, consigne… (facultatif)"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+      </FormGroup>
+
+      <div className="drawer-footer">
+        <button type="button" className="btn btn-ghost" onClick={() => onOpenChange(false)}>
+          Annuler
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          // Date de RDV vidée à la main : sans elle le RDV serait
+          // invalide — on verrouille plutôt que d'échouer à moitié.
+          // Secrétaire : titulaire obligatoire (le contact doit
+          // appartenir à un commercial).
+          disabled={
+            !chosen || saving || (status === 'rdv_pris' && !rdvDate) || (secretaire && !ownerId)
+          }
+          onClick={() => void save()}
+        >
+          {saving ? 'Création…' : 'Créer le contact'}
+        </button>
+      </div>
+    </Sheet>
   )
 }

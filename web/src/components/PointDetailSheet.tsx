@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Drawer } from 'vaul'
+import { Sheet } from './ui/Sheet'
 import { toast } from 'sonner'
 import { celebrate } from '../lib/celebrate'
-import { X, Trash2, Clock, User, MapPin, Phone, CalendarPlus } from 'lucide-react'
+import { Trash2, Clock, User, MapPin, Phone, CalendarPlus } from 'lucide-react'
 import { FormRow } from './ui/Form'
 import {
   getPointDetail,
@@ -430,31 +430,26 @@ export function PointDetailSheet({
   return (
     // Non modale : la carte reste visible et manipulable derrière (le point
     // sélectionné est recadré au-dessus de la sheet, voir MapView).
-    // repositionInputs={false} : au focus d'un champ, vaul pose des styles
-    // inline height/bottom calculés sur visualViewport — faux en PWA iOS
-    // (sheet hors écran au clavier, hauteur rétrécie jamais restaurée après).
-    // Le clavier se superpose et iOS scrolle le champ dans .drawer-body.
-    <Drawer.Root open={open} onOpenChange={onOpenChange} modal={false} repositionInputs={false}>
-      <Drawer.Portal>
-        <Drawer.Content className="drawer-content">
-          <div className="drawer-grip" />
-
-          {/* En-tête commun aux fiches (chantier design 24/09) : QUI (le
-              client, sinon la rue) en titre, le statut en pastille dessous —
-              la fiche maison suit le même gabarit. */}
-          <div className="drawer-header">
-            <div className="sheet-head">
-              <span className="drawer-title">{point.client_name || street || current.label}</span>
-              <span className="sheet-status">
-                <img className="chip-marker" src={markerDataUrl(point.status)} alt="" />
-                {current.label}
-              </span>
-            </div>
-            <button type="button" className="icon-btn" onClick={() => onOpenChange(false)} aria-label="Fermer">
-              <X size={18} />
-            </button>
-          </div>
-
+    // Correctifs clavier iOS (repositionInputs, no-drag) : verrouillés dans
+    // <Sheet> (ui/Sheet.tsx), qui documente le pourquoi.
+    <Sheet
+      open={open}
+      onOpenChange={onOpenChange}
+      modal={false}
+      // En-tête commun aux fiches (chantier design 24/09) : QUI (le client,
+      // sinon la rue) en titre, le statut en pastille dessous — la fiche
+      // maison suit le même gabarit.
+      title={
+        <div className="sheet-head">
+          <span className="drawer-title">{point.client_name || street || current.label}</span>
+          <span className="sheet-status">
+            <img className="chip-marker" src={markerDataUrl(point.status)} alt="" />
+            {current.label}
+          </span>
+        </div>
+      }
+      meta={
+        <>
           {(detail || point.address) && (
             <div className="drawer-meta">
               {/* Adresse cliquable → Waze (convergence 29/07 : la fiche vit
@@ -493,258 +488,253 @@ export function PointDetailSheet({
               )}
             </div>
           )}
-
-          {/* data-vaul-no-drag : le geste vertical DANS le contenu fait
-              défiler la sheet au lieu de la tirer (vaul volait le scroll —
-              fermer reste possible par la poignée / l'en-tête). */}
-          <div className="drawer-body" data-vaul-no-drag>
-          {/* Bloc « Rendez-vous » en tête (audit UX B1) : SECTION STANDARD
-              partagée avec la fiche prospect (fusion 29/07 soir) — date +
-              issue, BOUTONS D'ISSUE dès le jour J (on peut enfin marquer
-              « Vendu » en sortant de chez le client, la carte ouverte),
-              Appeler / Y aller / Modifier, bandeau « Planifier ». */}
-          {me && (
-            <RdvSection
-              point={point}
-              appts={appts}
-              profile={me}
-              showNav
-              onEdit={onRdvNeeded ? (a) => onRdvNeeded(point, a) : undefined}
-              onPlan={onRdvNeeded ? () => onRdvNeeded(point) : undefined}
-              onChanged={onApptsChanged}
-            />
-          )}
-          {/* Client d'abord (réorganisation briac 25/07) : le contexte —
-              client puis maison — avant les actions d'édition. */}
-          {(status === 'a_revoir' ||
-            status === 'rdv_pris' ||
-            status === 'vendu' ||
-            status === 'ancien_client') && (
-            <>
-              <div className="field-label-row">
-                <p className="eyebrow field-label">Client</p>
-                {/* RDV sans le détour statut → Enregistrer (audit UX B1).
-                    MASQUÉ quand un RDV « à venir » existe : ce bouton créait
-                    alors un DOUBLON — le décalage passe par « Modifier » du
-                    bloc RDV (piège corrigé le 29/07). */}
-                {onRdvNeeded && isSupabaseConfigured && !point.id.startsWith('temp-') && !hasUpcomingRdv && (
-                  <button type="button" className="text-btn" onClick={() => onRdvNeeded(point)}>
-                    <CalendarPlus size={14} /> RDV
-                  </button>
-                )}
-              </div>
-              {/* Nom + téléphone côte à côte (audit UX B10) : le « voilà mon
-                  06 » d'un « à revoir » a enfin sa place hors note libre. */}
-              {/* Bloc façon Réglages iOS (chantier design 24/09) : nom,
-                  téléphone et relance dans UN groupe. */}
-              <div className="form-group">
-                <FormRow label="Nom">
-                  <input
-                    className="form-input"
-                    type="text"
-                    placeholder="Facultatif"
-                    value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
-                    disabled={readOnlyPoint}
-                  />
-                </FormRow>
-                <FormRow label="Téléphone">
-                  <input
-                    className="form-input"
-                    type="tel"
-                    placeholder="06 …"
-                    value={clientPhone}
-                    onChange={(e) => setClientPhone(e.target.value)}
-                    disabled={readOnlyPoint}
-                  />
-                </FormRow>
-              {/* Date de relance DANS la section client (retour briac 25/07),
-                  sans presets — le champ date natif suffit. Visible aussi pour
-                  « RDV pris » (12/08) : la relance J+7 d'un « En attente »
-                  se lit et s'ajuste ici. */}
-              {(status === 'a_revoir' || status === 'rdv_pris') && (
-                <FormRow label="Revoir le">
-                  <input
-                    className="form-input"
-                    type="date"
-                    value={revisitAt}
-                    onChange={(e) => setRevisitAt(e.target.value)}
-                    disabled={readOnlyPoint}
-                  />
-                </FormRow>
-              )}
-              </div>
-            </>
-          )}
-
-          <HouseBadges
-            annee={annee}
-            matCode={matCode}
-            matConfirme={point.mat_toit_confirme}
-            toitM2={toitM2}
-            lidarM2={lidarM2}
-            lidarMillesime={lidarMillesime}
-            lidarPending={lidarPending && lidarM2 == null}
-            dpe={dpe}
-            extra={extra}
-            lidarStatut={lidarStatut}
-            lidarDiag={liveLidar ? liveLidar.toit_lidar_diag : point.toit_lidar_diag}
-            hideMeasured={lidarPans !== null}
-          />
-
-          {lidarPans && (
-            // Replié par défaut : à la porte, la 3D ne doit pas taxer la
-            // pose (statut, note, Enregistrer) — audit UX, B2.
-            <RoofModule
-              roof={lidarPans}
-              wastePct={suggestedWastePct(matCode, point.mat_toit_confirme, lidarPans.aretes)}
-              address={point.address}
-              maisonM2={lidarM2}
-              totalM2={liveLidar ? liveLidar.toit_lidar_m2 : point.toit_lidar_m2}
-              millesime={lidarMillesime}
-            />
-          )}
-
-          {/* Historique des RDV (rapatrié de la fiche prospect, convergence
-              29/07) : la section RDV ne montre que le dernier — les
-              précédents et leurs issues racontent le client. */}
-          {(appts?.length ?? 0) > 1 && (
-            <>
-              <p className="eyebrow field-label">RDV passés</p>
-              <div className="rdv-history">
-                {[...(appts ?? [])]
-                  .sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at))
-                  .map((h) => {
-                    const hm = APPOINTMENT_STATUS_META[h.status]
-                    return (
-                      <div key={h.id} className="rdv-history-row">
-                        <span className="rdv-history-when tnum">{formatDate(h.scheduled_at)}</span>
-                        <span
-                          className="badge"
-                          style={outcomeBadgeStyle(hm)}
-                        >
-                          {hm.label}
-                        </span>
-                      </div>
-                    )
-                  })}
-              </div>
-            </>
-          )}
-
-          {/* Notes : saisies à CHAQUE visite (audit UX A12). */}
-          <p className="eyebrow field-label">Notes</p>
-          {shownNotes.length > 0 && (
-            <ul className="note-history">
-              {shownNotes.map((n) => (
-                <li key={n.id} className="note-entry">
-                  {noteMeta(n) && <span className="note-meta">{noteMeta(n)}</span>}
-                  <span className="note-body">{n.body}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="form-group">
-            <textarea
-              className="form-input"
-              placeholder={
-                shownNotes.length
-                  ? 'Ajouter une note (la précédente est conservée)…'
-                  : 'Ex : repasser en soirée, portail bleu…'
-              }
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              rows={2}
-            />
-          </div>
-
-          {/* Statut COMPACT (réorganisation briac 25/07) : posé à la pose, il
-              change rarement à la réouverture — les 6 chips ne s'affichent
-              qu'au tap sur « Modifier ». */}
-          {!statusOpen ? (
-            <div className="status-line">
-              <span className="eyebrow field-label">Statut</span>
-              <span className="status-line-current">
-                <img className="chip-marker" src={markerDataUrl(status)} alt="" />
-                {STATUS_BY_VALUE[status].label}
-              </span>
-              {!readOnlyPoint && (
-                <button type="button" className="text-btn" onClick={() => setStatusOpen(true)}>
-                  Modifier
-                </button>
-              )}
-            </div>
-          ) : (
-            <>
-              <p className="eyebrow field-label">Statut</p>
-              <div className="chip-row">
-                {DISPLAY_STATUSES.map((s) => (
-                  <button
-                    key={s.value}
-                    type="button"
-                    className={`chip ${sameDisplayStatus(status, s.value) ? 'is-active' : ''}`}
-                    style={{ ['--chip' as string]: s.color }}
-                    onClick={() => {
-                      // Re-taper « Client » sur un point déjà client (vendu
-                      // OU ancien_client) ne réécrit pas la valeur : le
-                      // journal garde vente vs ancien client (fusion 29/07).
-                      setStatus(sameDisplayStatus(status, s.value) ? status : s.value)
-                      // « À revoir » sans date ne remonte JAMAIS dans les
-                      // relances : J+7 pré-rempli (modifiable) — audit UX A4.
-                      if (s.value === 'a_revoir' && !revisitAt) setRevisitAt(dayPlus(7))
-                    }}
-                  >
-                    <img className="chip-marker" src={markerDataUrl(s.value)} alt="" />
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-
-
-          {/* Destructif déclassé : plus de rangée à égalité avec Enregistrer,
-              où le pouce arrivait lancé en fin de scroll (audit UX, A3).
-              La confirmation en deux taps est conservée. */}
-          {!readOnlyPoint && (
-            <button
-              type="button"
-              className="text-btn danger drawer-delete"
-              onClick={remove}
-              disabled={saving}
-            >
-              <Trash2 size={14} /> {confirmDelete ? 'Confirmer la suppression ?' : 'Supprimer le point'}
-            </button>
-          )}
-
-          {hasHouseInfo && (
-            <p className="data-attribution">Données IGN BD TOPO · BDNB (CSTB)</p>
-          )}
-
-          {/* Sticky : l'action de tous les jours reste visible sans scroller
-              (le bas de fiche partait sous le pli dès que la 3D était ouverte). */}
-          <div className="drawer-footer">
-            {/* Hors carte (convergence 29/07) : rejoindre le point sur la
-                carte — absent sur la carte elle-même, on y est déjà. */}
-            {onShowOnMap && (
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => {
-                  onOpenChange(false)
-                  onShowOnMap({ pointId: point.id, lng: point.lng, lat: point.lat })
-                }}
-              >
-                <MapPin size={15} strokeWidth={1.9} /> Carte
+        </>
+      }
+    >
+      {/* Bloc « Rendez-vous » en tête (audit UX B1) : SECTION STANDARD
+          partagée avec la fiche prospect (fusion 29/07 soir) — date +
+          issue, BOUTONS D'ISSUE dès le jour J (on peut enfin marquer
+          « Vendu » en sortant de chez le client, la carte ouverte),
+          Appeler / Y aller / Modifier, bandeau « Planifier ». */}
+      {me && (
+        <RdvSection
+          point={point}
+          appts={appts}
+          profile={me}
+          showNav
+          onEdit={onRdvNeeded ? (a) => onRdvNeeded(point, a) : undefined}
+          onPlan={onRdvNeeded ? () => onRdvNeeded(point) : undefined}
+          onChanged={onApptsChanged}
+        />
+      )}
+      {/* Client d'abord (réorganisation briac 25/07) : le contexte —
+          client puis maison — avant les actions d'édition. */}
+      {(status === 'a_revoir' ||
+        status === 'rdv_pris' ||
+        status === 'vendu' ||
+        status === 'ancien_client') && (
+        <>
+          <div className="field-label-row">
+            <p className="eyebrow field-label">Client</p>
+            {/* RDV sans le détour statut → Enregistrer (audit UX B1).
+                MASQUÉ quand un RDV « à venir » existe : ce bouton créait
+                alors un DOUBLON — le décalage passe par « Modifier » du
+                bloc RDV (piège corrigé le 29/07). */}
+            {onRdvNeeded && isSupabaseConfigured && !point.id.startsWith('temp-') && !hasUpcomingRdv && (
+              <button type="button" className="text-btn" onClick={() => onRdvNeeded(point)}>
+                <CalendarPlus size={14} /> RDV
               </button>
             )}
-            <button type="button" className="btn btn-primary" onClick={save} disabled={saving || !dirty}>
-              {saving ? 'Enregistrement…' : readOnlyPoint ? 'Ajouter la note' : 'Enregistrer'}
+          </div>
+          {/* Nom + téléphone côte à côte (audit UX B10) : le « voilà mon
+              06 » d'un « à revoir » a enfin sa place hors note libre. */}
+          {/* Bloc façon Réglages iOS (chantier design 24/09) : nom,
+              téléphone et relance dans UN groupe. */}
+          <div className="form-group">
+            <FormRow label="Nom">
+              <input
+                className="form-input"
+                type="text"
+                placeholder="Facultatif"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                disabled={readOnlyPoint}
+              />
+            </FormRow>
+            <FormRow label="Téléphone">
+              <input
+                className="form-input"
+                type="tel"
+                placeholder="06 …"
+                value={clientPhone}
+                onChange={(e) => setClientPhone(e.target.value)}
+                disabled={readOnlyPoint}
+              />
+            </FormRow>
+          {/* Date de relance DANS la section client (retour briac 25/07),
+              sans presets — le champ date natif suffit. Visible aussi pour
+              « RDV pris » (12/08) : la relance J+7 d'un « En attente »
+              se lit et s'ajuste ici. */}
+          {(status === 'a_revoir' || status === 'rdv_pris') && (
+            <FormRow label="Revoir le">
+              <input
+                className="form-input"
+                type="date"
+                value={revisitAt}
+                onChange={(e) => setRevisitAt(e.target.value)}
+                disabled={readOnlyPoint}
+              />
+            </FormRow>
+          )}
+          </div>
+        </>
+      )}
+
+      <HouseBadges
+        annee={annee}
+        matCode={matCode}
+        matConfirme={point.mat_toit_confirme}
+        toitM2={toitM2}
+        lidarM2={lidarM2}
+        lidarMillesime={lidarMillesime}
+        lidarPending={lidarPending && lidarM2 == null}
+        dpe={dpe}
+        extra={extra}
+        lidarStatut={lidarStatut}
+        lidarDiag={liveLidar ? liveLidar.toit_lidar_diag : point.toit_lidar_diag}
+        hideMeasured={lidarPans !== null}
+      />
+
+      {lidarPans && (
+        // Replié par défaut : à la porte, la 3D ne doit pas taxer la
+        // pose (statut, note, Enregistrer) — audit UX, B2.
+        <RoofModule
+          roof={lidarPans}
+          wastePct={suggestedWastePct(matCode, point.mat_toit_confirme, lidarPans.aretes)}
+          address={point.address}
+          maisonM2={lidarM2}
+          totalM2={liveLidar ? liveLidar.toit_lidar_m2 : point.toit_lidar_m2}
+          millesime={lidarMillesime}
+        />
+      )}
+
+      {/* Historique des RDV (rapatrié de la fiche prospect, convergence
+          29/07) : la section RDV ne montre que le dernier — les
+          précédents et leurs issues racontent le client. */}
+      {(appts?.length ?? 0) > 1 && (
+        <>
+          <p className="eyebrow field-label">RDV passés</p>
+          <div className="rdv-history">
+            {[...(appts ?? [])]
+              .sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at))
+              .map((h) => {
+                const hm = APPOINTMENT_STATUS_META[h.status]
+                return (
+                  <div key={h.id} className="rdv-history-row">
+                    <span className="rdv-history-when tnum">{formatDate(h.scheduled_at)}</span>
+                    <span
+                      className="badge"
+                      style={outcomeBadgeStyle(hm)}
+                    >
+                      {hm.label}
+                    </span>
+                  </div>
+                )
+              })}
+          </div>
+        </>
+      )}
+
+      {/* Notes : saisies à CHAQUE visite (audit UX A12). */}
+      <p className="eyebrow field-label">Notes</p>
+      {shownNotes.length > 0 && (
+        <ul className="note-history">
+          {shownNotes.map((n) => (
+            <li key={n.id} className="note-entry">
+              {noteMeta(n) && <span className="note-meta">{noteMeta(n)}</span>}
+              <span className="note-body">{n.body}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="form-group">
+        <textarea
+          className="form-input"
+          placeholder={
+            shownNotes.length
+              ? 'Ajouter une note (la précédente est conservée)…'
+              : 'Ex : repasser en soirée, portail bleu…'
+          }
+          value={newNote}
+          onChange={(e) => setNewNote(e.target.value)}
+          rows={2}
+        />
+      </div>
+
+      {/* Statut COMPACT (réorganisation briac 25/07) : posé à la pose, il
+          change rarement à la réouverture — les 6 chips ne s'affichent
+          qu'au tap sur « Modifier ». */}
+      {!statusOpen ? (
+        <div className="status-line">
+          <span className="eyebrow field-label">Statut</span>
+          <span className="status-line-current">
+            <img className="chip-marker" src={markerDataUrl(status)} alt="" />
+            {STATUS_BY_VALUE[status].label}
+          </span>
+          {!readOnlyPoint && (
+            <button type="button" className="text-btn" onClick={() => setStatusOpen(true)}>
+              Modifier
             </button>
+          )}
+        </div>
+      ) : (
+        <>
+          <p className="eyebrow field-label">Statut</p>
+          <div className="chip-row">
+            {DISPLAY_STATUSES.map((s) => (
+              <button
+                key={s.value}
+                type="button"
+                className={`chip ${sameDisplayStatus(status, s.value) ? 'is-active' : ''}`}
+                style={{ ['--chip' as string]: s.color }}
+                onClick={() => {
+                  // Re-taper « Client » sur un point déjà client (vendu
+                  // OU ancien_client) ne réécrit pas la valeur : le
+                  // journal garde vente vs ancien client (fusion 29/07).
+                  setStatus(sameDisplayStatus(status, s.value) ? status : s.value)
+                  // « À revoir » sans date ne remonte JAMAIS dans les
+                  // relances : J+7 pré-rempli (modifiable) — audit UX A4.
+                  if (s.value === 'a_revoir' && !revisitAt) setRevisitAt(dayPlus(7))
+                }}
+              >
+                <img className="chip-marker" src={markerDataUrl(s.value)} alt="" />
+                {s.label}
+              </button>
+            ))}
           </div>
-          </div>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+        </>
+      )}
+
+
+      {/* Destructif déclassé : plus de rangée à égalité avec Enregistrer,
+          où le pouce arrivait lancé en fin de scroll (audit UX, A3).
+          La confirmation en deux taps est conservée. */}
+      {!readOnlyPoint && (
+        <button
+          type="button"
+          className="text-btn danger drawer-delete"
+          onClick={remove}
+          disabled={saving}
+        >
+          <Trash2 size={14} /> {confirmDelete ? 'Confirmer la suppression ?' : 'Supprimer le point'}
+        </button>
+      )}
+
+      {hasHouseInfo && (
+        <p className="data-attribution">Données IGN BD TOPO · BDNB (CSTB)</p>
+      )}
+
+      {/* Sticky : l'action de tous les jours reste visible sans scroller
+          (le bas de fiche partait sous le pli dès que la 3D était ouverte). */}
+      <div className="drawer-footer">
+        {/* Hors carte (convergence 29/07) : rejoindre le point sur la
+            carte — absent sur la carte elle-même, on y est déjà. */}
+        {onShowOnMap && (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => {
+              onOpenChange(false)
+              onShowOnMap({ pointId: point.id, lng: point.lng, lat: point.lat })
+            }}
+          >
+            <MapPin size={15} strokeWidth={1.9} /> Carte
+          </button>
+        )}
+        <button type="button" className="btn btn-primary" onClick={save} disabled={saving || !dirty}>
+          {saving ? 'Enregistrement…' : readOnlyPoint ? 'Ajouter la note' : 'Enregistrer'}
+        </button>
+      </div>
+    </Sheet>
   )
 }

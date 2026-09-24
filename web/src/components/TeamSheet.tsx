@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Drawer } from 'vaul'
+import { Sheet } from './ui/Sheet'
 import { toast } from 'sonner'
-import { Check, Copy, RefreshCw, Share2, X } from 'lucide-react'
+import { Check, Copy, RefreshCw, Share2 } from 'lucide-react'
 import {
   fetchOrgProfiles,
   updateStatsVisible,
@@ -247,206 +247,195 @@ export function TeamSheet({
   })
 
   return (
-    <Drawer.Root open={open} onOpenChange={onOpenChange} repositionInputs={false}>
-      <Drawer.Portal>
-        <Drawer.Overlay className="drawer-overlay" />
-        <Drawer.Content className="drawer-content">
-          <div className="drawer-grip" />
-          <div className="drawer-header">
-            <span className="drawer-title">Équipe</span>
-            <button type="button" className="icon-btn" onClick={() => onOpenChange(false)} aria-label="Fermer">
-              <X size={18} />
+    <Sheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Équipe"
+    >
+      {loadError && (
+        <div className="load-error">
+          <span>Impossible de charger l’équipe.</span>
+          <button type="button" className="text-btn" onClick={load}>
+            Réessayer
+          </button>
+        </div>
+      )}
+
+      {/* --- Code d'invitation --- */}
+      {code && (
+        <div className="team-invite">
+          <p className="eyebrow">Code d’invitation</p>
+          <div className="team-code-row">
+            <span className="team-code tnum">{code}</span>
+            <button type="button" className="icon-btn" onClick={copyCode} aria-label="Copier le code">
+              <Copy size={17} strokeWidth={1.9} />
             </button>
           </div>
+          <p className="team-invite-hint">
+            Un nouveau membre crée son compte avec ce code : il arrive « commercial », tu
+            choisis son rôle ici ensuite.
+          </p>
+          <div className="team-invite-actions">
+            <button type="button" className="btn btn-primary" onClick={share}>
+              <Share2 size={16} strokeWidth={2} />
+              Inviter
+            </button>
+            {isManager && (
+              <button
+                type="button"
+                className={`btn btn-ghost ${armRegen ? 'is-arm-danger' : ''}`}
+                onClick={regen}
+                disabled={busy}
+              >
+                <RefreshCw size={15} strokeWidth={2} />
+                {armRegen ? 'Confirmer ?' : 'Nouveau code'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
-          <div className="drawer-body" data-vaul-no-drag>
-            {loadError && (
-              <div className="load-error">
-                <span>Impossible de charger l’équipe.</span>
-                <button type="button" className="text-btn" onClick={load}>
-                  Réessayer
+      {/* --- Visibilité du manager dans les stats (db/0023) --- */}
+      {isManager && meRow && (
+        // Interrupteur iOS (chantier design 24/09) : la case à cocher
+        // Lucide ne se lisait pas comme un réglage ; aide ramenée à une ligne.
+        <button
+          type="button"
+          className={`team-check ${meRow.stats_visible ? 'is-on' : ''}`}
+          onClick={() => void toggleStatsVisible()}
+          disabled={busy}
+          role="switch"
+          aria-checked={meRow.stats_visible}
+        >
+          <span className="team-check-texts">
+            <span className="team-check-label">M’afficher au classement</span>
+            <span className="team-check-hint">Tes chiffres comptent toujours dans les totaux.</span>
+          </span>
+          <span className="switch" aria-hidden="true">
+            <span className="switch-thumb" />
+          </span>
+        </button>
+      )}
+
+      {/* --- Membres --- */}
+      <p className="eyebrow section-title">
+        Membres{members.length > 0 && ` · ${members.length}`}
+      </p>
+      {loading && (
+        <div aria-hidden="true">
+          <span className="sk sk-row" />
+          <span className="sk sk-row" />
+        </div>
+      )}
+      {sorted.map((m) => {
+        const me = m.id === profile.id
+        const expandable = isManager && !me
+        const expanded = openId === m.id
+        return (
+          <div key={m.id} className={`team-member ${m.disabled_at ? 'is-off' : ''}`}>
+            <button
+              type="button"
+              className="team-row"
+              onClick={expandable ? () => openPanel(m, expanded) : undefined}
+              disabled={!expandable}
+            >
+              <span
+                className="avatar team-avatar"
+                style={{ background: colorForCommercial(m.id, m.color), color: '#fff' }}
+              >
+                {initials(m.full_name)}
+              </span>
+              <span className="team-texts">
+                <span className="team-name">
+                  {m.full_name ?? 'Sans nom'}
+                  {me && <span className="team-me"> (toi)</span>}
+                </span>
+                <span className="team-role">
+                  {roleLabel(m.role)}
+                  {m.disabled_at && ' · désactivé'}
+                </span>
+              </span>
+            </button>
+
+            {expanded && (
+              <div className="team-panel">
+                <p className="eyebrow field-label">Nom affiché</p>
+                <div className="team-name-edit">
+                  <input
+                    className="field-input"
+                    type="text"
+                    placeholder="Prénom Nom"
+                    value={nameEdit}
+                    onChange={(e) => setNameEdit(e.target.value)}
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={() => void saveName(m)}
+                    disabled={busy || !nameEdit.trim() || nameEdit.trim() === (m.full_name ?? '')}
+                    aria-label="Enregistrer le nom"
+                  >
+                    <Check size={17} strokeWidth={2.2} />
+                  </button>
+                </div>
+                {/* Couleur d'agenda (refonte 10/08) : le manager arbitre
+                    — deux commerciaux ne prennent pas la même teinte. */}
+                <p className="eyebrow field-label">Couleur d’agenda</p>
+                <div className="team-swatches">
+                  {TEAM_PALETTE.map((c) => {
+                    const owner = takenBy.get(c)
+                    const taken = owner !== undefined && owner.id !== m.id
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        className={`team-swatch ${colorForCommercial(m.id, m.color) === c ? 'is-active' : ''} ${taken ? 'is-taken' : ''}`}
+                        style={{ background: c }}
+                        onClick={() => void changeColor(m, c)}
+                        disabled={busy || taken}
+                        aria-label={
+                          taken
+                            ? `Couleur ${c}, déjà prise par ${owner.full_name ?? 'un membre'}`
+                            : `Couleur ${c}`
+                        }
+                        title={taken ? `Déjà prise par ${owner.full_name ?? 'un membre'}` : undefined}
+                      />
+                    )
+                  })}
+                </div>
+
+                <p className="eyebrow field-label">Rôle</p>
+                <div className="chip-row">
+                  {ROLE_ORDER.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      className={`chip ${m.role === r ? 'is-active' : ''}`}
+                      onClick={() => changeRole(m, r)}
+                      disabled={busy}
+                    >
+                      {ROLE_LABELS[r]}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className={`team-danger ${armDisable === m.id ? 'is-armed' : ''}`}
+                  onClick={() => toggleDisabled(m)}
+                  disabled={busy}
+                >
+                  {m.disabled_at
+                    ? 'Réactiver le compte'
+                    : armDisable === m.id
+                      ? 'Confirmer la désactivation ?'
+                      : 'Désactiver le compte'}
                 </button>
               </div>
             )}
-
-            {/* --- Code d'invitation --- */}
-            {code && (
-              <div className="team-invite">
-                <p className="eyebrow">Code d’invitation</p>
-                <div className="team-code-row">
-                  <span className="team-code tnum">{code}</span>
-                  <button type="button" className="icon-btn" onClick={copyCode} aria-label="Copier le code">
-                    <Copy size={17} strokeWidth={1.9} />
-                  </button>
-                </div>
-                <p className="team-invite-hint">
-                  Un nouveau membre crée son compte avec ce code : il arrive « commercial », tu
-                  choisis son rôle ici ensuite.
-                </p>
-                <div className="team-invite-actions">
-                  <button type="button" className="btn btn-primary" onClick={share}>
-                    <Share2 size={16} strokeWidth={2} />
-                    Inviter
-                  </button>
-                  {isManager && (
-                    <button
-                      type="button"
-                      className={`btn btn-ghost ${armRegen ? 'is-arm-danger' : ''}`}
-                      onClick={regen}
-                      disabled={busy}
-                    >
-                      <RefreshCw size={15} strokeWidth={2} />
-                      {armRegen ? 'Confirmer ?' : 'Nouveau code'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* --- Visibilité du manager dans les stats (db/0023) --- */}
-            {isManager && meRow && (
-              // Interrupteur iOS (chantier design 24/09) : la case à cocher
-              // Lucide ne se lisait pas comme un réglage ; aide ramenée à une ligne.
-              <button
-                type="button"
-                className={`team-check ${meRow.stats_visible ? 'is-on' : ''}`}
-                onClick={() => void toggleStatsVisible()}
-                disabled={busy}
-                role="switch"
-                aria-checked={meRow.stats_visible}
-              >
-                <span className="team-check-texts">
-                  <span className="team-check-label">M’afficher au classement</span>
-                  <span className="team-check-hint">Tes chiffres comptent toujours dans les totaux.</span>
-                </span>
-                <span className="switch" aria-hidden="true">
-                  <span className="switch-thumb" />
-                </span>
-              </button>
-            )}
-
-            {/* --- Membres --- */}
-            <p className="eyebrow section-title">
-              Membres{members.length > 0 && ` · ${members.length}`}
-            </p>
-            {loading && (
-              <div aria-hidden="true">
-                <span className="sk sk-row" />
-                <span className="sk sk-row" />
-              </div>
-            )}
-            {sorted.map((m) => {
-              const me = m.id === profile.id
-              const expandable = isManager && !me
-              const expanded = openId === m.id
-              return (
-                <div key={m.id} className={`team-member ${m.disabled_at ? 'is-off' : ''}`}>
-                  <button
-                    type="button"
-                    className="team-row"
-                    onClick={expandable ? () => openPanel(m, expanded) : undefined}
-                    disabled={!expandable}
-                  >
-                    <span
-                      className="avatar team-avatar"
-                      style={{ background: colorForCommercial(m.id, m.color), color: '#fff' }}
-                    >
-                      {initials(m.full_name)}
-                    </span>
-                    <span className="team-texts">
-                      <span className="team-name">
-                        {m.full_name ?? 'Sans nom'}
-                        {me && <span className="team-me"> (toi)</span>}
-                      </span>
-                      <span className="team-role">
-                        {roleLabel(m.role)}
-                        {m.disabled_at && ' · désactivé'}
-                      </span>
-                    </span>
-                  </button>
-
-                  {expanded && (
-                    <div className="team-panel">
-                      <p className="eyebrow field-label">Nom affiché</p>
-                      <div className="team-name-edit">
-                        <input
-                          className="field-input"
-                          type="text"
-                          placeholder="Prénom Nom"
-                          value={nameEdit}
-                          onChange={(e) => setNameEdit(e.target.value)}
-                          autoComplete="off"
-                        />
-                        <button
-                          type="button"
-                          className="icon-btn"
-                          onClick={() => void saveName(m)}
-                          disabled={busy || !nameEdit.trim() || nameEdit.trim() === (m.full_name ?? '')}
-                          aria-label="Enregistrer le nom"
-                        >
-                          <Check size={17} strokeWidth={2.2} />
-                        </button>
-                      </div>
-                      {/* Couleur d'agenda (refonte 10/08) : le manager arbitre
-                          — deux commerciaux ne prennent pas la même teinte. */}
-                      <p className="eyebrow field-label">Couleur d’agenda</p>
-                      <div className="team-swatches">
-                        {TEAM_PALETTE.map((c) => {
-                          const owner = takenBy.get(c)
-                          const taken = owner !== undefined && owner.id !== m.id
-                          return (
-                            <button
-                              key={c}
-                              type="button"
-                              className={`team-swatch ${colorForCommercial(m.id, m.color) === c ? 'is-active' : ''} ${taken ? 'is-taken' : ''}`}
-                              style={{ background: c }}
-                              onClick={() => void changeColor(m, c)}
-                              disabled={busy || taken}
-                              aria-label={
-                                taken
-                                  ? `Couleur ${c}, déjà prise par ${owner.full_name ?? 'un membre'}`
-                                  : `Couleur ${c}`
-                              }
-                              title={taken ? `Déjà prise par ${owner.full_name ?? 'un membre'}` : undefined}
-                            />
-                          )
-                        })}
-                      </div>
-
-                      <p className="eyebrow field-label">Rôle</p>
-                      <div className="chip-row">
-                        {ROLE_ORDER.map((r) => (
-                          <button
-                            key={r}
-                            type="button"
-                            className={`chip ${m.role === r ? 'is-active' : ''}`}
-                            onClick={() => changeRole(m, r)}
-                            disabled={busy}
-                          >
-                            {ROLE_LABELS[r]}
-                          </button>
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        className={`team-danger ${armDisable === m.id ? 'is-armed' : ''}`}
-                        onClick={() => toggleDisabled(m)}
-                        disabled={busy}
-                      >
-                        {m.disabled_at
-                          ? 'Réactiver le compte'
-                          : armDisable === m.id
-                            ? 'Confirmer la désactivation ?'
-                            : 'Désactiver le compte'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
           </div>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+        )
+      })}
+    </Sheet>
   )
 }

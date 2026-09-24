@@ -1,15 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Drawer } from 'vaul'
-import {
-  BarChart3,
-  BookUser,
-  Box,
-  CalendarCheck,
-  GraduationCap,
-  Home,
-  Map,
-  X,
-} from 'lucide-react'
+import { Sheet } from './ui/Sheet'
+import { BarChart3, BookUser, Box, CalendarCheck, GraduationCap, Home, Map } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useSession } from '../lib/session'
 
@@ -255,71 +246,54 @@ function GuideSheet({ guide, onOpenChange }: { guide: Guide; onOpenChange: (o: b
   const next = () => (last ? onOpenChange(false) : setStep(step + 1))
   const prev = () => step > 0 && setStep(step - 1)
   return (
-    <Drawer.Root open onOpenChange={onOpenChange} repositionInputs={false}>
-      <Drawer.Portal>
-        <Drawer.Overlay className="drawer-overlay" />
-        <Drawer.Content className="drawer-content">
-          <div className="drawer-grip" />
+    <Sheet
+      open
+      onOpenChange={onOpenChange}
+      title={guide.title}
+    >
+      {/* Swipe horizontal = étape précédente/suivante (le corps est en
+          data-vaul-no-drag : le geste ne se dispute pas avec vaul). */}
+      <div
+        className="guide-frame"
+        onTouchStart={(e) =>
+          (touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY })
+        }
+        onTouchEnd={(e) => {
+          const t = touch.current
+          touch.current = null
+          if (!t) return
+          const dx = e.changedTouches[0].clientX - t.x
+          const dy = e.changedTouches[0].clientY - t.y
+          if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+            if (dx < 0 && !last) setStep(step + 1)
+            if (dx > 0) prev()
+          }
+        }}
+      >
+        <GuideImage key={s.img} src={s.img} alt={s.alt} icon={guide.icon} />
+      </div>
+      <p className="eyebrow guide-step-eyebrow">{s.title}</p>
+      <p className="guide-step-text">{s.text}</p>
 
-          <div className="drawer-header">
-            <span className="drawer-title">{guide.title}</span>
-            <button
-              type="button"
-              className="icon-btn"
-              onClick={() => onOpenChange(false)}
-              aria-label="Fermer"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          <div className="drawer-body" data-vaul-no-drag>
-            {/* Swipe horizontal = étape précédente/suivante (le corps est en
-                data-vaul-no-drag : le geste ne se dispute pas avec vaul). */}
-            <div
-              className="guide-frame"
-              onTouchStart={(e) =>
-                (touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY })
-              }
-              onTouchEnd={(e) => {
-                const t = touch.current
-                touch.current = null
-                if (!t) return
-                const dx = e.changedTouches[0].clientX - t.x
-                const dy = e.changedTouches[0].clientY - t.y
-                if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-                  if (dx < 0 && !last) setStep(step + 1)
-                  if (dx > 0) prev()
-                }
-              }}
-            >
-              <GuideImage key={s.img} src={s.img} alt={s.alt} icon={guide.icon} />
-            </div>
-            <p className="eyebrow guide-step-eyebrow">{s.title}</p>
-            <p className="guide-step-text">{s.text}</p>
-
-            <div className="drawer-footer guide-footer">
-              <button
-                type="button"
-                className="btn btn-ghost"
-                disabled={step === 0}
-                onClick={prev}
-              >
-                Précédent
-              </button>
-              <span className="guide-dots" aria-label={`Étape ${step + 1} sur ${guide.steps.length}`}>
-                {guide.steps.map((_, i) => (
-                  <span key={i} className={`guide-dot ${i === step ? 'is-active' : ''}`} />
-                ))}
-              </span>
-              <button type="button" className="btn btn-primary" onClick={next}>
-                {last ? 'Terminer' : 'Suivant'}
-              </button>
-            </div>
-          </div>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+      <div className="drawer-footer guide-footer">
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={step === 0}
+          onClick={prev}
+        >
+          Précédent
+        </button>
+        <span className="guide-dots" aria-label={`Étape ${step + 1} sur ${guide.steps.length}`}>
+          {guide.steps.map((_, i) => (
+            <span key={i} className={`guide-dot ${i === step ? 'is-active' : ''}`} />
+          ))}
+        </span>
+        <button type="button" className="btn btn-primary" onClick={next}>
+          {last ? 'Terminer' : 'Suivant'}
+        </button>
+      </div>
+    </Sheet>
   )
 }
 

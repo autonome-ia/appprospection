@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Drawer } from 'vaul'
+import { Sheet } from './ui/Sheet'
 import { toast } from 'sonner'
-import { CalendarX, MapPin, Trash2, X } from 'lucide-react'
+import { CalendarX, MapPin, Trash2 } from 'lucide-react'
 import { FormGroup, FormRow } from './ui/Form'
 import { bookRdvFor, createAppointment, deleteAppointment, updateAppointment } from '../data/appointments'
 import { addPointNote, syncPointClient } from '../data/points'
@@ -262,258 +262,243 @@ export function AppointmentForm({
   }
 
   return (
-    // repositionInputs={false} : voir PointDetailSheet (bug visualViewport iOS).
-    <Drawer.Root open={open} onOpenChange={onOpenChange} repositionInputs={false}>
-      <Drawer.Portal>
-        <Drawer.Overlay className="drawer-overlay" />
-        <Drawer.Content className="drawer-content">
-          <div className="drawer-grip" />
-
-          <div className="drawer-header">
-            <span className="drawer-title">
-              {isTache
+    <Sheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={isTache
                 ? existing
                   ? 'Modifier la tâche'
                   : 'Nouvelle tâche'
                 : existing
                   ? 'Modifier le RDV'
                   : 'Nouveau rendez-vous'}
-            </span>
-            <button type="button" className="icon-btn" onClick={() => onOpenChange(false)} aria-label="Fermer">
-              <X size={18} />
-            </button>
-          </div>
-
-          <div className="drawer-body" data-vaul-no-drag>
-          {/* Tâche : la note EST le titre — elle ouvre le formulaire et
-              s'affiche en gras dans l'agenda. */}
-          {isTache && (
-            <>
-              <FormGroup title="Quoi faire">
-                <textarea
-                  className="form-input"
-                  rows={2}
-                  placeholder="Ex : aller chercher l’acompte, récupérer le panneau…"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </FormGroup>
-            </>
-          )}
-          {/* Les presets « Demain / Après-demain / Samedi » (A15) ont été
-              RETIRÉS (décision briac 25/07) : de la place pour rien — la
-              roue iOS suffit. */}
-          {secretaire && !isTache && (
-            <FormGroup
-              hint={
-                existing
-                  ? 'Changer de commercial déplace le RDV dans son agenda.'
-                  : 'Le RDV appartiendra à ce commercial (son agenda, ses stats).'
-              }
-            >
-              <FormRow label="Commercial" select>
-              <select
-                className="form-input"
-                value={ownerId}
-                onChange={(e) => setOwnerId(e.target.value)}
-              >
-                <option value="" disabled>
-                  Choisir…
-                </option>
-                {team.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.full_name ?? 'Sans nom'}
-                  </option>
-                ))}
-              </select>
-              </FormRow>
-            </FormGroup>
-          )}
-          <FormGroup title="Quand">
-            <FormRow label="Date">
-              <input
-                className="form-input"
-                type="date"
-                value={dateStr}
-                onChange={(e) => setDateStr(e.target.value)}
-              />
-            </FormRow>
-            <FormRow label="Heure" select>
-              <select
-                className="form-input tnum"
-                value={timeStr}
-                onChange={(e) => setTimeStr(e.target.value)}
-              >
-                {/* RDV existant à une heure hors créneaux (ancien picker) :
-                    son heure exacte reste proposée, rien ne se déplace. */}
-                {!TIME_SLOTS.includes(timeStr) && <option value={timeStr}>{timeStr}</option>}
-                {TIME_SLOTS.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </FormRow>
+    >
+      {/* Tâche : la note EST le titre — elle ouvre le formulaire et
+          s'affiche en gras dans l'agenda. */}
+      {isTache && (
+        <>
+          <FormGroup title="Quoi faire">
+            <textarea
+              className="form-input"
+              rows={2}
+              placeholder="Ex : aller chercher l’acompte, récupérer le panneau…"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
           </FormGroup>
+        </>
+      )}
+      {/* Les presets « Demain / Après-demain / Samedi » (A15) ont été
+          RETIRÉS (décision briac 25/07) : de la place pour rien — la
+          roue iOS suffit. */}
+      {secretaire && !isTache && (
+        <FormGroup
+          hint={
+            existing
+              ? 'Changer de commercial déplace le RDV dans son agenda.'
+              : 'Le RDV appartiendra à ce commercial (son agenda, ses stats).'
+          }
+        >
+          <FormRow label="Commercial" select>
+          <select
+            className="form-input"
+            value={ownerId}
+            onChange={(e) => setOwnerId(e.target.value)}
+          >
+            <option value="" disabled>
+              Choisir…
+            </option>
+            {team.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.full_name ?? 'Sans nom'}
+              </option>
+            ))}
+          </select>
+          </FormRow>
+        </FormGroup>
+      )}
+      <FormGroup title="Quand">
+        <FormRow label="Date">
+          <input
+            className="form-input"
+            type="date"
+            value={dateStr}
+            onChange={(e) => setDateStr(e.target.value)}
+          />
+        </FormRow>
+        <FormRow label="Heure" select>
+          <select
+            className="form-input tnum"
+            value={timeStr}
+            onChange={(e) => setTimeStr(e.target.value)}
+          >
+            {/* RDV existant à une heure hors créneaux (ancien picker) :
+                son heure exacte reste proposée, rien ne se déplace. */}
+            {!TIME_SLOTS.includes(timeStr) && <option value={timeStr}>{timeStr}</option>}
+            {TIME_SLOTS.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </FormRow>
+      </FormGroup>
 
-          <FormGroup title="Client">
-            <FormRow label="Nom">
-              <input
-                className="form-input"
-                type="text"
-                placeholder={isTache ? 'Facultatif' : 'M. et Mme Dupont'}
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-              />
-            </FormRow>
-            <FormRow label="Téléphone">
-              <input
-                className="form-input"
-                type="tel"
-                placeholder="06 …"
-                value={clientPhone}
-                onChange={(e) => setClientPhone(e.target.value)}
-              />
-            </FormRow>
-            <FormRow label="Adresse">
+      <FormGroup title="Client">
+        <FormRow label="Nom">
           <input
             className="form-input"
             type="text"
-            placeholder="Rue, ville"
-            autoComplete="off"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            onFocus={() => setAddrFocus(true)}
-            onBlur={() => {
-              setAddrFocus(false)
-              // Différé : le tap sur une suggestion doit gagner contre le blur.
-              window.setTimeout(() => setAddrOpen(false), 150)
-            }}
+            placeholder={isTache ? 'Facultatif' : 'M. et Mme Dupont'}
+            value={clientName}
+            onChange={(e) => setClientName(e.target.value)}
           />
-            </FormRow>
+        </FormRow>
+        <FormRow label="Téléphone">
+          <input
+            className="form-input"
+            type="tel"
+            placeholder="06 …"
+            value={clientPhone}
+            onChange={(e) => setClientPhone(e.target.value)}
+          />
+        </FormRow>
+        <FormRow label="Adresse">
+      <input
+        className="form-input"
+        type="text"
+        placeholder="Rue, ville"
+        autoComplete="off"
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+        onFocus={() => setAddrFocus(true)}
+        onBlur={() => {
+          setAddrFocus(false)
+          // Différé : le tap sur une suggestion doit gagner contre le blur.
+          window.setTimeout(() => setAddrOpen(false), 150)
+        }}
+      />
+        </FormRow>
+      </FormGroup>
+      {addrOpen && addrResults.length > 0 && (
+        // Liste EN FLUX (pas de dropdown absolu : le corps de la sheet
+        // défile, un overlay serait rogné) — même style que la carte.
+        <ul className="address-results form-address-results">
+          {addrResults.map((r, i) => (
+            <li key={i}>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => chooseAddress(r)}
+              >
+                <MapPin size={15} strokeWidth={1.8} className="address-result-icon" />
+                <span className="address-texts">
+                  <span className="address-label">{r.label}</span>
+                  {r.context && <span className="address-context">{r.context}</span>}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {(pointNote ?? existing?.point?.notes) && (
+        <>
+          <p className="eyebrow field-label">Note du point (terrain)</p>
+          <p className="form-context-note">{pointNote ?? existing?.point?.notes}</p>
+        </>
+      )}
+
+      {!isTache && (
+        <>
+          <FormGroup title="Note du RDV">
+            <textarea
+              className="form-input"
+              rows={2}
+              placeholder="Ex : sonner 2 fois, passer par l’arrière, devis à préparer…"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
           </FormGroup>
-          {addrOpen && addrResults.length > 0 && (
-            // Liste EN FLUX (pas de dropdown absolu : le corps de la sheet
-            // défile, un overlay serait rogné) — même style que la carte.
-            <ul className="address-results form-address-results">
-              {addrResults.map((r, i) => (
-                <li key={i}>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => chooseAddress(r)}
-                  >
-                    <MapPin size={15} strokeWidth={1.8} className="address-result-icon" />
-                    <span className="address-texts">
-                      <span className="address-label">{r.label}</span>
-                      {r.context && <span className="address-context">{r.context}</span>}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+        </>
+      )}
 
-          {(pointNote ?? existing?.point?.notes) && (
-            <>
-              <p className="eyebrow field-label">Note du point (terrain)</p>
-              <p className="form-context-note">{pointNote ?? existing?.point?.notes}</p>
-            </>
-          )}
+      {canCancel && (
+        <button
+          type="button"
+          className="text-btn drawer-delete"
+          disabled={saving}
+          onClick={async () => {
+            if (!confirmCancel) {
+              setConfirmCancel(true)
+              window.setTimeout(() => setConfirmCancel(false), 4000)
+              return
+            }
+            setSaving(true)
+            try {
+              await updateAppointment(existing!.id, { status: 'annule' })
+              toast('RDV annulé : il reste dans l’historique, « Replanifier » est proposé')
+              onOpenChange(false)
+              onSaved()
+            } catch (e) {
+              console.error('Annulation :', e)
+              toast.error('Annulation impossible : vérifiez le réseau')
+            } finally {
+              setSaving(false)
+            }
+          }}
+        >
+          <CalendarX size={14} strokeWidth={1.8} />{' '}
+          {confirmCancel ? 'Confirmer l’annulation ?' : 'Annuler ce RDV'}
+        </button>
+      )}
+      {canDelete && (
+        <button
+          type="button"
+          className="text-btn danger drawer-delete"
+          disabled={saving}
+          onClick={async () => {
+            if (!confirmDel) {
+              setConfirmDel(true)
+              window.setTimeout(() => setConfirmDel(false), 4000)
+              return
+            }
+            setSaving(true)
+            try {
+              await deleteAppointment(existing!.id)
+              toast(isTache ? 'Tâche supprimée' : 'RDV supprimé')
+              onOpenChange(false)
+              onSaved()
+            } catch (e) {
+              console.error('Suppression :', e)
+              toast.error('Suppression impossible : vérifiez le réseau')
+            } finally {
+              setSaving(false)
+            }
+          }}
+        >
+          <Trash2 size={14} strokeWidth={1.8} />{' '}
+          {confirmDel
+            ? 'Confirmer la suppression ?'
+            : isTache
+              ? 'Supprimer la tâche'
+              : 'Supprimer le RDV'}
+        </button>
+      )}
 
-          {!isTache && (
-            <>
-              <FormGroup title="Note du RDV">
-                <textarea
-                  className="form-input"
-                  rows={2}
-                  placeholder="Ex : sonner 2 fois, passer par l’arrière, devis à préparer…"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </FormGroup>
-            </>
-          )}
-
-          {canCancel && (
-            <button
-              type="button"
-              className="text-btn drawer-delete"
-              disabled={saving}
-              onClick={async () => {
-                if (!confirmCancel) {
-                  setConfirmCancel(true)
-                  window.setTimeout(() => setConfirmCancel(false), 4000)
-                  return
-                }
-                setSaving(true)
-                try {
-                  await updateAppointment(existing!.id, { status: 'annule' })
-                  toast('RDV annulé : il reste dans l’historique, « Replanifier » est proposé')
-                  onOpenChange(false)
-                  onSaved()
-                } catch (e) {
-                  console.error('Annulation :', e)
-                  toast.error('Annulation impossible : vérifiez le réseau')
-                } finally {
-                  setSaving(false)
-                }
-              }}
-            >
-              <CalendarX size={14} strokeWidth={1.8} />{' '}
-              {confirmCancel ? 'Confirmer l’annulation ?' : 'Annuler ce RDV'}
-            </button>
-          )}
-          {canDelete && (
-            <button
-              type="button"
-              className="text-btn danger drawer-delete"
-              disabled={saving}
-              onClick={async () => {
-                if (!confirmDel) {
-                  setConfirmDel(true)
-                  window.setTimeout(() => setConfirmDel(false), 4000)
-                  return
-                }
-                setSaving(true)
-                try {
-                  await deleteAppointment(existing!.id)
-                  toast(isTache ? 'Tâche supprimée' : 'RDV supprimé')
-                  onOpenChange(false)
-                  onSaved()
-                } catch (e) {
-                  console.error('Suppression :', e)
-                  toast.error('Suppression impossible : vérifiez le réseau')
-                } finally {
-                  setSaving(false)
-                }
-              }}
-            >
-              <Trash2 size={14} strokeWidth={1.8} />{' '}
-              {confirmDel
-                ? 'Confirmer la suppression ?'
-                : isTache
-                  ? 'Supprimer la tâche'
-                  : 'Supprimer le RDV'}
-            </button>
-          )}
-
-          <div className="drawer-footer">
-            <button type="button" className="btn btn-ghost" onClick={() => onOpenChange(false)} disabled={saving}>
-              Annuler
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={save}
-              disabled={saving || (isTache && !notes.trim()) || (secretaire && !isTache && !ownerId)}
-            >
-              {saving ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
-          </div>
-          </div>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+      <div className="drawer-footer">
+        <button type="button" className="btn btn-ghost" onClick={() => onOpenChange(false)} disabled={saving}>
+          Annuler
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={save}
+          disabled={saving || (isTache && !notes.trim()) || (secretaire && !isTache && !ownerId)}
+        >
+          {saving ? 'Enregistrement…' : 'Enregistrer'}
+        </button>
+      </div>
+    </Sheet>
   )
 }
