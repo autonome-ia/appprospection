@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import {
@@ -1006,6 +1006,23 @@ export function MapView({
   // updates realtime des AUTRES points ne redessinent plus rien (la référence
   // ne change pas), fini le clignotement des pastilles.
   const [selPans, setSelPans] = useState<RoofData | null>(null)
+
+  // Final du balayage laser (RoofScan) : il matérialise lui-même les pans ;
+  // pendant ce temps le calque de pans et ses pastilles m² sont masqués,
+  // puis réapparaissent au même rendu (passation invisible) — les pastilles
+  // arrivent alors une à une.
+  const finaleRef = useRef(false)
+  const onRoofFinale = useCallback((on: boolean) => {
+    finaleRef.current = on
+    const map = mapRef.current
+    if (!map) return
+    map.getContainer().classList.toggle('roof-finale', on)
+    if (!map.getLayer(PANS_FILL_LAYER)) return
+    map.setPaintProperty(PANS_FILL_LAYER, 'fill-opacity-transition', { duration: 0, delay: 0 })
+    map.setPaintProperty(PANS_LINE_LAYER, 'line-opacity-transition', { duration: 0, delay: 0 })
+    map.setPaintProperty(PANS_FILL_LAYER, 'fill-opacity', on ? 0 : 0.24)
+    map.setPaintProperty(PANS_LINE_LAYER, 'line-opacity', on ? 0 : 1)
+  }, [])
   useEffect(() => {
     const sel = selectedId ? (points.find((p) => p.id === selectedId) ?? null) : null
     if (!sel || sel.toit_lidar_statut !== 'ok') {
@@ -1081,22 +1098,23 @@ export function MapView({
         const cx = centres.reduce((s, { p }) => s + p.centre![0], 0) / centres.length
         const cy = centres.reduce((s, { p }) => s + p.centre![1], 0) / centres.length
         const el = document.createElement('div')
-        el.className = 'pan-chip tnum'
+        el.className = `pan-chip tnum${finaleRef.current ? ' is-arriving' : ''}`
         el.textContent = `Σ ${total} m²`
         panLabelsRef.current.push(
           new maplibregl.Marker({ element: el }).setLngLat([cx, cy]).addTo(map),
         )
         return
       }
-      for (const { p, idx } of centres) {
+      centres.forEach(({ p, idx }, k) => {
         const el = document.createElement('div')
-        el.className = 'pan-chip tnum'
+        el.className = `pan-chip tnum${finaleRef.current ? ' is-arriving' : ''}`
+        el.style.setProperty('--i', String(k))
         el.textContent = `${p.m2} m²`
         el.style.borderColor = PAN_COLORS[idx % PAN_COLORS.length]
         panLabelsRef.current.push(
           new maplibregl.Marker({ element: el }).setLngLat(p.centre!).addTo(map),
         )
-      }
+      })
     }
     drawLabels()
     map.on('zoomend', drawLabels)
@@ -1438,6 +1456,7 @@ export function MapView({
       <RoofScan
         map={mapLoaded ? mapRef.current : null}
         target={housePreview ?? (selectedPoint ? { lng: selectedPoint.lng, lat: selectedPoint.lat } : null)}
+        onFinale={onRoofFinale}
       />
 
       <PointDetailSheet

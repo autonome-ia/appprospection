@@ -22,7 +22,7 @@ const VARIANT = process.argv[2] === 'etapes' ? 'etapes' : 'ligne'
 const DARK = process.env.THEME === 'dark'
 // PANNE=1 : serveur COPC injoignable -> planche de la carte d'échec.
 const PANNE = process.env.PANNE === '1'
-const NAME = `${VARIANT}${DARK ? '-sombre' : ''}${PANNE ? '-panne' : ''}`
+const NAME = `${VARIANT}${process.env.TAG ?? ''}${DARK ? '-sombre' : ''}${PANNE ? '-panne' : ''}${process.env.REDUCE === '1' ? '-reduit' : ''}`
 const OUT = resolve(root, 'screenshoots', 'roof-ui')
 const TMP = join(OUT, `.tmp-${NAME}`)
 mkdirSync(TMP, { recursive: true })
@@ -33,6 +33,8 @@ const ctx = await browser.newContext({
   locale: 'fr-FR',
   timezoneId: 'Europe/Paris',
   recordVideo: { dir: TMP, size: { width: 390, height: 844 } },
+  // REDUCE=1 : « réduire les animations » (ni faisceau ni éclat).
+  reducedMotion: process.env.REDUCE === '1' ? 'reduce' : 'no-preference',
 })
 if (DARK) await ctx.addInitScript(() => localStorage.setItem('theme', 'dark'))
 const page = await ctx.newPage()
@@ -54,7 +56,15 @@ const VP = page.viewportSize()
 const t0 = Date.now()
 await page.mouse.click(Math.round(VP.width / 2), Math.round(VP.height / 2))
 const sheet = page.locator('.drawer-content')
-const stills = [1.5, 3, 5, 8, 12]
+// Le final (pans qui se matérialisent, ~0,5 s) : capturé sur l'événement.
+const finaleShot = page
+  .waitForSelector('.roof-finale', { state: 'attached', timeout: 90000 })
+  .then(async () => {
+    await page.waitForTimeout(140)
+    await page.screenshot({ path: join(OUT, `${NAME}-final.png`) })
+  })
+  .catch(() => {})
+const stills = [1.5, 3, 5, 7, 9, 12]
 let verdict = 'timeout'
 for (let i = 0; i < 400; i++) {
   const s = (Date.now() - t0) / 1000
@@ -73,7 +83,8 @@ for (let i = 0; i < 400; i++) {
   await page.waitForTimeout(250)
 }
 const took = ((Date.now() - t0) / 1000).toFixed(1)
-await page.waitForTimeout(300)
+await finaleShot
+await page.waitForTimeout(80) // en plein final (pans qui se matérialisent)
 await page.screenshot({ path: join(OUT, `${NAME}-fin-a.png`) })
 await page.waitForTimeout(1200) // fondu du balayage + chiffre qui roule
 await page.screenshot({ path: join(OUT, `${NAME}-fin-b.png`) })

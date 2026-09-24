@@ -30,9 +30,21 @@ export interface LidarProgress {
   /** Nœuds du nuage lus / à lire : la barre de progression est RÉELLE. */
   nodesDone: number
   nodesTotal: number
-  /** Échantillon des points reçus, pour la carte : lon, lat à plat, par lot
-      (`t` = arrivée, pour le fondu d'apparition). Plafonné. */
+  /** Échantillon des points reçus, pour la carte : lon, lat, altitude à plat
+      (pas de 3), par lot (`t` = arrivée). Plafonné. */
   batches: { t: number; coords: Float64Array }[]
+  /** Altitudes extrêmes reçues (m) : la carte éclaire les points selon leur
+      hauteur (gouttière sombre, faîtage lumineux) — le relief du toit
+      apparaît avant le résultat. */
+  zLo: number
+  zHi: number
+  /** Date de fin du survol laser de la dalle (ISO), dès qu'elle est connue. */
+  millesime: string | null
+  /** Pans détectés (avant la reconstruction finale). */
+  pansCount: number | null
+  /** Pans dessinables du résultat (même filtre que la carte : contour et
+      ≥ 10 m²), index d'origine = couleur : le final les « matérialise ». */
+  pans: { contour: [number, number][]; idx: number }[] | null
   startedAt: number
 }
 
@@ -76,23 +88,37 @@ export function publishLidarProgress(key: string, patch: Partial<LidarProgress>)
     nodesDone: 0,
     nodesTotal: 0,
     batches: [],
+    zLo: Infinity,
+    zHi: -Infinity,
+    millesime: null,
+    pansCount: null,
+    pans: null,
     startedAt: Date.now(),
   }
   state.set(key, { ...base, ...patch })
   emit(key)
 }
 
-/** Ajoute un lot de points à l'échantillon (plafonné) et au compteur. */
+/** Ajoute un lot de points (lon, lat, z) à l'échantillon (plafonné) et au
+    compteur. */
 export function publishLidarPoints(key: string, count: number, coords: Float64Array): void {
   const prev = state.get(key)
   if (!prev) return
-  const shown = prev.batches.reduce((s, b) => s + b.coords.length / 2, 0)
+  const shown = prev.batches.reduce((s, b) => s + b.coords.length / 3, 0)
   const room = Math.max(0, MAX_SAMPLE_POINTS - shown)
-  const batch = coords.length / 2 > room ? coords.slice(0, room * 2) : coords
+  const batch = coords.length / 3 > room ? coords.slice(0, room * 3) : coords
+  let zLo = prev.zLo
+  let zHi = prev.zHi
+  for (let i = 2; i < batch.length; i += 3) {
+    if (batch[i] < zLo) zLo = batch[i]
+    if (batch[i] > zHi) zHi = batch[i]
+  }
   state.set(key, {
     ...prev,
     points: prev.points + count,
     nodesDone: prev.nodesDone + 1,
+    zLo,
+    zHi,
     batches: batch.length ? [...prev.batches, { t: performance.now(), coords: batch }] : prev.batches,
   })
   emit(key)

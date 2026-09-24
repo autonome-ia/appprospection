@@ -529,12 +529,15 @@
   text-decoration: none;
 }
 
-/* --- Carte « Mesure laser du toit » (chantier design 24/09) -----------------
-   Remplace la pastille « mesure du toit… » : même gabarit que le module
-   « Toiture mesurée » qui prend sa place, avancement RÉEL de la mesure.
-   Encre seule (l'orange reste aux actions : « Réessayer »). */
+/* --- Carte « mesure laser » (chantier design 24/09) ----------------------
+   Remplace la pastille « mesure du toit… » : gabarit EXACT de l'en-tête
+   replié du module « Toiture mesurée » qui prend sa place (aucun saut). Le
+   titre raconte la mesure, la progression réelle court sur le filet du bas.
+   Encre seule : l'orange reste aux actions (« Réessayer »). */
 .roof-progress {
-  padding-bottom: 12px;
+  position: relative;
+  padding-bottom: 4px;
+  overflow: hidden;
   animation: roof-progress-in var(--dur-base) var(--ease-out);
 }
 @keyframes roof-progress-in {
@@ -543,104 +546,22 @@
     transform: translateY(4px);
   }
 }
-.roof-progress-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 0 6px;
-  color: var(--ink);
-  font-size: 15px;
-  font-weight: 600;
-}
-.roof-progress-head > svg:first-child {
-  color: var(--ink-3);
-}
-/* Le laser « respire » : seule animation continue, lente et discrète. */
-.roof-progress-scan {
-  animation: roof-scan-breathe 1.6s ease-in-out infinite;
-}
-@keyframes roof-scan-breathe {
-  50% {
-    opacity: 0.35;
-  }
-}
-
-/* Variante « étapes » */
-.roof-steps {
-  display: grid;
-  gap: 8px;
-  margin: 2px 0 0;
-  padding: 0;
-  list-style: none;
-}
-.roof-steps li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  color: var(--ink-3);
-  transition: color var(--dur-base) ease;
-}
-.roof-steps li.is-active {
-  color: var(--ink);
-  font-weight: 500;
-}
-.roof-steps li.is-done {
-  color: var(--ink-2);
-}
-.roof-step-icon {
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
-  border-radius: 50%;
-  border: 1.5px solid var(--line);
-  transition:
-    background-color var(--dur-base) ease,
-    border-color var(--dur-base) ease;
-}
-.roof-step-icon.is-done {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--bg);
-}
-.roof-step-icon.is-done svg {
-  animation: roof-check-in var(--dur-base) var(--ease-out);
-}
-@keyframes roof-check-in {
-  from {
-    opacity: 0;
-    transform: scale(0.6);
-    filter: blur(2px);
-  }
-}
-/* Étape en cours : anneau qui tourne (vite = perçu comme plus rapide). */
-.roof-step-icon.is-active {
-  border-color: var(--line);
-  border-top-color: var(--ink);
-  animation: roof-spin 0.7s linear infinite;
-}
-@keyframes roof-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Variante « ligne » : gabarit EXACT de l'en-tête replié du module (même
-   padding, même ligne) ; la progression court sur le filet du bas. */
-.roof-progress.is-ligne {
-  position: relative;
-  padding-bottom: 4px;
-  overflow: hidden;
-}
 .roof-progress-line {
   cursor: default;
 }
-.roof-progress-line > svg:first-child {
-  color: var(--ink-3);
+/* Fondu enchaîné sur place : ancien et nouveau texte dans la même cellule. */
+.roof-swap {
+  display: inline-grid;
+  min-width: 0;
+}
+.roof-swap > * {
+  grid-area: 1 / 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .roof-progress-status {
+  flex: 0 0 auto;
   font-size: 13px;
   font-weight: 500;
   color: var(--ink-3);
@@ -666,9 +587,95 @@
   transition: transform 420ms var(--ease-out);
 }
 
+/* Icône « scan » : la ligne balaie le cadre au rythme du faisceau de la
+   carte (1,1 s par passage, aller-retour, même courbe). */
+.roof-scan-icon {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+  color: var(--ink-3);
+}
+.roof-scan-icon i {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  top: 3px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: var(--ink);
+  animation: roof-scan-line 1.1s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+}
+@keyframes roof-scan-line {
+  to {
+    transform: translateY(7.5px);
+  }
+}
+
+/* Arrivée du module « Toiture mesurée » après une mesure faite sous les
+   yeux : même objet qui change d'état — le titre et l'icône arrivent en
+   fondu flouté, le filet se remplit jusqu'au bout puis s'efface. */
+.roof-module.is-arriving {
+  position: relative;
+  overflow: hidden;
+}
+.roof-module.is-arriving .roof-module-title,
+.roof-module.is-arriving .roof-module-head > svg:first-child {
+  animation: roof-arrive 260ms var(--ease-out) backwards;
+}
+.roof-module.is-arriving .roof-module-head > svg:first-child {
+  animation-name: roof-arrive-icon;
+}
+@keyframes roof-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+    filter: blur(2px);
+  }
+}
+@keyframes roof-arrive-icon {
+  from {
+    opacity: 0;
+    transform: rotate(-45deg) scale(0.8);
+    filter: blur(2px);
+  }
+}
+.roof-module.is-arriving .roof-progress-rail span {
+  transform: scaleX(1);
+  animation:
+    roof-rail-close 160ms var(--ease-out) backwards,
+    roof-rail-out 240ms ease 200ms forwards;
+}
+.roof-module.is-arriving .roof-progress-rail {
+  animation: roof-rail-out 240ms ease 200ms forwards;
+}
+@keyframes roof-rail-close {
+  from {
+    transform: scaleX(0.94);
+  }
+}
+@keyframes roof-rail-out {
+  to {
+    opacity: 0;
+  }
+}
+
 /* Échec réseau */
-.roof-progress.is-failed .roof-progress-head {
-  padding-bottom: 4px;
+.roof-progress.is-failed {
+  padding-bottom: 12px;
+}
+.roof-progress-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 4px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+.roof-progress-head > svg:first-child {
+  color: var(--ink-3);
 }
 .roof-progress-retry {
   display: inline-flex;
@@ -696,13 +703,12 @@
 
 @media (prefers-reduced-motion: reduce) {
   .roof-progress,
-  .roof-progress-scan,
-  .roof-step-icon.is-done svg {
+  .roof-scan-icon i,
+  .roof-module.is-arriving .roof-module-title,
+  .roof-module.is-arriving .roof-module-head > svg:first-child {
     animation: none;
   }
-  /* L'étape en cours reste lisible sans rotation. */
-  .roof-step-icon.is-active {
-    animation: none;
-    border-color: var(--ink);
+  .roof-scan-icon i {
+    transform: translateY(3.75px);
   }
 }

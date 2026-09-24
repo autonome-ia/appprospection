@@ -772,7 +772,7 @@ function reportNode(
     // Un point sur deux suffit à l'œil (et divise la projection par deux).
     if (count % 2 === 0) {
       const [lng, lat] = fromL93(x, y)
-      coords.push(lng, lat)
+      coords.push(lng, lat, arr[i + 2])
     }
   }
   publishLidarPoints(key, count, new Float64Array(coords))
@@ -807,6 +807,10 @@ async function collectRoofPoints(
   if (progressKey) publishLidarProgress(progressKey, { stage: 'nuage' })
   const dalles = await dallesFor(bb)
   if (!dalles.length) return { ...empty, horsCouverture: true }
+  if (progressKey) {
+    const survol = dalles.map((d) => d.acquisition).filter(Boolean).sort().at(-1) ?? null
+    if (survol) publishLidarProgress(progressKey, { millesime: survol })
+  }
   // Maison à cheval sur 2 dalles d'acquisitions différentes : afficher le
   // survol le plus récent (dates ISO, tri lexicographique suffisant).
   const millesime =
@@ -1134,6 +1138,10 @@ async function measureBuilding(
   // de CPU qui bloque le fil principal).
   await new Promise((res) => setTimeout(res, 0))
   const m = measureRoof(pts, building.ring)
+  if (progressKey) {
+    publishLidarProgress(progressKey, { pansCount: m.pans.filter((p) => p.realDedup >= 10).length })
+    await new Promise((res) => setTimeout(res, 0)) // la fiche peint le nombre de pans
+  }
   const statut: LidarStatut =
     secours67 || m.coverage < MIN_COVERAGE ? 'faible_confiance' : 'ok'
 
@@ -1265,7 +1273,18 @@ async function computeSafe(lng: number, lat: number): Promise<LidarResult> {
       )
     })
     const r = await Promise.race([computeLidar(lng, lat, key), deadline])
-    publishLidarProgress(key, { stage: r.toit_lidar_statut === 'error' ? 'erreur' : 'fini' })
+    // Pans dessinables (même filtre que la carte) : le final du balayage les
+    // matérialise avant de passer la main au calque de la carte.
+    const pans =
+      r.toit_lidar_statut === 'ok'
+        ? (r.toit_lidar_pans?.pans ?? [])
+            .map((p, idx) => ({ contour: p.contour, idx, m2: p.m2 }))
+            .filter((p): p is { contour: [number, number][]; idx: number; m2: number } =>
+              Boolean(p.contour && p.contour.length >= 4 && p.m2 >= 10),
+            )
+            .map(({ contour, idx }) => ({ contour, idx }))
+        : null
+    publishLidarProgress(key, { stage: r.toit_lidar_statut === 'error' ? 'erreur' : 'fini', pans })
     return r
   } catch (e) {
     console.error('Mesure LiDAR :', e)

@@ -94,12 +94,19 @@ await tapHouse(ADDRESS)
 // > garde-fou de 90 s de la mesure).
 async function waitVerdict() {
   for (let i = 0; i < 400; i++) {
-    // Un seul instantané du texte par tour : pas de course entre deux lectures.
-    const txt = (await sheet.innerText().catch(() => '')) || ''
+    // UN SEUL instantané par tour (texte ET état « en cours » lus dans le
+    // même évaluation) : pas de course si le résultat arrive entre deux.
+    const snap = await sheet
+      .evaluate((el) => ({
+        txt: el.innerText,
+        busy: Boolean(el.querySelector('[aria-busy="true"]')),
+      }))
+      .catch(() => ({ txt: '', busy: false }))
+    const txt = snap.txt
     if (/Toiture mesurée/.test(txt)) return 'ok'
-    // « Mesure laser du toit » (carte de progression, 24/09) ou l'ancienne
-    // pastille « mesure du toit… ».
-    if (i > 12 && !/mesure (laser )?du toit/i.test(txt)) {
+    // En cours = carte de progression (aria-busy, 24/09 — son titre raconte
+    // la mesure : Repérage, Survol laser, Lecture laser) ou ancienne pastille.
+    if (i > 12 && !snap.busy && !/mesure (laser )?du toit/i.test(txt)) {
       return /mesure laser indisponible/i.test(txt) ? 'indisponible' : 'sans-module'
     }
     await page.waitForTimeout(250)

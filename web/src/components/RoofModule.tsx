@@ -61,7 +61,7 @@ export function RoofModule({
   const m2 = maisonM2 ?? totalM2
 
   return (
-    <section className="roof-module">
+    <section className={`roof-module${fromZero ? ' is-arriving' : ''}`}>
       <button
         type="button"
         className="roof-module-head"
@@ -81,6 +81,14 @@ export function RoofModule({
           className={`roof-module-chevron ${open ? 'is-open' : ''}`}
         />
       </button>
+
+      {fromZero && (
+        // Filet de progression de la carte « mesure laser » : il se remplit
+        // jusqu'au bout puis s'efface (clôture visible, sans délai).
+        <span className="roof-progress-rail" aria-hidden>
+          <span />
+        </span>
+      )}
 
       {open && (
         <>

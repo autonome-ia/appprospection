@@ -76,4 +76,15 @@ dont le parcours va changer serait du travail jeté).
   carte qui suit la hauteur réelle de la fiche (plafond 70 %). Planches : `node
   tools/screenshots/film-roof.mjs [ligne|etapes]` (+ `THEME=dark`, `PANNE=1`) →
   `screenshoots/roof-ui/index.html`. **En attente du choix briac.**
+- 24/09 (nuit) : **chargement du toit v2** (briac : « ligne » retenue, « encore plus stylé ») :
+  variante « étapes » retirée ; points éclairés selon leur HAUTEUR (percentiles 5-95 %, le
+  faîtage se dessine), révélés au passage d'un faisceau dans l'axe du toit (allers-retours
+  1,1 s, traînée) ; titre narratif « Repérage du bâtiment » → « Survol laser de <mois année> »
+  → « Lecture laser » + compteur (l'analyse des pans, ~0,1 s, n'a pas de titre : il
+  clignotait) ; fondus enchaînés floutés ; icône scan animée au rythme du faisceau ; final :
+  pans matérialisés un à un (70 ms), passation au calque de la carte APRÈS son rendu
+  (sinon image vide, vu image par image), pastilles m² qui arrivent une à une (`visibility`,
+  MapLibre écrit une opacité en ligne) ; filet qui se ferme sur le module. Planches :
+  `screenshoots/roof-ui/index.html` (+ `finale-planche.png`, extraite des vidéos au ffmpeg de
+  Playwright). **En attente du retour briac.**
 

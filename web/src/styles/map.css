@@ -537,3 +537,36 @@
   z-index: 1;
   pointer-events: none;
 }
+
+/* Final du balayage : pastilles m² masquées pendant que les pans se
+   matérialisent, puis arrivée une à une. `visibility` (MapLibre écrit une
+   OPACITÉ en ligne sur ses marqueurs : `opacity: 0` ici serait écrasé) ;
+   `scale` (propriété indépendante), jamais `transform` : MapLibre positionne
+   le marqueur avec transform. */
+.roof-finale .pan-chip {
+  visibility: hidden;
+}
+.pan-chip.is-arriving {
+  animation: pan-chip-in 280ms var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+.roof-finale .pan-chip.is-arriving {
+  animation: none;
+}
+@keyframes pan-chip-in {
+  from {
+    opacity: 0;
+    scale: 0.85;
+    filter: blur(2px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pan-chip.is-arriving {
+    animation-name: pan-chip-fade;
+  }
+  @keyframes pan-chip-fade {
+    from {
+      opacity: 0;
+    }
+  }
+}
