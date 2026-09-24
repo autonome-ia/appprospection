@@ -393,20 +393,25 @@ Concept validé par le directeur régional de Mister Toiture (présentation d'Al
 - [~] Phase 2 : socle — FAIT : tokens de mouvement (`index.css` + `lib/motion.ts`), base
   mobile-native (tap-highlight, touch-action, user-select, focus-visible, theme-color #f6f6f5),
   retour au toucher généralisé (`styles/interactions.css`), reduced-motion (CSS + MotionConfig),
-  `<Segmented>` à ressort partout, code mort retiré. RESTE : `<Sheet>` (9 drawers), découpage
-  d'App.css, tokenisation espacements/rayons/z-index, primitives Button/Chip/ListRow.
+  `<Segmented>` à ressort partout, code mort retiré, App.css découpé en 13 fichiers par zone
+  (`web/src/styles/`, CSS compilé identique à l'octet). RESTE : `<Sheet>` (9 drawers),
+  tokenisation espacements/rayons/z-index, primitives Button/Chip/ListRow.
 - [~] Phase 3 : écran par écran — FAIT : Stats (tunnel aux couleurs des statuts, taux neutres,
   objectif bleu→vert, estompe au changement de période), couleurs d'issue en tokens (Refus lisible
   en sombre), Carte (pose en 1 tap, bascule directe, contrôles sans chevauchement), fiche point
   (orange rendu aux actions, heure seule en mono), Accueil (date, rythme 24 px, « Ma journée »,
   cascade une fois par session), Agenda (titre sur une ligne, civilité retirée des pilules,
   semaines vides compactes, 3 issues + « Le RDV n'a pas eu lieu »), Connexion (champs groupés,
-  spinner, secousse). RESTE : Contacts en liste groupée, Équipe/Profil, formulaires RDV.
+  spinner, secousse), Contacts (liste groupée iOS, dates relatives, « À planifier »), Profil
+  (déconnexion en action rouge), Équipe (interrupteur iOS), démarrage (marque au lieu du
+  spinner), notifications au relief de la DA. RESTE : formulaires RDV/contact, graphe du mois
+  interactif, en-têtes de fiches unifiés.
 - [~] Phase 4 : wow — FAIT : chiffres qui roulent (NumberFlow), viseur/barre de visée animés,
-  onde couleur statut à la pose, popup du matin animé. RESTE : objectif atteint, « Vendu » qui se
-  ressent, mois au doigt, écran de démarrage iOS, récap hebdo partageable.
-- [ ] Phase 5 : recette (perf, reduced-motion, a11y, terrain) + régénérer les images du Guide
-  (le parcours de pose a changé : `shoot.mjs` + `convert.mjs`).
+  onde couleur statut à la pose, popup du matin animé, célébration (vente / objectif hebdo :
+  coche qui se dessine, `lib/celebrate.ts`), agenda au doigt (balayage = mois/semaine suivant).
+  RESTE : écran de démarrage iOS (images), récap hebdo partageable, réticule vivant.
+- [ ] Phase 5 : recette (perf, reduced-motion, a11y, terrain) puis fusion `design` → `main`.
+  Images du Guide régénérées (v4) ; toit-2/toit-3 non recapturées (3D en headless).
 
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)
