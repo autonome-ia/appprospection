@@ -28,6 +28,8 @@ import {
   type PointStatus,
 } from '../domain/status'
 import { StatusPicker } from './StatusPicker'
+import { AnimatePresence, motion } from 'motion/react'
+import { EASE_DRAWER, EASE_OUT, SPRING_SMOOTH } from '../lib/motion'
 import { PointDetailSheet } from './PointDetailSheet'
 import { HousePreviewSheet } from './HousePreviewSheet'
 import { fetchPointPans, localDayKey, reverseGeocode } from '../data/points'
@@ -699,6 +701,20 @@ export function MapView({
     }
   }, [])
 
+  // « Coup de tampon » (chantier design 24/09) : à la pose, une onde de la
+  // couleur du statut s'élargit sur la maison — la pose se VOIT sans lire le
+  // toast. Élément éphémère (600 ms), coupé en mouvement réduit (CSS).
+  const [stamps, setStamps] = useState<{ id: number; x: number; y: number; color: string }[]>([])
+  const stampSeq = useRef(0)
+  const stampAt = (lng: number, lat: number, color: string) => {
+    const map = mapRef.current
+    if (!map) return
+    const { x, y } = map.project([lng, lat])
+    const id = ++stampSeq.current
+    setStamps((prev) => [...prev, { id, x, y, color }])
+    window.setTimeout(() => setStamps((prev) => prev.filter((st) => st.id !== id)), 650)
+  }
+
   // Pose un point (UI optimiste + toast "Annuler"), puis enchaîne : RDV pris
   // -> formulaire de rendez-vous ; autres statuts -> fiche du point (contexte
   // à chaud). Utilisé par le réticule ET par la fiche maison.
@@ -717,6 +733,7 @@ export function MapView({
     if (dueOnly) setDueOnly(false) // un point tout juste posé n'a pas de relance due
     if (statusFilter.size > 0 && !statusFilter.has(status)) setStatusFilter(new Set())
     const { point, saved } = addPoint(lng, lat, status)
+    stampAt(lng, lat, STATUS_BY_VALUE[status].color)
     // La fiche ne s'ouvre PLUS après chaque pose (audit UX A1 : 3 taps pour
     // un « Absent », ×40-60 par tournée) — le toast sert de filet : Annuler,
     // et « + Note » pour ouvrir la fiche seulement quand on a quelque chose
@@ -1158,6 +1175,14 @@ export function MapView({
   return (
     <div className="map-view">
       <div ref={containerRef} className="map-canvas" />
+      {stamps.map((st) => (
+        <span
+          key={st.id}
+          className="pose-stamp"
+          style={{ left: st.x, top: st.y, ['--c' as string]: st.color }}
+          aria-hidden="true"
+        />
+      ))}
 
       <AddressSearch
         onSelect={(r) => mapRef.current?.flyTo({ center: [r.lng, r.lat], zoom: 18 })}
@@ -1278,10 +1303,20 @@ export function MapView({
         </>
       )}
 
+      {/* Visée : viseur et barre entrent et SORTENT en mouvement (chantier
+          design 24/09) ; interruptibles si on rouvre/ferme vite. */}
+      <AnimatePresence>
       {placing && (
         <>
           {/* Réticule : la pose se fait au centre exact de la carte (getCenter). */}
-          <div className="map-crosshair" aria-hidden="true">
+          <motion.div
+            key="crosshair"
+            className="map-crosshair"
+            aria-hidden="true"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1, transition: SPRING_SMOOTH }}
+            exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.16, ease: EASE_OUT } }}
+          >
             <svg width="52" height="52" viewBox="0 0 52 52">
               <circle cx="26" cy="26" r="15" fill="none" stroke="var(--accent)" strokeWidth="2" />
               <circle cx="26" cy="26" r="3" fill="var(--accent)" />
@@ -1290,8 +1325,14 @@ export function MapView({
               <line x1="3" y1="26" x2="9" y2="26" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
               <line x1="43" y1="26" x2="49" y2="26" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
             </svg>
-          </div>
-          <div className="place-bar">
+          </motion.div>
+          <motion.div
+            key="place-bar"
+            className="place-bar"
+            initial={{ y: '100%' }}
+            animate={{ y: 0, transition: { duration: 0.32, ease: EASE_DRAWER } }}
+            exit={{ y: '100%', transition: { duration: 0.2, ease: EASE_OUT } }}
+          >
             <p className="eyebrow place-hint">
               {placeZoomOk ? 'Visez la maison, puis touchez son statut' : 'Zoomez pour viser la maison'}
             </p>
@@ -1301,9 +1342,10 @@ export function MapView({
                 Annuler
               </button>
             </div>
-          </div>
+          </motion.div>
         </>
       )}
+      </AnimatePresence>
 
 
       {housePreview && (

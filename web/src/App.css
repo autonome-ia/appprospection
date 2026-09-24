@@ -159,7 +159,9 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%);
+  /* `translate` (et non transform) : se compose avec l'échelle animée par
+     Motion à l'entrée/sortie — sinon le viseur se décentrait. */
+  translate: -50% -50%;
   z-index: 4;
   pointer-events: none;
 }
@@ -187,15 +189,8 @@
   background: var(--surface);
   border-top: 1px solid var(--line);
   box-shadow: var(--shadow-lg);
-  animation: place-bar-in 0.25s var(--ease-out);
-}
-@keyframes place-bar-in {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
+  /* Entrée/sortie pilotées par Motion (MapView, AnimatePresence) : un
+     keyframe CSS n'avait pas de sortie et ne s'interrompait pas. */
 }
 .place-hint {
   margin: 0;
