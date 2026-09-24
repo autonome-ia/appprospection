@@ -404,8 +404,9 @@ Concept validé par le directeur régional de Mister Toiture (présentation d'Al
   semaines vides compactes, 3 issues + « Le RDV n'a pas eu lieu »), Connexion (champs groupés,
   spinner, secousse), Contacts (liste groupée iOS, dates relatives, « À planifier »), Profil
   (déconnexion en action rouge), Équipe (interrupteur iOS), démarrage (marque au lieu du
-  spinner), notifications au relief de la DA. RESTE : formulaires RDV/contact, graphe du mois
-  interactif, en-têtes de fiches unifiés.
+  spinner), notifications au relief de la DA, formulaires façon Réglages iOS (contact, RDV/tâche,
+  champs de la fiche point — `components/ui/Form.tsx`). RESTE : graphe du mois interactif,
+  en-têtes de fiches unifiés.
 - [~] Phase 4 : wow — FAIT : chiffres qui roulent (NumberFlow), viseur/barre de visée animés,
   onde couleur statut à la pose, popup du matin animé, célébration (vente / objectif hebdo :
   coche qui se dessine, `lib/celebrate.ts`), agenda au doigt (balayage = mois/semaine suivant).
