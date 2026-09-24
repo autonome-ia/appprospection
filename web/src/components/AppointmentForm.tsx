@@ -361,7 +361,7 @@ export function AppointmentForm({
               <input
                 className="form-input"
                 type="text"
-                placeholder={isTache ? 'Nom (facultatif)' : 'Nom'}
+                placeholder={isTache ? 'Facultatif' : 'M. et Mme Dupont'}
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
               />
@@ -379,7 +379,7 @@ export function AppointmentForm({
           <input
             className="form-input"
             type="text"
-            placeholder="Adresse"
+            placeholder="Rue, ville"
             autoComplete="off"
             value={address}
             onChange={(e) => setAddress(e.target.value)}

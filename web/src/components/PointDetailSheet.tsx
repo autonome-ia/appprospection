@@ -534,7 +534,7 @@ export function PointDetailSheet({
                   <input
                     className="form-input"
                     type="text"
-                    placeholder="Nom (facultatif)"
+                    placeholder="Facultatif"
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
                     disabled={readOnlyPoint}
