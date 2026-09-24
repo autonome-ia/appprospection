@@ -294,7 +294,7 @@
   min-height: 2px;
   background: var(--ink-3);
   border-radius: 3px 3px 0 0;
-  opacity: 0.45;
+  opacity: 0.6;
 }
 
 /* --- Stats : classement --- */
@@ -459,4 +459,28 @@
 .chart-bars.is-scrubbing .chart-bar.is-active {
   opacity: 1;
   background: var(--ink);
+}
+
+/* Bug vue Mois (retour briac 24/09) : seules 5 colonnes sur 30 ont une
+   étiquette (1 · 8 · 15 · 22 · 29) — une étiquette VIDE ne prenait aucune
+   hauteur, les barres de ces colonnes descendaient dans la ligne des jours
+   et celles des jours étiquetés flottaient plus haut. Hauteur fixe pour
+   toutes : une seule ligne de base. Le chiffre déborde sa colonne étroite
+   sans la pousser. */
+.chart-day {
+  height: 15px;
+  line-height: 15px;
+  white-space: nowrap;
+  overflow: visible;
+}
+/* Jour à zéro : un trait discret sur la ligne de base, pas un tiret gris
+   qui se mêle aux chiffres. */
+.chart-bar.is-zero {
+  height: 2px !important;
+  min-height: 2px;
+  opacity: 0.18;
+  border-radius: 1px;
+}
+.chart-bars.is-scrubbing .chart-bar.is-zero.is-active {
+  opacity: 1;
 }

@@ -269,7 +269,7 @@ function Chart({ daily, days }: { daily: Record<string, number>; days: string[] 
               {!isMonth && <span className="chart-val tnum">{v > 0 ? v : ''}</span>}
               <div className="chart-stick">
                 <div
-                  className={`chart-bar ${d === todayKey ? 'is-today' : ''} ${i === active ? 'is-active' : ''}`}
+                  className={`chart-bar ${d === todayKey ? 'is-today' : ''} ${i === active ? 'is-active' : ''} ${v === 0 ? 'is-zero' : ''}`}
                   style={{ height: `${(v / max) * 100}%` }}
                 />
               </div>
