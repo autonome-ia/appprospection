@@ -1189,7 +1189,10 @@ export function AgendaScreen({
                 dot: STATUS_BY_VALUE.a_revoir.color,
               })),
             ]
-            const shown = items.slice(0, 4)
+            // 2 événements max par case + « +N » (décision briac 24/09) : les
+            // semaines ont la hauteur FIXE d'un mois vide (≈ 80 px sur un
+            // iPhone 13) — 3 pilules n'y tenaient pas, 2 + « +N » si.
+            const shown = items.slice(0, 2)
             const extra = items.length - shown.length
             const out = d.getMonth() !== monthDate.getMonth()
             const isToday = sameDay(d, today)
