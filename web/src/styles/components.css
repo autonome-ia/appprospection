@@ -519,6 +519,9 @@ textarea.form-input {
 }
 .hero-mark {
   flex: none;
+  /* Un peu décollé du bord droit (retour briac 24/09) : il se rapproche du
+     chiffre au lieu de fuir vers le coin. */
+  margin-right: 18px;
 }
 /* Profil : le rond est le bouton « changer sa photo ». */
 .user-avatar {
