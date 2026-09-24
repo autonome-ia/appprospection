@@ -23,6 +23,13 @@
   (landing pages), les skills « Apple HIG » natifs (SwiftUI, trop lourds), interface-design
   (redondant). Impeccable : possible en passe ponctuelle sur une branche jetable (binaire + hooks).
 
+## Décisions après audit (briac, 24/09 — `docs/audit-design-2026-09.md`)
+- **Pose en 1 tap** : tap sur un statut = point posé (toast « Annuler » en filet), plus de bouton
+  « Poser · X » ni de statut resté actif.
+- **Bascule directe** : fiche maison ouverte + tap sur une maison voisine = la fiche passe dessus.
+- **Tunnel et graphiques des Stats aux couleurs des statuts** (plus d'orange-donnée).
+- **RDV depuis l'agenda relié à une maison : PAS aujourd'hui** (reporté).
+
 ## Garde-fous
 - La DA de CLAUDE.md et les correctifs du chantier scroll sheets iOS (`repositionInputs={false}`,
   `flex-shrink:0`, recollage au blur) priment sur toute règle de skill.
@@ -55,3 +62,5 @@ dont le parcours va changer serait du travail jeté).
 
 ## Journal
 - 24/09 : cadrage, recherche et inspection des skills, installation (phase 0).
+- 24/09 : canal de test = branche `design` + 2e site Render (pastille β, `RENDER_GIT_BRANCH`).
+- 24/09 : captures « avant » + audit 4 auditeurs (phase 1) → `docs/audit-design-2026-09.md`.

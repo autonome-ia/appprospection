@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Toaster } from 'sonner'
+import { MotionConfig } from 'motion/react'
 import { MapView, type MapFocus } from './components/MapView'
 import { BottomNav, type Tab } from './components/BottomNav'
 import { AuthScreen } from './components/AuthScreen'
@@ -13,6 +14,7 @@ import { useIsDark } from './lib/theme'
 import { isSupabaseConfigured } from './lib/supabase'
 import { isSecretaireRole } from './domain/types'
 import './App.css'
+import './styles/interactions.css'
 
 /** Compte désactivé par le manager (db/0019) : la RLS ne laisse plus rien
     lire — on le dit, au lieu d'une app vide qui « bugge ». */
@@ -155,19 +157,22 @@ export default function App() {
   // (réactif : bascule dans la sheet de profil comme réglage téléphone en Auto).
   const dark = useIsDark()
   return (
-    <SessionProvider>
-      <AppInner />
-      <Toaster
-        position="top-center"
-        theme={dark ? 'dark' : 'light'}
-        toastOptions={{
-          style: {
-            fontFamily: 'var(--font-sans)',
-            borderRadius: '12px',
-            border: '1px solid var(--line)',
-          },
-        }}
-      />
-    </SessionProvider>
+    // reducedMotion="user" : Motion suit le réglage Accessibilité du téléphone.
+    <MotionConfig reducedMotion="user">
+      <SessionProvider>
+        <AppInner />
+        <Toaster
+          position="top-center"
+          theme={dark ? 'dark' : 'light'}
+          toastOptions={{
+            style: {
+              fontFamily: 'var(--font-sans)',
+              borderRadius: '12px',
+              border: '1px solid var(--line)',
+            },
+          }}
+        />
+      </SessionProvider>
+    </MotionConfig>
   )
 }

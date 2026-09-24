@@ -3093,17 +3093,6 @@ select.field-input {
   color: var(--ink-2);
 }
 
-.signout-btn {
-  margin-top: 16px;
-  border: 1px solid #cbd5e1;
-  border-radius: 999px;
-  padding: 10px 20px;
-  font-size: 15px;
-  font-weight: 600;
-  background: #ffffff;
-  color: #1e293b;
-}
-
 /* --- Écran de connexion / inscription par code (Encre & signal, 09/08) --- */
 .auth-screen {
   display: flex;
@@ -3383,113 +3372,6 @@ select.field-input {
   opacity: 1;
 }
 
-/* --- Panneau détail d'un point (bottom sheet) --- */
-.sheet-backdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 8;
-  background: rgba(0, 0, 0, 0.25);
-}
-.sheet {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 9;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  background: #ffffff;
-  border-radius: 18px 18px 0 0;
-  padding: 10px 16px calc(16px + env(safe-area-inset-bottom, 0));
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.2);
-}
-.sheet-handle {
-  width: 40px;
-  height: 4px;
-  border-radius: 999px;
-  background: #cbd5e1;
-  margin: 2px auto 4px;
-}
-.sheet-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.sheet-current-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 650;
-}
-.sheet-close {
-  border: none;
-  background: none;
-  font-size: 17px;
-  color: #64748b;
-  padding: 4px 8px;
-}
-.sheet-meta {
-  font-size: 13px;
-  color: #64748b;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.sheet-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #475569;
-  margin-top: 4px;
-}
-.sheet-statuses {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  padding-bottom: 2px;
-}
-.sheet-statuses::-webkit-scrollbar {
-  display: none;
-}
-.sheet-note {
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  padding: 10px;
-  font-size: 15px;
-  font-family: inherit;
-  resize: none;
-}
-.sheet-note:focus {
-  outline: 2px solid #3b82f6;
-  border-color: transparent;
-}
-.sheet-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 4px;
-}
-.btn-delete,
-.btn-save {
-  flex: 1;
-  border: none;
-  border-radius: 10px;
-  padding: 12px;
-  font-size: 15px;
-  font-weight: 600;
-}
-.btn-delete {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-.btn-save {
-  background: #1e293b;
-  color: #ffffff;
-}
-.btn-save:disabled {
-  opacity: 0.5;
-}
 
 /* ======================================================================
    Mode sombre — retouches hors tokens (variante « Ligné », 29/07/2026).

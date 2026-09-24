@@ -10,7 +10,7 @@ import { useSyncExternalStore } from 'react'
 export type ThemePref = 'light' | 'dark' | 'system'
 
 const KEY = 'theme'
-const META_LIGHT = '#ffffff'
+const META_LIGHT = '#f6f6f5' // = --bg clair (barre système)
 const META_DARK = '#121214' // = --bg sombre (barre système / encoche iOS)
 
 const media = window.matchMedia('(prefers-color-scheme: dark)')

@@ -1,0 +1,91 @@
+/* =============================================================================
+   Retour au toucher (chantier design 24/09 — skills Emil Kowalski / Jakub
+   Krehel / mobile-native). Chargé APRÈS App.css.
+   Règles :
+   - la réponse part au CONTACT du doigt (:active), jamais au relâcher ;
+   - propriété `scale` (et non transform) : se compose avec les transform
+     existants (translate des FAB, sheets…) sans les écraser ;
+   - deux amplitudes seulement : --press-scale (contrôles) et
+     --press-scale-lg (rangées, cartes) ; le texte seul s'estompe.
+   ========================================================================== */
+
+/* Contrôles compacts */
+.icon-btn,
+.seg-btn,
+.outcome-btn,
+.range-nav,
+.pan-chip,
+.roof3d-btn,
+.contacts-add {
+  transition: scale var(--dur-press) var(--ease-out), background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.chip {
+  transition: scale var(--dur-press) var(--ease-out), background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.btn {
+  transition: scale var(--dur-press) var(--ease-out), opacity var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+.icon-btn:active,
+.seg-btn:not(.is-active):active,
+.outcome-btn:not(:disabled):active,
+.range-nav:not(:disabled):active,
+.pan-chip:active,
+.roof3d-btn:active,
+.chip:active,
+.btn:not(:disabled):active {
+  scale: var(--press-scale);
+}
+.btn:active,
+.contacts-add:active {
+  transform: none; /* ancien retour en transform (App.css) : remplacé par scale */
+}
+.contacts-add:active {
+  scale: var(--press-scale);
+}
+
+/* Rangées et cartes : amplitude plus douce (grande surface) */
+.home-row,
+.home-row-call,
+.team-row,
+.rdv-history-row,
+.guide-card,
+.row-action {
+  transition: scale var(--dur-press) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+button.home-row:not(:disabled):active,
+.home-row-call:active,
+.team-row:not(:disabled):active,
+button.rdv-history-row:active,
+.guide-card:active,
+.row-action:active {
+  scale: var(--press-scale-lg);
+}
+.guide-card:active {
+  transform: none;
+}
+
+/* Texte seul : il s'estompe plutôt que de rétrécir */
+.text-btn {
+  transition: opacity var(--dur-press) var(--ease-out);
+}
+.text-btn:not(:disabled):active {
+  opacity: 0.55;
+}
+
+/* Barre d'onglets : l'icône s'enfonce, le libellé ne bouge pas */
+.nav-item .nav-icon {
+  transition: scale var(--dur-press) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.nav-item:active .nav-icon {
+  scale: 0.9;
+}
+
+/* Boutons flottants de la carte */
+.map-fab:active,
+.head-action:active {
+  transform: none;
+  scale: var(--press-scale);
+}
