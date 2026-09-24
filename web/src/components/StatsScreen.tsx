@@ -63,13 +63,42 @@ const PREV_LABEL: Record<Period, string> = {
 }
 
 function HeroDelta({ value, period }: { value: number; period: Period }) {
-  if (value === 0) return null
+  if (value === 0) return <span className="hero-delta flat">Stable {PREV_LABEL[period]}</span>
   const up = value > 0
   return (
     <span className={`hero-delta ${up ? 'up' : 'down'}`}>
       {up ? <ArrowUp size={13} strokeWidth={2.4} /> : <ArrowDown size={13} strokeWidth={2.4} />}
       <span className="tnum">{up ? `+${value}` : `−${Math.abs(value)}`}</span> {PREV_LABEL[period]}
     </span>
+  )
+}
+
+/** Case du ruban sous le héros (refonte 24/09, retour briac) : chiffre,
+    libellé, et l'écart avec la période précédente en flèche compacte. */
+function RibbonStat({
+  value,
+  label,
+  delta,
+}: {
+  value: React.ReactNode
+  label: string
+  delta: number | null
+}) {
+  return (
+    <div className="ribbon-stat">
+      <span className="ribbon-value tnum">{value}</span>
+      <span className="ribbon-label">{label}</span>
+      {delta !== null && (
+        <span className={`ribbon-delta ${delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat'}`}>
+          {delta > 0 ? (
+            <ArrowUp size={11} strokeWidth={2.6} />
+          ) : delta < 0 ? (
+            <ArrowDown size={11} strokeWidth={2.6} />
+          ) : null}
+          <span className="tnum">{delta > 0 ? `+${delta}` : delta < 0 ? `−${Math.abs(delta)}` : '='}</span>
+        </span>
+      )}
+    </div>
   )
 }
 
@@ -450,6 +479,16 @@ export function StatsScreen({
 
   const myIdx = meId ? ranked.findIndex((p) => p.id === meId) : -1
   const above = myIdx > 0 ? ranked[myIdx - 1] : null
+  // Rang sur la période PRÉCÉDENTE (même tri) : l'écart du ruban.
+  const prevIdx = meId
+    ? [...ranked]
+        .sort((a, b) => {
+          const pa = data?.previous.byCommercial[a.id]
+          const pb = data?.previous.byCommercial[b.id]
+          return (pb?.ventes ?? 0) - (pa?.ventes ?? 0) || (pb?.rdv_pris ?? 0) - (pa?.rdv_pris ?? 0)
+        })
+        .findIndex((p) => p.id === meId)
+    : -1
 
   return (
     // Pas d'en-tête « Statistiques » (refonte 26/07, même logique que
@@ -520,32 +559,46 @@ export function StatsScreen({
           phrase ; les autres KPI passent en ligne secondaire — fini les 3
           cartes de même poids qui doublonnaient le tunnel. */}
       {data && (
-        <section className="stats-hero">
+        // Héros + ruban (refonte 24/09, choix briac) : UNE carte comme le reste
+        // de l'onglet — la vente en chiffre star avec sa comparaison juste
+        // dessous, puis portes · RDV pris · rang, chacun avec son écart.
+        <section className="card stats-hero">
           <p className="eyebrow">{focusId ? nameOf(focusId) : 'Équipe'}</p>
           <div className="hero-line">
             <span className="hero-value tnum">
               <Num value={cur.ventes} fromZero={!heroPlayed} />
             </span>
             <span className="hero-unit">vente{cur.ventes > 1 ? 's' : ''}</span>
-            <HeroDelta value={cur.ventes - prev.ventes} period={period} />
           </div>
-          {/* La conversion ne vit plus qu'au pied du tunnel (doublon, 26/07). */}
-          <p className="hero-sub">
-            <b className="tnum">{cur.portes}</b> portes · <b className="tnum">{cur.rdv_pris}</b>{' '}
-            RDV pris
-          </p>
-          {/* « Ma position » vit sous le héros (plus de carte séparée en
-              fond d'écran que personne n'atteignait). */}
-          {!isSupervisor && myIdx >= 0 && (
+          <HeroDelta value={cur.ventes - prev.ventes} period={period} />
+          <div className="hero-ribbon">
+            <RibbonStat value={<Num value={cur.portes} />} label="portes" delta={cur.portes - prev.portes} />
+            <RibbonStat
+              value={<Num value={cur.rdv_pris} />}
+              label="RDV pris"
+              delta={cur.rdv_pris - prev.rdv_pris}
+            />
+            {!isSupervisor && myIdx >= 0 ? (
+              // Rang : écart = places gagnées depuis la période précédente.
+              <RibbonStat
+                value={`${myIdx + 1}${myIdx === 0 ? 'ᵉʳ' : 'ᵉ'}`}
+                label={`sur ${ranked.length}`}
+                delta={prevIdx >= 0 ? prevIdx - myIdx : null}
+              />
+            ) : (
+              <RibbonStat
+                value={<Num value={cur.rdv_effectues} />}
+                label="RDV effectués"
+                delta={cur.rdv_effectues - prev.rdv_effectues}
+              />
+            )}
+          </div>
+          {/* « Qui est devant » : la motivation reste, en une ligne discrète. */}
+          {!isSupervisor && above && (
             <p className="hero-pos">
-              {myIdx + 1}
-              {myIdx === 0 ? 'ᵉʳ' : 'ᵉ'} sur {ranked.length}
-              {above &&
-                ` · ${above.full_name ?? 'le suivant'} devant (+${
-                  (data?.current.byCommercial[above.id]?.ventes ?? 0) - cur.ventes
-                } vente${
-                  (data?.current.byCommercial[above.id]?.ventes ?? 0) - cur.ventes > 1 ? 's' : ''
-                })`}
+              {above.full_name ?? 'Le suivant'} est devant (+
+              {(data?.current.byCommercial[above.id]?.ventes ?? 0) - cur.ventes} vente
+              {(data?.current.byCommercial[above.id]?.ventes ?? 0) - cur.ventes > 1 ? 's' : ''})
             </p>
           )}
           {isSupervisor && drillId && onShowCommercialOnMap && (

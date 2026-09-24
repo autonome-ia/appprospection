@@ -96,31 +96,33 @@
 }
 /* Chiffre héros : les ventes portent l'écran (refonte 26/07). */
 .stats-hero {
-  margin: 0 2px 18px;
+  /* Carte comme le reste de l'onglet (refonte 24/09, retour briac). */
+  margin: 0 0 12px;
 }
 .hero-line {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 8px;
 }
 .hero-value {
   font-size: 42px;
   font-weight: 650;
   letter-spacing: -0.03em;
   line-height: 1;
+  color: var(--st-vendu); /* la vente = vert « Client », donnée métier */
 }
 .hero-unit {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--ink-2);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
 }
 .hero-delta {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  margin-left: auto;
-  font-size: 12px;
+  margin-top: 6px;
+  font-size: 13px;
   font-weight: 600;
 }
 .hero-delta.up {
@@ -131,18 +133,61 @@
 }
 .hero-delta.flat {
   color: var(--ink-3);
+  font-weight: 500;
 }
-.hero-sub {
-  margin: 10px 0 0;
-  font-size: 13px;
+/* Ruban : 3 chiffres de même poids, séparés par des filets verticaux. */
+.hero-ribbon {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.ribbon-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 12px;
+  min-width: 0;
+}
+.ribbon-stat:first-child {
+  padding-left: 0;
+}
+.ribbon-stat + .ribbon-stat {
+  border-left: 1px solid var(--line);
+}
+.ribbon-value {
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.ribbon-label {
+  font-size: 12px;
   color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.hero-sub b {
+.ribbon-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 4px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--ink);
+}
+.ribbon-delta.up {
+  color: var(--st-vendu);
+}
+.ribbon-delta.down {
+  color: var(--danger);
+}
+.ribbon-delta.flat {
+  color: var(--ink-3);
 }
 .hero-pos {
-  margin: 5px 0 0;
+  margin: 12px 0 0;
   font-size: 12px;
   color: var(--ink-3);
 }
