@@ -69,8 +69,14 @@ function AppInner() {
 
   if (loading) {
     return (
-      <div className="app-loading">
-        <span className="spinner" />
+      // Démarrage (chantier design 24/09) : la marque, pas un spinner — la
+      // même que l'écran de connexion, qui prend le relais sans rupture. Elle
+      // n'apparaît qu'après 250 ms (CSS) : une session qui répond vite ne
+      // montre rien du tout.
+      <div className="app-loading" aria-label="Chargement">
+        <span className="auth-mark app-loading-mark">
+          AppProspection<span className="auth-mark-dot">.</span>
+        </span>
       </div>
     )
   }

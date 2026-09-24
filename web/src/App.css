@@ -1782,14 +1782,21 @@
   align-items: center;
   justify-content: center;
   height: 100%;
+  background: var(--bg);
 }
-.spinner {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 2.5px solid var(--line-strong);
-  border-top-color: var(--accent);
-  animation: spin 0.7s linear infinite;
+.app-loading-mark {
+  opacity: 0;
+  animation: loading-mark 420ms var(--ease-out) 250ms forwards;
+}
+@keyframes loading-mark {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 @keyframes spin {
   to {
