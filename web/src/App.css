@@ -1804,33 +1804,27 @@
   padding: 30px 20px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  /* Rythme unique de 24 px entre blocs (audit design 24/09 : 18 + 22 de
+     marge = ~40 px de vide entre la carte du jour et la liste). */
+  gap: 24px;
 }
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: var(--ink);
-  color: #fff;
-}
-.brand-word {
-  font-weight: 600;
-  font-size: 15px;
-  letter-spacing: -0.01em;
+.accueil-screen > .card,
+.accueil-screen > .home-section {
+  margin-top: 0;
+  margin-bottom: 0;
 }
 /* En-tête compact « la journée, pas le profil » (audit UX B4). */
 .accueil-head {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 8px 0 14px;
+  margin: 4px 0 0;
+}
+/* Date du jour au-dessus du prénom (audit design 24/09). */
+.accueil-date {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-3);
 }
 /* Entrée réglages explicite (retour briac 29/07) : l'avatar ouvre toujours
    la sheet, mais la roue dentée la rend trouvable. */
@@ -3425,8 +3419,7 @@ select.field-input {
    PUR (retour briac sur planches : le presque-blanc lisait « gris »).
    ====================================================================== */
 [data-theme='dark'] .btn-primary,
-[data-theme='dark'] .head-action,
-[data-theme='dark'] .brand-mark {
+[data-theme='dark'] .head-action {
   background: #ffffff;
   color: #111113;
 }

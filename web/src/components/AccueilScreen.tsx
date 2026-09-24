@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'motion/react'
+import { EASE_OUT } from '../lib/motion'
 import {
-  MapPin,
   ChevronRight,
   BellRing,
   CalendarClock,
@@ -23,7 +23,7 @@ import { AppointmentForm } from './AppointmentForm'
 import { GuideSection } from './Guide'
 import { ProfileSheet } from './ProfileSheet'
 import { WeatherChip } from './WeatherChip'
-import { isSupervisorRole, roleLabel, type MapPoint } from '../domain/types'
+import { isSupervisorRole, type MapPoint } from '../domain/types'
 
 function relanceLabel(iso: string): string {
   // Jour LOCAL (toISOString = UTC : « aujourd'hui » était faux entre minuit
@@ -48,12 +48,23 @@ const fmtShortDay = (iso: string) =>
   new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(new Date(iso))
 
 const fade = {
-  hidden: { opacity: 0, y: 8 },
+  hidden: { opacity: 0, y: 6 },
   show: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.06, duration: 0.4, ease: [0.22, 1, 0.36, 1] as const },
+    transition: { delay: i * 0.04, duration: 0.28, ease: EASE_OUT },
   }),
+}
+
+// Cascade d'entrée jouée UNE fois par session (audit design 24/09) : l'écran
+// est démonté à chaque changement d'onglet, elle se rejouait ~700 ms à chaque
+// retour sur l'Accueil — vu plusieurs fois par jour, l'effet devenait attente.
+let introPlayed = false
+
+/** « Jeudi 24 septembre » */
+const TODAY_LABEL = () => {
+  const s = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
+  return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
 export function AccueilScreen({
@@ -63,7 +74,6 @@ export function AccueilScreen({
 }) {
   const { profile, session } = useSession()
   const name = profile?.full_name ?? session?.user.email ?? null
-  const role = roleLabel(profile?.role)
   // Chef des ventes = mêmes VUES que le manager (agrégats équipe, relances
   // de tous) — étape 4 du chantier Équipe.
   const isSupervisor = isSupervisorRole(profile?.role)
@@ -90,6 +100,11 @@ export function AccueilScreen({
   // Premier chargement : squelettes à la place du vide (audit UX B14) — les
   // recharges suivantes (retour au premier plan) restent silencieuses.
   const [loading, setLoading] = useState(true)
+  // La cascade est jouée dès que le contenu est là : les retours suivants
+  // sur l'onglet l'affichent sans attendre.
+  useEffect(() => {
+    if (!loading) introPlayed = true
+  }, [loading])
 
   const load = useCallback(() => {
     Promise.all([
@@ -190,17 +205,10 @@ export function AccueilScreen({
 
   return (
     <div className="screen accueil-screen">
-      <motion.div className="brand" variants={fade} custom={0} initial="hidden" animate="show">
-        <span className="brand-mark">
-          <MapPin size={16} strokeWidth={2.4} />
-        </span>
-        <span className="brand-word">Prospection</span>
-      </motion.div>
-
       {/* Une seule ligne d'en-tête (audit UX B4) : le nom apparaissait deux
           fois et « Se déconnecter » était au premier niveau — le contenu
           utile commençait sous le pli. Profil derrière l'avatar. */}
-      <motion.header className="accueil-head" variants={fade} custom={1} initial="hidden" animate="show">
+      <motion.header className="accueil-head" variants={fade} custom={1} initial={introPlayed ? false : 'hidden'} animate="show">
         <button
           type="button"
           className="avatar avatar-btn"
@@ -209,11 +217,13 @@ export function AccueilScreen({
         >
           {initials(profile?.full_name, session?.user.email ?? '?')}
         </button>
+        {/* La date du jour au-dessus du prénom (audit design 24/09) : la ligne
+            « Prospection » redondante est partie, le rôle vit dans le profil. */}
         <div className="accueil-head-texts">
+          <span className="accueil-date">{TODAY_LABEL()}</span>
           <h1 className="accueil-hello">
             Bonjour{name ? ` ${name.split(/[\s@]/)[0]}` : ''}
           </h1>
-          <span className="accueil-role">{role}</span>
         </div>
         {/* Réglages VISIBLES (retour briac 29/07) : l'avatar seul ne se
             devinait pas — même sheet, entrée explicite. */}
@@ -250,7 +260,7 @@ export function AccueilScreen({
           className="card today-card"
           variants={fade}
           custom={2}
-          initial="hidden"
+          initial={introPlayed ? false : 'hidden'}
           animate="show"
         >
           <div className="today-head">
@@ -296,9 +306,9 @@ export function AccueilScreen({
       )}
 
       {!loading && (
-        <motion.section className="home-section" variants={fade} custom={3} initial="hidden" animate="show">
+        <motion.section className="home-section" variants={fade} custom={3} initial={introPlayed ? false : 'hidden'} animate="show">
           <p className="eyebrow section-title">
-            <CalendarClock size={12} strokeWidth={2} /> Mes RDV aujourd’hui
+            <CalendarClock size={12} strokeWidth={2} /> Ma journée
             {todayAppts.length + lateTasks.length > 0 && ` · ${todayAppts.length + lateTasks.length}`}
           </p>
           {/* Tâches passées non faites EN TÊTE (boucle « Fait ✓ ») : l'acompte
@@ -397,7 +407,7 @@ export function AccueilScreen({
       )}
 
       {relances.length > 0 && (
-        <motion.section className="home-section" variants={fade} custom={4} initial="hidden" animate="show">
+        <motion.section className="home-section" variants={fade} custom={4} initial={introPlayed ? false : 'hidden'} animate="show">
           <p className="eyebrow section-title">
             <BellRing size={12} strokeWidth={2} /> À relancer · {relances.length}
           </p>
@@ -438,7 +448,7 @@ export function AccueilScreen({
 
       {/* Guide de l'app (26/07, à la place du feed d'activité) : les tutos
           pas-à-pas — l'onboarding des futurs commerciaux de l'équipe. */}
-      <motion.div variants={fade} custom={5} initial="hidden" animate="show">
+      <motion.div variants={fade} custom={5} initial={introPlayed ? false : 'hidden'} animate="show">
         <GuideSection />
       </motion.div>
 
