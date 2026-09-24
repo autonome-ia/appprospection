@@ -40,7 +40,7 @@ const page = await (
 ).newPage()
 const t0 = Date.now()
 const ts = () => `${((Date.now() - t0) / 1000).toFixed(1)}s`
-const CHAIN = /geopf\.fr|rnb-api|\.wasm|lidar|copc|laz-perf|three/i
+const CHAIN = /geopf\.fr|rnb-api|\.wasm|lidar|copc|laz-perf|three|roof_measures|cache_building/i
 page.on('console', (m) => {
   if (m.type() === 'error' || m.type() === 'warning' || /lidar|mesure|prewarm/i.test(m.text()))
     console.log(`[${ts()}] console.${m.type()}: ${m.text().slice(0, 400)}`)

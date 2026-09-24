@@ -589,7 +589,7 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
   temps part à 70-85 % dans les nœuds COPC (serveur IGN lent depuis le 18/09) ;
   une maison de dalle neuve lit ~9 nœuds / ~2,8 Mo dont les gros nœuds peu
   profonds, communs à tout le km². Livré : (1) `roof_measures` (**`db/0026` À
-  EXÉCUTER**) : mesure rangée par bâtiment et par agence, lue par emprise puis
+  EXÉCUTER**, exécutée le 24/09 ; vérifié : session neuve 1-2,6 s, 0 lecture COPC) : mesure rangée par bâtiment et par agence, lue par emprise puis
   par clé, avant la requête BAN-PLUS (5-8 s) désormais faite APRÈS la
   consultation du cache (`withAnnexes`) ; (2) préchauffage du quartier depuis
   la carte ; (3) dalles mémorisées par km² ; (4) téléchargements de nœuds
