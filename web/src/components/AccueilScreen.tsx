@@ -280,7 +280,7 @@ export function AccueilScreen({
             <>
               <div className="obj-bar-bg">
                 <div
-                  className="obj-bar"
+                  className={`obj-bar ${rdvSemaine >= objTarget ? 'is-done' : ''}`}
                   style={{ width: `${Math.min(100, (rdvSemaine / objTarget) * 100)}%` }}
                 />
               </div>

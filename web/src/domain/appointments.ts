@@ -27,7 +27,23 @@ export interface AppointmentStatusMeta {
   value: AppointmentStatus
   label: string
   color: string
+  /** Même couleur en TOKEN CSS (suit le thème : « Refus » est éclairci en
+      sombre). À utiliser pour tout texte/bordure d'interface ; `color` (hex)
+      reste pour les pastilles et le canvas. Audit design 24/09. */
+  css: string
 }
+
+/** Texte + bordure d'un bouton d'issue, dans les deux thèmes. */
+export const outcomeButtonStyle = (m: AppointmentStatusMeta) => ({
+  color: m.css,
+  borderColor: `color-mix(in srgb, ${m.css} 35%, transparent)`,
+})
+
+/** Badge d'issue : texte coloré sur un voile de la même couleur. */
+export const outcomeBadgeStyle = (m: AppointmentStatusMeta) => ({
+  color: m.css,
+  background: `color-mix(in srgb, ${m.css} 10%, transparent)`,
+})
 
 // Refonte des issues (29/07 soir, briac) : chaque issue = une réalité
 // terrain + une CONSÉQUENCE sur le point (voir setAppointmentOutcome) —
@@ -36,12 +52,12 @@ export interface AppointmentStatusMeta {
 // pas eu lieu) → Replanifier. « Manqué » retiré des boutons (client absent
 // = annulé, on replanifie) — la valeur reste pour l'historique.
 export const APPOINTMENT_STATUS_META: Record<AppointmentStatus, AppointmentStatusMeta> = {
-  a_venir: { value: 'a_venir', label: 'À venir', color: '#2f6bff' },
-  effectue: { value: 'effectue', label: 'En attente', color: '#d97706' },
-  vendu: { value: 'vendu', label: 'Vendu', color: '#17b26a' },
-  manque: { value: 'manque', label: 'Manqué', color: '#e5484d' },
-  annule: { value: 'annule', label: 'Annulé', color: '#98a2b3' },
-  refus: { value: 'refus', label: 'Refus', color: '#344054' },
+  a_venir: { value: 'a_venir', label: 'À venir', color: '#2f6bff', css: 'var(--st-rdv)' },
+  effectue: { value: 'effectue', label: 'En attente', color: '#d97706', css: 'var(--st-revoir)' },
+  vendu: { value: 'vendu', label: 'Vendu', color: '#17b26a', css: 'var(--st-vendu)' },
+  manque: { value: 'manque', label: 'Manqué', color: '#e5484d', css: 'var(--danger)' },
+  annule: { value: 'annule', label: 'Annulé', color: '#98a2b3', css: 'var(--ink-3)' },
+  refus: { value: 'refus', label: 'Refus', color: '#344054', css: 'var(--st-impossible)' },
 }
 
 /** Issues qu'un commercial peut donner à un RDV planifié. */

@@ -11,7 +11,7 @@ import {
 } from '../data/points'
 import { fetchPointAppointments, updateAppointment } from '../data/appointments'
 import { firstNameOf } from '../domain/names'
-import { APPOINTMENT_STATUS_META, type Appointment } from '../domain/appointments'
+import { APPOINTMENT_STATUS_META, outcomeBadgeStyle, type Appointment } from '../domain/appointments'
 import { RdvSection } from './RdvSection'
 import { wazeUrl } from '../lib/nav'
 import {
@@ -605,7 +605,7 @@ export function PointDetailSheet({
                         <span className="rdv-history-when tnum">{formatDate(h.scheduled_at)}</span>
                         <span
                           className="badge"
-                          style={{ color: hm.color, background: `${hm.color}1a` }}
+                          style={outcomeBadgeStyle(hm)}
                         >
                           {hm.label}
                         </span>

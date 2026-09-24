@@ -30,6 +30,7 @@ import { wazeUrl } from '../lib/nav'
 import { ContactForm } from './ContactForm'
 import {
   APPOINTMENT_STATUS_META,
+  outcomeButtonStyle,
   APPOINTMENT_OUTCOMES,
   FOLLOW_UP_OUTCOMES,
   outcomeToastMessage,
@@ -155,7 +156,7 @@ function AppointmentCard({
                 sur chaque RDV était du bruit. Tâche : le bouton « Fait » et
                 le titre barré disent déjà tout. */}
             {!isTache && appt.status !== 'a_venir' && (
-              <span className="appt-status" style={{ color: meta.color }}>
+              <span className="appt-status" style={{ color: meta.css }}>
                 <span className="status-dot" style={{ background: meta.color }} />
                 {meta.label}
               </span>
@@ -244,7 +245,7 @@ function AppointmentCard({
                   key={o}
                   type="button"
                   className="outcome-btn"
-                  style={{ color: m.color, borderColor: `${m.color}55` }}
+                  style={outcomeButtonStyle(m)}
                   disabled={busy}
                   onClick={async () => {
                     if (busy) return

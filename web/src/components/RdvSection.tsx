@@ -5,6 +5,7 @@ import { setAppointmentOutcome } from '../data/appointments'
 import {
   APPOINTMENT_OUTCOMES,
   APPOINTMENT_STATUS_META,
+  outcomeButtonStyle,
   FOLLOW_UP_OUTCOMES,
   outcomeToastMessage,
   type Appointment,
@@ -153,7 +154,7 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
         {shownStatus !== 'a_venir' && (
           <span
             className="rdv-outcome"
-            style={{ color: APPOINTMENT_STATUS_META[shownStatus].color }}
+            style={{ color: APPOINTMENT_STATUS_META[shownStatus].css }}
           >
             {APPOINTMENT_STATUS_META[shownStatus].label}
           </span>
@@ -171,7 +172,7 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
                 key={o}
                 type="button"
                 className="outcome-btn"
-                style={{ color: m.color, borderColor: `${m.color}55` }}
+                style={outcomeButtonStyle(m)}
                 disabled={busy}
                 onClick={async () => {
                   if (busy) return

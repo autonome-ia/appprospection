@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, Minus, Pencil, Plus } from 'lucide-react'
+import { ArrowUp, ArrowDown, ChevronLeft, CornerDownRight, ChevronRight, MapPin, Minus, Pencil, Plus } from 'lucide-react'
 import {
   fetchStatsComparison,
   periodRange,
@@ -113,7 +113,7 @@ function Funnel({ s }: { s: CommercialStats }) {
           <div key={step.key}>
             {step.from && (
               <div className={`fun-rate ${leak?.i === i ? 'is-leak' : ''}`}>
-                <ArrowDown size={11} strokeWidth={2.2} />
+                <CornerDownRight size={12} strokeWidth={2} />
                 <span className="tnum">{pct(ratio(v, s[step.from] as number))}</span>
               </div>
             )}
@@ -139,7 +139,7 @@ function Funnel({ s }: { s: CommercialStats }) {
         </span>
         {s.portes > s.prospects && (
           <span className="funnel-absents">
-            hors <span className="tnum">{s.portes - s.prospects}</span> hors cible / déjà clients
+            <span className="tnum">{s.portes - s.prospects}</span> hors cible ou déjà clients exclus
           </span>
         )}
       </div>
@@ -280,12 +280,17 @@ export function StatsScreen({
   // APRÈS « Jour » et s'afficher sous le segment « Jour » (bug 29). Seule la
   // réponse de la dernière demande est appliquée.
   const statsSeq = useRef(0)
+  // Période des chiffres AFFICHÉS : tant qu'elle diffère de la période
+  // demandée, les anciens chiffres s'estompent (audit design 24/09 — ils
+  // restaient nets sous le nouveau libellé pendant le chargement).
+  const [dataKey, setDataKey] = useState('')
   const loadStats = useCallback(() => {
     const seq = ++statsSeq.current
     fetchStatsComparison(period, offset)
       .then((d) => {
         if (seq !== statsSeq.current) return
         setData(d)
+        setDataKey(`${period}:${offset}`)
         setLoadError(false)
       })
       .catch((e) => {
@@ -389,7 +394,7 @@ export function StatsScreen({
   return (
     // Pas d'en-tête « Statistiques » (refonte 26/07, même logique que
     // l'agenda) : le segmented ouvre l'écran, la période est le titre.
-    <div className="screen">
+    <div className={`screen stats-screen ${data && dataKey !== `${period}:${offset}` ? 'is-pending' : ''}`}>
       <Segmented
         options={PERIODS}
         value={period}
@@ -541,7 +546,7 @@ export function StatsScreen({
           ) : (
             <div className="obj-bar-bg">
               <div
-                className="obj-bar"
+                className={`obj-bar ${objectiveTarget > 0 && cur.rdv_pris >= objectiveTarget ? 'is-done' : ''}`}
                 style={{ width: `${objectiveTarget > 0 ? Math.min(100, (cur.rdv_pris / objectiveTarget) * 100) : 0}%` }}
               />
             </div>
@@ -598,7 +603,7 @@ export function StatsScreen({
                   {period === 'semaine' && (
                     <div className="rank-obj">
                       <div className="obj-bar-bg">
-                        <div className="obj-bar" style={{ width: `${targetPct}%` }} />
+                        <div className={`obj-bar ${targetPct >= 100 ? 'is-done' : ''}`} style={{ width: `${targetPct}%` }} />
                       </div>
                       <span className="obj-text tnum">
                         {s.rdv_pris}/{target}

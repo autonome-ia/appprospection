@@ -6,6 +6,7 @@ import { fetchPendingOutcomes, setAppointmentOutcome } from '../data/appointment
 import {
   APPOINTMENT_OUTCOMES,
   APPOINTMENT_STATUS_META,
+  outcomeButtonStyle,
   outcomeToastMessage,
   type Appointment,
 } from '../domain/appointments'
@@ -121,7 +122,7 @@ export function PendingOutcomes({ profile }: { profile: Profile }) {
                         key={o}
                         type="button"
                         className="outcome-btn"
-                        style={{ color: m.color, borderColor: `${m.color}55` }}
+                        style={outcomeButtonStyle(m)}
                         disabled={busyId === a.id}
                         onClick={async () => {
                           if (busyId) return

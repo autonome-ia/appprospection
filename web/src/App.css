@@ -691,15 +691,16 @@
   flex: 0 0 auto;
   color: var(--ink-3);
 }
-/* Boucle « Fait ✓ » (29/07 soir) : toggle unique de la tâche — actif =
-   rempli teal (la couleur d'« Effectué », sa valeur en base). */
+/* Boucle « Fait ✓ » (29/07 soir) : toggle unique de la tâche. À faire =
+   neutre ; faite = remplie de vert (le teal d'origine était orphelin et se
+   confondait avec la couleur d'un commercial — audit design 24/09). */
 .task-done-btn {
-  color: #12b3a6;
-  border-color: #12b3a655;
+  color: var(--ink-2);
+  border-color: var(--line-strong);
 }
 .task-done-btn.is-done {
-  background: #12b3a6;
-  border-color: #12b3a6;
+  background: var(--st-vendu);
+  border-color: var(--st-vendu);
   color: #ffffff;
 }
 /* Tâche faite : l'objet se raye et s'éteint, la carte reste lisible. */
@@ -1381,18 +1382,21 @@
   display: block;
   height: 18px;
   border-radius: 4px;
-  background: var(--accent);
-  transition: width 0.35s var(--ease-out);
+  background: var(--ink-3);
+  transition: width var(--dur-slow) var(--ease-out);
 }
-/* L'entonnoir se concentre : opacité croissante, les ventes en vert plein. */
+/* Tunnel aux couleurs des STATUTS (chantier design 24/09, décision briac) :
+   l'orange est réservé aux actions. Même grammaire que la carte — portes en
+   gris, RDV pris bleu, effectués ambre (« En attente »), ventes vert. */
 .fun-bar-0 {
-  opacity: 0.3;
-}
-.fun-bar-1 {
+  background: var(--ink-3);
   opacity: 0.55;
 }
+.fun-bar-1 {
+  background: var(--st-rdv);
+}
 .fun-bar-2 {
-  opacity: 0.8;
+  background: var(--st-revoir);
 }
 .fun-bar-3 {
   background: var(--st-vendu);
@@ -1414,10 +1418,16 @@
 .fun-rate svg {
   color: var(--ink-3);
 }
-/* Le plus faible des deux taux en rouge, sans texte (briac 26/07). */
-.fun-rate.is-leak,
-.fun-rate.is-leak svg {
+/* Le plus faible des deux taux signalé (briac 26/07) : pastille rouge
+   douce plutôt qu'un « ↓ 50 % » rouge qui se lisait comme une chute. */
+.fun-rate .tnum {
+  padding: 1px 6px;
+  margin-left: -6px;
+  border-radius: var(--r-full);
+}
+.fun-rate.is-leak .tnum {
   color: var(--danger);
+  background: var(--danger-weak);
 }
 .funnel-foot {
   display: flex;
@@ -1480,9 +1490,9 @@
 .chart-bar {
   width: 100%;
   min-height: 2px;
-  background: var(--accent);
+  background: var(--ink-3);
   border-radius: 3px 3px 0 0;
-  opacity: 0.35;
+  opacity: 0.45;
 }
 
 /* --- Stats : classement --- */
@@ -1563,8 +1573,14 @@
 }
 .obj-bar {
   height: 100%;
-  background: var(--accent);
+  /* L'objectif compte des RDV : bleu « RDV pris », vert une fois atteint
+     (donnée, pas action : jamais l'accent — audit design 24/09). */
+  background: var(--st-rdv);
   border-radius: var(--r-full);
+  transition: width var(--dur-slow) var(--ease-out), background-color var(--dur-base) var(--ease-out);
+}
+.obj-bar.is-done {
+  background: var(--st-vendu);
 }
 .obj-text {
   font-size: 11px;
@@ -1606,6 +1622,7 @@
   text-align: center;
 }
 .chart-bar.is-today {
+  background: var(--ink);
   opacity: 1;
 }
 .rank-edit {
@@ -2185,14 +2202,14 @@
   background: var(--surface);
   color: var(--accent);
 }
-/* « Fait ✓ » d'une tâche sur l'Accueil (29/07 soir) : teal d'« Effectué »,
-   rempli quand la tâche est faite (re-tap = remise à faire). */
+/* « Fait ✓ » d'une tâche sur l'Accueil (29/07 soir) : neutre, rempli de
+   vert quand la tâche est faite (re-tap = remise à faire). */
 .task-check {
-  color: #12b3a6;
+  color: var(--ink-3);
 }
 .task-check.is-done {
-  background: #12b3a6;
-  border-color: #12b3a6;
+  background: var(--st-vendu);
+  border-color: var(--st-vendu);
   color: #ffffff;
 }
 .task-late {
@@ -3442,4 +3459,13 @@ select.field-input {
 [data-theme='dark'] .seg-ind {
   background: #2c2c31;
   box-shadow: 0 0 0 1px var(--line-strong);
+}
+
+/* Stats : changement de période en cours — les chiffres de l'ancienne
+   période s'estompent jusqu'à l'arrivée des nouveaux (audit design 24/09). */
+.stats-screen > :not(.seg):not(.stats-rangebar) {
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.stats-screen.is-pending > :not(.seg):not(.stats-rangebar) {
+  opacity: 0.45;
 }
