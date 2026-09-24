@@ -49,6 +49,17 @@ window.addEventListener('focusout', () => {
   requestAnimationFrame(() => window.scrollTo(0, 0))
 })
 
+// Canal « design » : pastille β discrète pour ne jamais confondre la version
+// de test avec l'app des commerciaux (absente du build de main).
+if (__BETA__) {
+  document.title += ' β'
+  const beta = document.createElement('div')
+  beta.className = 'beta-pill'
+  beta.textContent = 'β'
+  beta.setAttribute('aria-hidden', 'true')
+  document.body.appendChild(beta)
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

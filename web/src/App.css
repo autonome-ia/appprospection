@@ -3538,3 +3538,18 @@ select.field-input {
   background: var(--ink);
   color: #ffffff;
 }
+
+/* Repère du canal « design » (build de la branche design uniquement). */
+.beta-pill {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #f54e00;
+  color: #fff;
+  font: 600 11px/16px var(--font-sans);
+  pointer-events: none;
+}

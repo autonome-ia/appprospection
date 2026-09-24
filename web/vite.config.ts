@@ -2,8 +2,14 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Canal « design » (chantier du 24/09/2026) : le 2e site Render déploie la
+// branche design et expose RENDER_GIT_BRANCH au build. Seul ce site porte le
+// repère β (nom de PWA + pastille) ; main n'est pas concerné, même après fusion.
+const BETA = process.env.RENDER_GIT_BRANCH === 'design' || process.env.VITE_CANAL === 'design'
+
 // https://vite.dev/config/
 export default defineConfig({
+  define: { __BETA__: JSON.stringify(BETA) },
   plugins: [
     react(),
     VitePWA({
@@ -49,8 +55,8 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'AppProspection',
-        short_name: 'Prospection',
+        name: BETA ? 'AppProspection β' : 'AppProspection',
+        short_name: BETA ? 'Prospection β' : 'Prospection',
         description: 'Cartographie de prospection porte-à-porte',
         theme_color: '#ffffff',
         background_color: '#ffffff',
