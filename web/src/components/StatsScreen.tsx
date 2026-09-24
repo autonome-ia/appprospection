@@ -211,26 +211,65 @@ function Chart({ daily, days }: { daily: Record<string, number>; days: string[] 
     const dom = date.getDate()
     return dom % 7 === 1 ? String(dom) : ''
   }
+  // Lecture au doigt (chantier design 24/09, façon app Santé) : glisser sur
+  // les barres allume celle du jour touché et l'en-tête dit « Mar. 16 sept.
+  // · 6 » ; au relâcher, retour au total. touch-action pan-y : le défilement
+  // vertical de l'écran reste au navigateur.
+  const [active, setActive] = useState<number | null>(null)
+  const releaseTimer = useRef<number | undefined>(undefined)
+  const pick = (e: React.PointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    const i = Math.floor(((e.clientX - r.left) / r.width) * days.length)
+    setActive(Math.max(0, Math.min(days.length - 1, i)))
+  }
+  const release = () => {
+    window.clearTimeout(releaseTimer.current)
+    releaseTimer.current = window.setTimeout(() => setActive(null), 1200)
+  }
+  useEffect(() => () => window.clearTimeout(releaseTimer.current), [])
+  const activeDay = active !== null ? days[active] : null
+  const activeLabel = activeDay
+    ? (() => {
+        const t = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).format(
+          new Date(`${activeDay}T00:00:00`),
+        )
+        return t.charAt(0).toUpperCase() + t.slice(1)
+      })()
+    : null
   return (
     <div className="card">
       {/* Les chiffres, pas que des barres (retour briac 27/07) : total de la
           période dans l'en-tête + valeur au-dessus de chaque barre en vue
           Semaine (en Mois, 31 barres — les chiffres ne rentrent pas). */}
       <div className="chart-head">
-        <p className="eyebrow">Portes toquées par jour</p>
+        <p className="eyebrow">{activeLabel ?? 'Portes toquées par jour'}</p>
         <span className="chart-total tnum">
-          <Num value={total} />
+          <Num value={activeDay ? (daily[activeDay] ?? 0) : total} />
         </span>
       </div>
-      <div className="chart-bars">
-        {days.map((d) => {
+      <div
+        className={`chart-bars ${active !== null ? 'is-scrubbing' : ''}`}
+        onPointerDown={(e) => {
+          window.clearTimeout(releaseTimer.current)
+          e.currentTarget.setPointerCapture(e.pointerId)
+          pick(e)
+        }}
+        onPointerMove={(e) => {
+          if (e.buttons || e.pointerType === 'touch') {
+            if (e.currentTarget.hasPointerCapture(e.pointerId)) pick(e)
+          }
+        }}
+        onPointerUp={release}
+        onPointerCancel={release}
+      >
+        {days.map((d, i) => {
           const v = daily[d] ?? 0
           return (
-            <div key={d} className="chart-col" title={`${d} : ${v}`}>
+            <div key={d} className="chart-col">
               {!isMonth && <span className="chart-val tnum">{v > 0 ? v : ''}</span>}
               <div className="chart-stick">
                 <div
-                  className={`chart-bar ${d === todayKey ? 'is-today' : ''}`}
+                  className={`chart-bar ${d === todayKey ? 'is-today' : ''} ${i === active ? 'is-active' : ''}`}
                   style={{ height: `${(v / max) * 100}%` }}
                 />
               </div>

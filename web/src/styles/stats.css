@@ -440,3 +440,23 @@
   position: absolute;
   inset: -10px; /* crayon 15 px : cible portée à ~40 px */
 }
+
+/* Graphe lu au doigt (chantier design 24/09) : pendant le glisser, les
+   autres barres s'effacent et celle du jour touché passe à l'encre. */
+.chart-bars {
+  touch-action: pan-y;
+  cursor: crosshair;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.chart-bar {
+  transition: opacity var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out),
+    height var(--dur-slow) var(--ease-out);
+}
+.chart-bars.is-scrubbing .chart-bar {
+  opacity: 0.25;
+}
+.chart-bars.is-scrubbing .chart-bar.is-active {
+  opacity: 1;
+  background: var(--ink);
+}
