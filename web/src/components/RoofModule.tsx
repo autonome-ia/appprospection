@@ -82,14 +82,6 @@ export function RoofModule({
         />
       </button>
 
-      {fromZero && (
-        // Filet de progression de la carte « mesure laser » : il se remplit
-        // jusqu'au bout puis s'efface (clôture visible, sans délai).
-        <span className="roof-progress-rail" aria-hidden>
-          <span />
-        </span>
-      )}
-
       {open && (
         <>
           <div className="roof-module-seg" role="group" aria-label="Vue du toit mesuré">

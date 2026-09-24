@@ -37,6 +37,9 @@ const ctx = await browser.newContext({
   reducedMotion: process.env.REDUCE === '1' ? 'reduce' : 'no-preference',
 })
 if (DARK) await ctx.addInitScript(() => localStorage.setItem('theme', 'dark'))
+// Délai par action : une API lente (BAN, IGN) fait échouer le tournage au
+// lieu de le bloquer indéfiniment (un clic Playwright attend sans limite).
+ctx.setDefaultTimeout(30000)
 const page = await ctx.newPage()
 if (PANNE) await page.route(/data\.geopf\.fr\/telechargement\//, (r) => r.abort('connectionrefused'))
 await page.goto(`http://localhost:5173/?lidar-nocache&roofui=${VARIANT}`, { waitUntil: 'networkidle' })

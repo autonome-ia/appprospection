@@ -571,37 +571,41 @@
   font-weight: 600;
   color: var(--ink-2);
 }
-.roof-progress-rail {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 2px;
-  background: var(--surface-2);
-}
-.roof-progress-rail span {
-  display: block;
-  height: 100%;
-  background: var(--ink);
-  transform-origin: left center;
-  transition: transform 420ms var(--ease-out);
-}
-
-/* Icône « scan » : la ligne balaie le cadre au rythme du faisceau de la
-   carte (1,1 s par passage, aller-retour, même courbe). */
-.roof-scan-icon {
+/* Anneau de progression RÉELLE autour d'une ligne de scan (retour briac :
+   le filet du bas était « web »). La ligne balaie au rythme du faisceau de
+   la carte (1,1 s par passage, aller-retour, même courbe). */
+.roof-scan-ring {
   position: relative;
   display: inline-grid;
-  flex: 0 0 15px;
-  width: 15px;
-  height: 15px;
-  color: var(--ink-3);
+  place-items: center;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin: -1.5px 0 -1.5px -1.5px; /* même encombrement que l'icône 15 px */
 }
-.roof-scan-icon i {
+.roof-scan-ring svg {
   position: absolute;
-  left: 3px;
-  right: 3px;
-  top: 3px;
+  inset: 0;
+  transform: rotate(-90deg); /* le remplissage part du haut */
+}
+.roof-scan-ring-track,
+.roof-scan-ring-fill {
+  fill: none;
+  stroke-width: 1.75;
+}
+.roof-scan-ring-track {
+  stroke: var(--line);
+}
+.roof-scan-ring-fill {
+  stroke: var(--ink);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 420ms var(--ease-out);
+}
+.roof-scan-ring i {
+  position: absolute;
+  left: 5.5px;
+  right: 5.5px;
+  top: 5.5px;
   height: 1.5px;
   border-radius: 1px;
   background: var(--ink);
@@ -609,17 +613,13 @@
 }
 @keyframes roof-scan-line {
   to {
-    transform: translateY(7.5px);
+    transform: translateY(5.5px);
   }
 }
 
 /* Arrivée du module « Toiture mesurée » après une mesure faite sous les
    yeux : même objet qui change d'état — le titre et l'icône arrivent en
-   fondu flouté, le filet se remplit jusqu'au bout puis s'efface. */
-.roof-module.is-arriving {
-  position: relative;
-  overflow: hidden;
-}
+   fondu flouté (l'icône 3D prend la place de l'anneau en pivotant). */
 .roof-module.is-arriving .roof-module-title,
 .roof-module.is-arriving .roof-module-head > svg:first-child {
   animation: roof-arrive 260ms var(--ease-out) backwards;
@@ -641,26 +641,6 @@
     filter: blur(2px);
   }
 }
-.roof-module.is-arriving .roof-progress-rail span {
-  transform: scaleX(1);
-  animation:
-    roof-rail-close 160ms var(--ease-out) backwards,
-    roof-rail-out 240ms ease 200ms forwards;
-}
-.roof-module.is-arriving .roof-progress-rail {
-  animation: roof-rail-out 240ms ease 200ms forwards;
-}
-@keyframes roof-rail-close {
-  from {
-    transform: scaleX(0.94);
-  }
-}
-@keyframes roof-rail-out {
-  to {
-    opacity: 0;
-  }
-}
-
 /* Échec réseau */
 .roof-progress.is-failed {
   padding-bottom: 12px;
@@ -703,12 +683,12 @@
 
 @media (prefers-reduced-motion: reduce) {
   .roof-progress,
-  .roof-scan-icon i,
+  .roof-scan-ring i,
   .roof-module.is-arriving .roof-module-title,
   .roof-module.is-arriving .roof-module-head > svg:first-child {
     animation: none;
   }
-  .roof-scan-icon i {
-    transform: translateY(3.75px);
+  .roof-scan-ring i {
+    transform: translateY(2.75px);
   }
 }

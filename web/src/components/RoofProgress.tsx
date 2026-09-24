@@ -95,13 +95,34 @@ function Swap({ id, children, className }: { id: string; children: ReactNode; cl
   )
 }
 
-/** Icône « scan » : cadre fixe + ligne qui balaie, au rythme du faisceau de
-    la carte (même période, même courbe). */
-export function ScanIcon() {
+const RING_R = 7.25
+const RING_C = 2 * Math.PI * RING_R
+
+/** Anneau de progression RÉELLE (comme un téléchargement iOS) autour d'une
+    ligne de scan qui balaie au rythme du faisceau de la carte (même
+    période, même courbe). Remplace le filet du bas (retour briac). */
+function ScanRing({ fraction }: { fraction: number }) {
   return (
-    <span className="roof-scan-icon" aria-hidden>
-      <Scan size={15} strokeWidth={1.9} />
-      <i />
+    <span
+      className="roof-scan-ring"
+      role="progressbar"
+      aria-label="Avancement de la mesure"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(fraction * 100)}
+    >
+      <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden>
+        <circle className="roof-scan-ring-track" cx="9" cy="9" r={RING_R} />
+        <circle
+          className="roof-scan-ring-fill"
+          cx="9"
+          cy="9"
+          r={RING_R}
+          strokeDasharray={RING_C}
+          strokeDashoffset={RING_C * (1 - fraction)}
+        />
+      </svg>
+      <i aria-hidden />
     </span>
   )
 }
@@ -120,8 +141,8 @@ interface Props {
  * Carte « mesure laser » (chantier design 24/09) : remplace la pastille
  * « mesure du toit… ». Gabarit EXACT de l'en-tête replié de « Toiture
  * mesurée » (qui prend sa place sans que rien ne bouge) ; le titre raconte la
- * mesure réelle (repérage, survol, lecture laser, pans détectés), le compteur
- * de points roule, la progression réelle court sur le filet du bas.
+ * mesure réelle (repérage, survol, lecture laser), le compteur de points
+ * roule, la progression réelle remplit l'anneau autour de l'icône de scan.
  */
 export function RoofProgress({ lng, lat, pending, failed, onRetry }: Props) {
   const p = useLidarProgress(lng, lat)
@@ -154,7 +175,7 @@ export function RoofProgress({ lng, lat, pending, failed, onRetry }: Props) {
   return (
     <section className="roof-module roof-progress" aria-live="polite" aria-busy="true">
       <div className="roof-module-head roof-progress-line">
-        <ScanIcon />
+        <ScanRing fraction={f} />
         <Swap id={title} className="roof-module-title">
           {title}
         </Swap>
@@ -167,16 +188,6 @@ export function RoofProgress({ lng, lat, pending, failed, onRetry }: Props) {
           </span>
         )}
       </div>
-      <span
-        className="roof-progress-rail"
-        role="progressbar"
-        aria-label="Avancement de la mesure"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.round(f * 100)}
-      >
-        <span style={{ transform: `scaleX(${f})` }} />
-      </span>
     </section>
   )
 }

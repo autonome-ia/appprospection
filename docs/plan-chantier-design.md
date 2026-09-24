@@ -87,4 +87,8 @@ dont le parcours va changer serait du travail jeté).
   MapLibre écrit une opacité en ligne) ; filet qui se ferme sur le module. Planches :
   `screenshoots/roof-ui/index.html` (+ `finale-planche.png`, extraite des vidéos au ffmpeg de
   Playwright). **En attente du retour briac.**
+- 24/09 (nuit) : **v3** (briac : « la ligne fine noire en bas n'est pas belle ») : filet retiré,
+  la progression RÉELLE devient un anneau d'encre autour de l'icône (façon téléchargement iOS),
+  ligne de scan au centre au rythme du faisceau. Choix fait sur 4 pistes (anneau / rien /
+  reflet sur le titre / remplissage du fond).
 
