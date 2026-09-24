@@ -413,6 +413,12 @@ Concept validé par le directeur régional de Mister Toiture (présentation d'Al
   onde couleur statut à la pose, popup du matin animé, célébration (vente / objectif hebdo :
   coche qui se dessine, `lib/celebrate.ts`), agenda au doigt (balayage = mois/semaine suivant).
   RESTE : écran de démarrage iOS (images), récap hebdo partageable, réticule vivant.
+- [x] **Photos de profil et logo d'agence (24/09, idée briac)** : rond du commercial / logo de
+  l'agence à droite du héros des Stats, photo partout où il y avait des initiales (Accueil,
+  Profil, Équipe, classement). Chacun SA photo (Profil & réglages), manager seul pour le logo
+  (écran Équipe) ; par défaut initiales sur la couleur d'agenda / monogramme de l'agence.
+  **`db/0025_photos_logo.sql` À EXÉCUTER en prod** (colonnes, bucket Storage `media`,
+  policies, garde-fous) — repli propre tant qu'elle ne l'est pas.
 - [ ] Phase 5 : recette (perf, reduced-motion, a11y, terrain) puis fusion `design` → `main`.
   Images du Guide régénérées (v4) ; toit-2/toit-3 non recapturées (3D en headless).
 
