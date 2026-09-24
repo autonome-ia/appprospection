@@ -1,6 +1,7 @@
 import { Drawer } from 'vaul'
-import { X, Home, Navigation } from 'lucide-react'
+import { X, Home, MapPin, Navigation } from 'lucide-react'
 import { wazeUrl } from '../lib/nav'
+import { splitAddress } from '../lib/address'
 import { StatusPicker } from './StatusPicker'
 import { HouseBadges } from './HouseBadges'
 import { RoofModule } from './RoofModule'
@@ -56,11 +57,17 @@ export function HousePreviewSheet({
         <Drawer.Content className="drawer-content">
           <div className="drawer-grip" />
 
+          {/* Même gabarit que la fiche point (chantier design 24/09) : la rue
+              en titre, « pas encore de point » à la place du statut, la ville
+              en ligne secondaire. */}
           <div className="drawer-header">
-            <span className="drawer-title">
-              <Home size={16} strokeWidth={1.9} />
-              {address ?? 'Maison'}
-            </span>
+            <div className="sheet-head">
+              <span className="drawer-title">{address ? splitAddress(address).street : 'Maison'}</span>
+              <span className="sheet-status is-muted">
+                <Home size={14} strokeWidth={1.9} />
+                Pas encore de point
+              </span>
+            </div>
             <button
               type="button"
               className="icon-btn"
@@ -70,6 +77,14 @@ export function HousePreviewSheet({
               <X size={18} />
             </button>
           </div>
+
+          {address && splitAddress(address).city && (
+            <div className="drawer-meta">
+              <span>
+                <MapPin size={13} /> {splitAddress(address).city}
+              </span>
+            </div>
+          )}
 
           <div className="drawer-body" data-vaul-no-drag>
           {info === null ? (

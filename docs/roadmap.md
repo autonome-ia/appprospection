@@ -405,8 +405,9 @@ Concept validé par le directeur régional de Mister Toiture (présentation d'Al
   spinner, secousse), Contacts (liste groupée iOS, dates relatives, « À planifier »), Profil
   (déconnexion en action rouge), Équipe (interrupteur iOS), démarrage (marque au lieu du
   spinner), notifications au relief de la DA, formulaires façon Réglages iOS (contact, RDV/tâche,
-  champs de la fiche point — `components/ui/Form.tsx`). RESTE : graphe du mois interactif,
-  en-têtes de fiches unifiés.
+  champs de la fiche point — `components/ui/Form.tsx`). graphe des portes lu au doigt (façon
+  Santé), en-tête commun fiche point / fiche maison (client ou rue en titre, statut en
+  pastille, ville en ligne secondaire — `lib/address.ts`).
 - [~] Phase 4 : wow — FAIT : chiffres qui roulent (NumberFlow), viseur/barre de visée animés,
   onde couleur statut à la pose, popup du matin animé, célébration (vente / objectif hebdo :
   coche qui se dessine, `lib/celebrate.ts`), agenda au doigt (balayage = mois/semaine suivant).

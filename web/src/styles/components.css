@@ -440,3 +440,36 @@ textarea.form-input {
 .note-history + .form-group {
   margin-top: 8px;
 }
+
+/* En-tête commun des fiches (point, maison — chantier design 24/09) : le
+   titre, puis le statut en pastille avec le VRAI marqueur de la carte. */
+.sheet-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-width: 0;
+}
+.sheet-head .drawer-title {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sheet-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.sheet-status .chip-marker {
+  width: 16px;
+  height: 16px;
+}
+.sheet-status.is-muted {
+  font-weight: 500;
+  color: var(--ink-3);
+}

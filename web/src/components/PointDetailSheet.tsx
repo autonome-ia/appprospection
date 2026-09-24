@@ -16,6 +16,7 @@ import { firstNameOf } from '../domain/names'
 import { APPOINTMENT_STATUS_META, outcomeBadgeStyle, type Appointment } from '../domain/appointments'
 import { RdvSection } from './RdvSection'
 import { wazeUrl } from '../lib/nav'
+import { splitAddress } from '../lib/address'
 import {
   lidarNeedsMeasure,
   suggestedWastePct,
@@ -396,6 +397,7 @@ export function PointDetailSheet({
   }
 
   const current = STATUS_BY_VALUE[point.status]
+  const { street, city } = splitAddress(point.address)
 
   // Fiche maison : le cache du point d'abord, sinon le fetch à la volée.
   const annee = point.annee_construction ?? liveEnrich?.annee_construction ?? null
@@ -437,11 +439,17 @@ export function PointDetailSheet({
         <Drawer.Content className="drawer-content">
           <div className="drawer-grip" />
 
+          {/* En-tête commun aux fiches (chantier design 24/09) : QUI (le
+              client, sinon la rue) en titre, le statut en pastille dessous —
+              la fiche maison suit le même gabarit. */}
           <div className="drawer-header">
-            <span className="drawer-title">
-              <span className="status-pill" style={{ background: current.color }} />
-              {current.label}
-            </span>
+            <div className="sheet-head">
+              <span className="drawer-title">{point.client_name || street || current.label}</span>
+              <span className="sheet-status">
+                <img className="chip-marker" src={markerDataUrl(point.status)} alt="" />
+                {current.label}
+              </span>
+            </div>
             <button type="button" className="icon-btn" onClick={() => onOpenChange(false)} aria-label="Fermer">
               <X size={18} />
             </button>
@@ -458,7 +466,7 @@ export function PointDetailSheet({
                   rel="noopener noreferrer"
                   title="Itinéraire en voiture (Waze)"
                 >
-                  <MapPin size={13} /> {point.address}
+                  <MapPin size={13} /> {point.client_name ? point.address : city || point.address}
                 </a>
               )}
               {/* Dernière VISITE, libellée (audit UX A30) : la date de pose
