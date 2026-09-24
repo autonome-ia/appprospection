@@ -18,6 +18,40 @@
 | Dérivés raster (plan B) | ✅ | Dalles MNS/MNT/MNH LiDAR HD dispo en WFS/téléchargement (`IGNF_MNS-LIDAR-HD:dalle`…) + couches de visualisation WMTS |
 | Briques app réutilisables | ✅ | Polygone bâtiment déjà récupéré (WFS BD TOPO, `data/enrich.ts`), proj4/Lambert-93 déjà embarqué, pattern cache-en-BDD + backfill paresseux déjà rodé (migrations 0006/0007) |
 
+## Quand « la mesure ne marche plus » (runbook, 24/09/2026)
+
+La mesure dépend EN DIRECT, dans le navigateur, de 5 services publics gratuits
+(WFS BD TOPO, WFS métadonnées LiDAR, serveur de téléchargement COPC, WMS-R MNH,
+API RNB + WFS BAN-PLUS), soit 15 à 30 requêtes par maison. Le code de mesure
+lui-même change peu ; ce sont ces services qui bougent. Deux pannes en une
+semaine, toutes deux CÔTÉ IGN : couche WFS retirée (18/09), serveur COPC à
+latence extrême (24/09). Le banc vitest rejoue des nuages hors ligne : il est
+vert par construction et ne peut PAS voir ces pannes.
+
+Diagnostic dans cet ordre, sans rien coder avant :
+1. **`cd tools/lidar-spike && node canary.mjs`** (~30 s, sans navigateur ni
+   compte) : contrat réseau sur la maison de référence (Lesneven). `KO` = contrat
+   cassé (couche renommée, champ `url_npl` disparu, COPC illisible, CORS) : la
+   mesure échouera, corriger `data/lidar.ts`. `WARN` = service facultatif ou
+   lent. La dernière ligne donne le taux de requêtes COPC sans réponse à 5 s.
+2. **`cd tools/screenshots && node probe-lidar.mjs`** (serveur local lancé,
+   compte sondes, agence de démo) : parcours réel tap maison → verdict, avec la
+   console et chaque requête de la chaîne (statuts, Range, abandons).
+   `PANNE=1` simule le COPC injoignable et vérifie message + « Réessayer ».
+   Autre adresse : `node probe-lidar.mjs "5 Rue Notre-Dame Lesneven"` (mitoyenne,
+   chemin RNB/BAN-PLUS). Un « ! pas de fiche maison après le tap » est un raté
+   de la sonde (carte pas prête), pas de la mesure : relancer.
+3. **Régression de l'app ?** `git diff main..design -- web/src/data/lidar*.ts
+   web/src/data/net.ts web/src/domain/house.ts web/src/components/Roof*.tsx`
+   puis `npx vitest run` dans `web/`.
+
+Garde-fous en place : `fetchRetry` (`data/net.ts`, testé par `net.test.ts`)
+double une requête sans en-têtes au bout de 4 s (puis 6, 8 s) SANS abandonner
+l'original, première réponse gagnante ; 429 et 502/503/504 en backoff
+exponentiel ; délai de corps 25 s, 45 s par requête, 90 s par mesure. Échec
+final → badge « mesure laser indisponible » + bouton **« Réessayer »** (les deux
+fiches). Le statut `error` n'est jamais persisté.
+
 ## Architecture cible (rappel de la décision)
 
 **Aucune nouvelle carte, aucun nouvel écran.** Un module de calcul en arrière-plan :
@@ -88,7 +122,8 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
 | Millésime : maison construite après le survol | Pas de points | `toit_lidar_status = no_data` → fallback estimation, nuance `~` affichée |
 | Classification IGN imparfaite (arbres en classe 6…) | Surfaces gonflées | Filtres géométriques (hauteur vs MNT, cohérence des plans) en phase 1 |
 | Poids/CPU côté mobile si choix « navigateur » | UX dégradée | Critère explicite de la décision d'archi phase 2 ; défaut = serveur |
-| Débit du service de téléchargement IGN | Lenteur ponctuelle | Cache définitif en BDD (1 calcul/maison à vie) ; statut `error` re-tentable |
+| Débit du service de téléchargement IGN | Lenteur ponctuelle | Cache définitif en BDD (1 calcul/maison à vie) ; statut `error` re-tentable ; **requêtes doublées si lentes** (`data/net.ts`, panne du 24/09/2026) + bouton « Réessayer » |
+| L'IGN change un service (couche retirée, serveur déplacé) | Mesure en `error` pour toute nouvelle maison | Le banc vitest est HORS LIGNE et ne le voit pas : **`node tools/lidar-spike/canary.mjs`** vérifie le contrat réseau en ~30 s (voir « Quand la mesure ne marche plus ») |
 | Définition de « la » surface (avec/sans débords) | Faux écarts en validation | Le LiDAR mesure le toit réel débords compris — le préciser au chef des ventes pour comparer des choses comparables |
 
 ## Conventions du chantier (rappels CLAUDE.md + spécifiques)
@@ -508,3 +543,25 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
   sélection niveau 3, pans cochables sur l'ortho, union des emprises même-parcelle
   pour la reconstruction, re-mesure sur réédition de dalle, capture 3D dans le
   rapport, adresse par bâtiment (BAN-PLUS), Web Worker si jank.
+- **24/09/2026 : panne « mesure laser indisponible » (serveur COPC IGN), correctif
+  réseau + sonde de contrat.** Reproduit en local (branche design, agence de démo) :
+  WFS et en-tête COPC OK, puis les lectures de nœuds (Range) restent sans réponse
+  → `TimeoutError` à 20 s → `error`. Mesures curl : connexion + TLS en ~70 ms, puis
+  ~30-40 % des requêtes attendent 7 à plus de 60 s avant le premier octet (même
+  une à une sur une seule connexion : ce n'est pas notre concurrence) ; une
+  requête neuve répond le plus souvent en < 1 s ; rafales de 504 ponctuelles.
+  Avant : 1 seul essai de 20 s, re-tentative uniquement sur 429 → une lecture
+  lente sur ~15 = échec quasi certain. **Pas une régression du chantier design** :
+  `data/lidar*.ts`, `Roof*.tsx`, `copc`/`laz-perf` identiques sur main et design.
+  Correctif : `data/net.ts` (`fetchRetry` : requêtes DOUBLÉES si lentes, backoff
+  429/5xx ; tentative intermédiaire « abandon + relance » écartée : une relance
+  retombait aussi dans la queue lente, 3 fois de suite observé) utilisé par toute
+  la chaîne (et par `enrich.ts`, qui n'avait AUCUN délai) ; BAN-PLUS lent mais
+  vivant (5-8 s) → pas de doublon avant 10 s ; garde-fou de mesure 60 → 90 s ;
+  bouton « Réessayer ». Doublon à 2,5 s essayé puis écarté (jusqu'à 20 × 429 par
+  mesure, sans gain). Vérifié : 52 tests (dont 12 `net.test.ts`), build, sondes
+  à froid 4/4 OK sur la référence (17-51 s selon l'humeur du serveur IGN, 0 × 429),
+  mitoyenne OK, `PANNE=1` OK. Nouveaux outils : `tools/lidar-spike/canary.mjs`,
+  `tools/screenshots/probe-lidar.mjs`. Reste : la durée dépend de l'IGN (le cache
+  de dalle accélère dès la 2e maison) ; lancer la sonde de contrat de façon
+  planifiée si les pannes se répètent.

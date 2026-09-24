@@ -24,6 +24,8 @@ interface Props {
   onOpenChange: (open: boolean) => void
   /** Pose un point sur cette maison : un tap sur un statut suffit. */
   onPose: (status: PointStatus) => void
+  /** Relance la mesure LiDAR après un échec réseau. */
+  onRetryLidar?: () => void
 }
 
 /**
@@ -39,6 +41,7 @@ export function HousePreviewSheet({
   lidar,
   onOpenChange,
   onPose,
+  onRetryLidar,
 }: Props) {
   const lidarOk = lidar?.toit_lidar_statut === 'ok'
   const hasInfo =
@@ -94,6 +97,7 @@ export function HousePreviewSheet({
           lidarStatut={lidar?.toit_lidar_statut}
           lidarDiag={lidar?.toit_lidar_diag}
           hideMeasured={Boolean(lidarOk && lidar.toit_lidar_pans)}
+          onRetryLidar={onRetryLidar}
         />
       ) : (
         <p className="house-loading">Pas d’informations pour ce bâtiment.</p>

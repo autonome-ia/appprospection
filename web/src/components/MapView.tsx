@@ -1363,6 +1363,17 @@ export function MapView({
             poseAt(housePreview.lng, housePreview.lat, status)
             setHousePreview(null)
           }}
+          onRetryLidar={() => {
+            // Le cache par coordonnées a déjà oublié l'échec : nouveau calcul.
+            const target = housePreview
+            setHouseLidar(null)
+            void import('../data/lidar')
+              .then((m) => m.fetchHouseLidar(target.lng, target.lat))
+              .then((r) => {
+                if (housePreviewRef.current === target) setHouseLidar(r)
+              })
+              .catch((e) => console.error('Mesure LiDAR :', e))
+          }}
         />
       )}
 

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
-import { Scan } from 'lucide-react'
+import { RotateCw, Scan } from 'lucide-react'
 import {
   matToitLabel,
   SUSPECT_YEARS,
@@ -54,6 +54,9 @@ interface Props {
       est affiché juste dessous : son en-tête porte déjà le chiffre (doublon,
       retour briac 25/07). Les états mesure en cours / estimé / excuse restent. */
   hideMeasured?: boolean
+  /** Relance la mesure après un échec réseau (statut `error`) : bouton
+      « Réessayer » à côté de l'excuse, plutôt que fermer/rouvrir la fiche. */
+  onRetryLidar?: () => void
 }
 
 /** Explication d'une mesure LiDAR absente (verdicts parlants, v18). */
@@ -68,15 +71,15 @@ function lidarExcuse(
         'Le polygone IGN couvre un bâtiment collectif (ou une bande de maisons fusionnées) : la mesure laser porterait sur tout le bloc.',
     }
   }
-  // Panne réseau/service (ex. couche IGN retirée, 09/2026) : avant, l'échec
-  // était MUET (badge « estimé » sans explication) et passait pour un bug de
-  // l'app. Le statut `error` n'est jamais persisté : la re-tentative est
-  // automatique à la prochaine ouverture.
+  // Panne réseau/service (couche IGN retirée le 18/09, serveur COPC muet le
+  // 24/09/2026) : avant, l'échec était MUET (badge « estimé » sans
+  // explication) et passait pour un bug de l'app. Le statut `error` n'est
+  // jamais persisté : « Réessayer » ou la prochaine ouverture relancent.
   if (statut === 'error') {
     return {
       label: 'mesure laser indisponible',
       title:
-        'Le service LiDAR HD de l’IGN n’a pas répondu : la mesure sera re-tentée à la prochaine ouverture de la fiche.',
+        'Les serveurs LiDAR HD de l’IGN n’ont pas répondu malgré plusieurs essais. Ce n’est pas la maison : réessayez dans un instant.',
     }
   }
   if (statut !== 'no_data') return null
@@ -117,6 +120,7 @@ export function HouseBadges({
   lidarStatut,
   lidarDiag,
   hideMeasured,
+  onRetryLidar,
 }: Props) {
   const matToit = matToitLabel(matCode)
   const excuse = lidarExcuse(lidarStatut, lidarDiag)
@@ -205,6 +209,11 @@ export function HouseBadges({
         <Badge className="is-muted" info={excuse.title}>
           {excuse.label}
         </Badge>
+      )}
+      {lidarStatut === 'error' && onRetryLidar && !lidarPending && (
+        <button type="button" className="house-badge is-action" onClick={onRetryLidar}>
+          <RotateCw size={11} strokeWidth={2} /> Réessayer
+        </button>
       )}
       {vegBadge !== null && (
         <Badge

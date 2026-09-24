@@ -1,5 +1,6 @@
 import proj4 from 'proj4'
 import { supabase } from '../lib/supabase'
+import { fetchRetry } from './net'
 import type { Geometry } from 'geojson'
 
 // -----------------------------------------------------------------------------
@@ -116,7 +117,7 @@ async function fetchBdTopo(lng: number, lat: number): Promise<BdTopoResult> {
     // ⚠ ordre lat lng (axe nord d'abord) — vérifié sur l'API réelle.
     CQL_FILTER: `INTERSECTS(geometrie,POINT(${lat} ${lng}))`,
   })
-  const r = await fetch(`https://data.geopf.fr/wfs/ows?${params.toString()}`)
+  const r = await fetchRetry(`https://data.geopf.fr/wfs/ows?${params.toString()}`)
   if (!r.ok) throw new Error(`WFS BD TOPO ${r.status}`)
   const j = (await r.json()) as {
     features?: {
@@ -172,7 +173,7 @@ async function fetchBdnb(lng: number, lat: number): Promise<BdnbResult> {
     ymax: String(Math.round(y + 8)),
     limit: '4',
   })
-  const r = await fetch(
+  const r = await fetchRetry(
     `https://api.bdnb.io/v1/bdnb/donnees/batiment_groupe_complet/bbox?${params.toString()}`,
   )
   if (!r.ok) throw new Error(`BDNB ${r.status}`)

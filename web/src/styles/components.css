@@ -201,6 +201,15 @@
 .house-badge.is-muted {
   color: var(--ink-3);
 }
+/* Action dans la ligne de badges (« Réessayer » la mesure) : l'orange est
+   réservé aux actions — c'en est une. */
+.house-badge.is-action {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+}
 /* Mesure LiDAR en cours : discret et pulsé — l'estimation n'est pas montrée
    en attendant (pas de flash estimation → mesure). */
 .house-badge.is-pending {

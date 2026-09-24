@@ -127,6 +127,10 @@ export function PointDetailSheet({
   // Pans du toit (contours + altitudes) : hors du SELECT global des points,
   // récupérés à la demande pour la maquette 3D (cache côté data/points).
   const [cachedPans, setCachedPans] = useState<RoofData | null>(null)
+  // Point affiché : une mesure relancée (« Réessayer ») qui revient après un
+  // changement de fiche ne doit pas s'afficher sur un autre point.
+  const shownIdRef = useRef<string | null>(null)
+  shownIdRef.current = open && point ? point.id : null
   // Suppression en deux taps (voir remove()).
   const [confirmDelete, setConfirmDelete] = useState(false)
   // RDV liés au point (bloc « Rendez-vous », audit UX B1) — null = pas encore
@@ -264,6 +268,22 @@ export function PointDetailSheet({
   const hasUpcomingRdv = useMemo(() => appts?.some((a) => a.status === 'a_venir') ?? false, [appts])
 
   if (!point) return null
+
+  // « Réessayer » après un échec réseau de la mesure (statut `error`).
+  const retryLidar = () => {
+    const target = point
+    setLiveLidar(null)
+    setLidarPending(true)
+    void import('../data/lidar')
+      .then((m) => m.measurePointRoof(target.id, target.lng, target.lat))
+      .then((r) => {
+        if (shownIdRef.current === target.id) setLiveLidar(r)
+      })
+      .catch((e) => console.error('Mesure LiDAR :', e))
+      .finally(() => {
+        if (shownIdRef.current === target.id) setLidarPending(false)
+      })
+  }
 
   const init = initialRef.current
   const dirty = readOnlyPoint
@@ -586,6 +606,7 @@ export function PointDetailSheet({
         lidarStatut={lidarStatut}
         lidarDiag={liveLidar ? liveLidar.toit_lidar_diag : point.toit_lidar_diag}
         hideMeasured={lidarPans !== null}
+        onRetryLidar={retryLidar}
       />
 
       {lidarPans && (

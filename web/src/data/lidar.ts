@@ -20,6 +20,7 @@ import { createLazPerf } from 'laz-perf'
 // chunk (introuvable en production).
 import lazPerfWasmUrl from 'laz-perf/lib/web/laz-perf.wasm?url'
 import { supabase } from '../lib/supabase'
+import { fetchRetry, type RetryOptions } from './net'
 import {
   CELL,
   closeCells,
@@ -65,15 +66,18 @@ const VEG_CANOPEE_PCT = 40 // au-delà, un no_data s'explique par les arbres
 
 // Réseau mobile : sans délai maximal, un fetch qui pend laisse le badge
 // « mesure du toit… » pulser indéfiniment ET coince la promesse dans le cache
-// par coordonnées (plus aucun retry possible de la session). Chaque requête a
-// son timeout, et la mesure entière un garde-fou -> verdict `error`
+// par coordonnées (plus aucun retry possible de la session). Chaque requête
+// passe par fetchRetry (data/net.ts : requête doublée si lente + nouvel
+// essai — le serveur COPC IGN fait attendre certaines requêtes des dizaines
+// de secondes, panne du 24/09/2026), et la mesure entière a un garde-fou ->
+// verdict `error`
 // (re-tentable, circuit existant).
-const FETCH_TIMEOUT_MS = 20_000
-const MEASURE_TIMEOUT_MS = 60_000
+// 90 s (60 avant le 24/09) : les doublons sur requête lente coûtent quelques
+// secondes chacun — mieux vaut une mesure un peu lente qu'un échec.
+const MEASURE_TIMEOUT_MS = 90_000
 
-function fetchT(url: string, init?: RequestInit): Promise<Response> {
-  return fetch(url, { ...init, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
-}
+const fetchT = (url: string, init?: RequestInit, opts?: RetryOptions): Promise<Response> =>
+  fetchRetry(url, init, opts)
 
 export type LidarStatut = 'ok' | 'faible_confiance' | 'grand_batiment' | 'no_data' | 'error'
 
@@ -252,7 +256,11 @@ async function fetchParcelles(cleabs: string[]): Promise<Map<string, string> | n
       outputFormat: 'application/json',
       CQL_FILTER: `id_bat IN (${cleabs.map((c) => `'${c}'`).join(',')})`,
     })
-    const r = await fetchT(`https://data.geopf.fr/wfs/ows?${params.toString()}`)
+    // BAN-PLUS est LENT mais vivant (5-8 s mesurés le 24/09/2026) : pas de
+    // doublon avant 10 s, inutile de charger le service.
+    const r = await fetchT(`https://data.geopf.fr/wfs/ows?${params.toString()}`, undefined, {
+      hedgeDelaysMs: [10_000],
+    })
     if (!r.ok) throw new Error(`WFS lien_bati_parcelle ${r.status}`)
     const j = (await r.json()) as {
       features?: { properties?: { id_bat?: string; idu?: string } }[]
@@ -518,17 +526,13 @@ async function fetchDalles(bb: Bbox): Promise<DalleInfo[]> {
     })
 }
 
-// Le service IGN limite le débit : concurrence plafonnée + retries backoff.
-const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms))
-
+// Le service IGN limite le débit : concurrence plafonnée ici ; le backoff
+// sur 429 et les doublons sur requête lente sont dans fetchRetry.
 function makeGetter(url: string): (begin: number, end: number) => Promise<Uint8Array> {
   return async (begin, end) => {
-    for (let attempt = 0; ; attempt++) {
-      const r = await fetchT(url, { headers: { Range: `bytes=${begin}-${end - 1}` } })
-      if (r.ok || r.status === 206) return new Uint8Array(await r.arrayBuffer())
-      if (r.status !== 429 || attempt >= 5) throw new Error(`LiDAR Range ${r.status}`)
-      await sleep(500 * 2 ** attempt)
-    }
+    const r = await fetchT(url, { headers: { Range: `bytes=${begin}-${end - 1}` } })
+    if (!r.ok) throw new Error(`LiDAR Range ${r.status}`)
+    return new Uint8Array(await r.arrayBuffer())
   }
 }
 
@@ -1008,7 +1012,7 @@ export function measurePointRoof(pointId: string, lng: number, lat: number): Pro
   if (hit) return hit
   const p = (async () => {
     const result = await fetchHouseLidar(lng, lat)
-    // Un verdict `error` (timeout 60 s, 4G faible) n'est JAMAIS persisté :
+    // Un verdict `error` (timeout 90 s, 4G faible) n'est JAMAIS persisté :
     // il écrasait une mesure « ok » déjà en base pour toute l'équipe (audit).
     // Sans cache, le point reste « à mesurer » : le retry est naturel.
     if (supabase && result.toit_lidar_statut !== 'error') {
