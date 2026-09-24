@@ -55,8 +55,8 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: BETA ? 'Doorz β' : 'Doorz',
-        short_name: BETA ? 'Doorz β' : 'Doorz',
+        name: BETA ? 'AppProspection β' : 'AppProspection',
+        short_name: BETA ? 'Prospection β' : 'Prospection',
         description: 'Cartographie de prospection porte-à-porte',
         theme_color: '#f6f6f5',
         background_color: '#f6f6f5',
@@ -66,8 +66,7 @@ export default defineConfig({
         icons: [
           { src: '/pwa-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: '/pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-          // Icône adaptative Android : logo resserré dans la zone sûre (80 %).
-          { src: '/pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: '/pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
     }),

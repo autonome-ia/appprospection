@@ -74,11 +74,8 @@ function AppInner() {
       // n'apparaît qu'après 250 ms (CSS) : une session qui répond vite ne
       // montre rien du tout.
       <div className="app-loading" aria-label="Chargement">
-        <span className="app-loading-mark">
-          <span className="brand-logo" role="img" aria-label="Doorz">
-            <img className="brand-logo-light" src="/logo-doorz.png" alt="" />
-            <img className="brand-logo-dark" src="/logo-doorz-dark.png" alt="" />
-          </span>
+        <span className="auth-mark app-loading-mark">
+          AppProspection<span className="auth-mark-dot">.</span>
         </span>
       </div>
     )
