@@ -120,9 +120,13 @@ button.rdv-history-row:active,
   }
 }
 
-/* Célébration (vente, objectif) — components/ui/Celebration.tsx. Vert
-   « Client » : c'est une donnée métier (la vente), pas une action. */
+/* Célébration (vente, objectif) — components/ui/Celebration.tsx. Pastille
+   système façon iOS (retour briac 24/09 : l'ancienne boîte sombre « faisait
+   jouet ») : matière translucide qui suit le thème, carré aux coins doux,
+   icône centrée, libellé dessous. Le vert est celui de « Client » (la vente
+   est une donnée métier, pas une action). */
 .celebration {
+  --celebration-bg: rgba(250, 250, 249, 0.78);
   position: fixed;
   left: 50%;
   top: 42%;
@@ -131,23 +135,40 @@ button.rdv-history-row:active,
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 22px 26px 16px;
-  border-radius: 22px;
-  background: rgba(17, 17, 19, 0.82);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  backdrop-filter: blur(20px) saturate(160%);
-  box-shadow: 0 20px 48px rgba(17, 17, 19, 0.3);
+  justify-content: center;
+  gap: 12px;
+  min-width: 156px;
+  padding: 24px 22px 18px;
+  border-radius: 28px;
+  background: var(--celebration-bg);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(17, 17, 19, 0.06);
+  box-shadow:
+    0 1px 2px rgba(17, 17, 19, 0.06),
+    0 18px 48px rgba(17, 17, 19, 0.18);
   pointer-events: none;
 }
-.celebration svg {
-  border-radius: 50%;
-  background: var(--st-vendu);
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--st-vendu) 25%, transparent);
+[data-theme='dark'] .celebration {
+  --celebration-bg: rgba(38, 38, 42, 0.72);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+}
+.celebration-icon {
+  display: block;
+  overflow: visible;
 }
 .celebration-label {
-  color: #ffffff;
+  color: var(--ink);
   font-size: 15px;
   font-weight: 600;
+  letter-spacing: -0.01em;
   white-space: nowrap;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .celebration {
+    --celebration-bg: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
