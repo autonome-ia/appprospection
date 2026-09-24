@@ -52,21 +52,29 @@ const streetKey = (label: string) =>
     .toLowerCase()
     .trim()
 
-// Code postal de la zone regardée (géocodage inverse du point de référence),
-// mis en cache par maille de ~2 km : une requête par secteur, pas par frappe.
-const postcodeCache = new Map<string, Promise<string | null>>()
-function postcodeNear(near: { lng: number; lat: number }): Promise<string | null> {
+// Code postal ET département de la zone regardée (géocodage inverse du point
+// de référence), en cache par maille de ~2 km : une requête par secteur, pas
+// par frappe. Département : 1er terme du contexte BAN (« 29, Finistère,
+// Bretagne ») — gère 2A/2B et les DOM à 3 chiffres.
+type Zone = { postcode: string | null; depcode: string | null }
+const zoneCache = new Map<string, Promise<Zone | null>>()
+function zoneNear(near: { lng: number; lat: number }): Promise<Zone | null> {
   const key = `${near.lat.toFixed(2)},${near.lng.toFixed(2)}`
-  let p = postcodeCache.get(key)
+  let p = zoneCache.get(key)
   if (!p) {
     p = fetch(`https://data.geopf.fr/geocodage/reverse/?lat=${near.lat}&lon=${near.lng}&limit=1`)
       .then((r) => r.json())
-      .then((j) => (j.features?.[0]?.properties?.postcode as string | undefined) ?? null)
+      .then((j) => {
+        const props = j.features?.[0]?.properties as { postcode?: string; context?: string } | undefined
+        if (!props) return null
+        const dep = props.context?.split(',')[0]?.trim()
+        return { postcode: props.postcode ?? null, depcode: dep && /^[0-9AB]{2,3}$/.test(dep) ? dep : null }
+      })
       .catch(() => {
-        postcodeCache.delete(key) // échec réseau : on retentera
+        zoneCache.delete(key) // échec réseau : on retentera
         return null
       })
-    postcodeCache.set(key, p)
+    zoneCache.set(key, p)
   }
   return p
 }
@@ -96,26 +104,34 @@ const LOCAL_MIN_SCORE = 0.7
 
 /** Recherche BAN — partagée avec les champs adresse des formulaires RDV et
     contact (audit UX B12). L'appelant gère debounce et annulation.
-    Proximité (retour briac 24/09) : la préférence lat/lon de la BAN est trop
+    Proximité (retours briac 24/09) : la préférence lat/lon de la BAN est trop
     faible (« 24 rue de la paix » depuis Lesneven : Quimper, Cherbourg… et
-    pas Le Folgoët, pourtant à 2 km, même dans les 20 premiers). Deux
-    requêtes en parallèle : nationale (avec préférence) + LOCALE (code postal
-    de la zone regardée). Les locales pertinentes passent devant, triées par
-    distance ; les homonymes restants sont aussi rangés du plus proche au
-    plus lointain. */
+    pas Le Folgoët, pourtant à 2 km, même dans les 20 premiers). Trois
+    requêtes en parallèle : CODE POSTAL de la zone regardée, DÉPARTEMENT
+    (Lesneven → Brest avant Paris), et nationale (avec préférence). Les
+    résultats locaux pertinents passent devant, triés par distance ; les
+    homonymes restants sont rangés du plus proche au plus lointain. */
 export async function searchAddresses(q: string, signal?: AbortSignal): Promise<AddressResult[]> {
   const near = currentBias()
   const nearParams = near ? `&lat=${near.lat.toFixed(5)}&lon=${near.lng.toFixed(5)}` : ''
-  const [global, local] = await Promise.all([
+  const zone = near ? zoneNear(near) : Promise.resolve(null)
+  const [global, byPostcode, byDep] = await Promise.all([
     banSearch(q, `&limit=8${nearParams}`, signal),
-    near
-      ? postcodeNear(near).then((pc) =>
-          pc ? banSearch(q, `&limit=5&postcode=${pc}`, signal).catch(() => []) : [],
-        )
-      : Promise.resolve([]),
+    zone.then((z) => (z?.postcode ? banSearch(q, `&limit=5&postcode=${z.postcode}`, signal).catch(() => []) : [])),
+    zone.then((z) =>
+      z?.depcode ? banSearch(q, `&limit=10&depcode=${z.depcode}${nearParams}`, signal).catch(() => []) : [],
+    ),
   ])
+  const local = [...byPostcode, ...byDep.filter((r) => !byPostcode.some((x) => x.label === r.label))]
   const byDistance = (a: AddressResult, b: AddressResult) => (near ? distKm(near, a) - distKm(near, b) : 0)
-  const localFirst = local.filter((r) => r.score >= LOCAL_MIN_SCORE).sort(byDistance)
+  // Numéro tapé (« 24 rue… ») : les adresses qui PORTENT ce numéro passent
+  // devant les rues nues (« rue de la Paix, Landerneau » n'est pas un 24),
+  // puis la distance départage.
+  const num = q.match(/^\s*(\d+)/)?.[1]
+  const hasNum = (r: AddressResult) => (num && r.label.startsWith(`${num} `) ? 0 : 1)
+  const localFirst = local
+    .filter((r) => r.score >= LOCAL_MIN_SCORE)
+    .sort((a, b) => hasNum(a) - hasNum(b) || byDistance(a, b))
   const seen = new Set(localFirst.map((r) => r.label))
   const rest = global.filter((r) => !seen.has(r.label))
   if (near) {
