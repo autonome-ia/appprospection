@@ -2253,16 +2253,18 @@
   color: var(--ink-2);
 }
 .house-badge.is-confirmed {
-  background: var(--accent-weak);
-  border-color: var(--accent);
-  color: var(--accent);
+  /* Donnée confirmée : encre pleine, pas l'accent (audit design 24/09). */
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
 }
 /* Surface MESURÉE (LiDAR) : même langage visuel que « confirmé » — donnée
    sûre, sans le ~ d'estimation. */
 .house-badge.is-measured {
-  background: var(--accent-weak);
-  border-color: var(--accent);
-  color: var(--accent);
+  /* Mesure laser : encre pleine, pas l'accent (audit design 24/09). */
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
   font-weight: 600;
 }
 /* Verdicts parlants : POURQUOI il n'y a pas de mesure (discret, informatif). */
@@ -2509,9 +2511,11 @@
   border-color: var(--line) !important;
 }
 .roof3d-total {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
+  /* Donnée, pas action : encre LITTÉRALE (posée sur le canvas 3D, règle
+     sombre 29/07) au lieu de l'accent — audit design 24/09. */
+  background: #111113;
+  border-color: #111113;
+  color: #ffffff;
 }
 /* Surface de commande (sélection + chutes) : informatif, non cochable. */
 .roof3d-waste {
@@ -2921,7 +2925,10 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: var(--accent);
+  /* Adresse en encre (audit design 24/09) : l'orange est gardé pour
+     l'action principale de la fiche, pas pour trois éléments à la fois. */
+  color: var(--ink);
+  font-weight: 500;
   text-decoration: none;
 }
 /* --- Bloc « Rendez-vous » en tête de fiche point (audit UX B1) --- */
@@ -2934,9 +2941,10 @@
   gap: 8px;
   margin: 12px 0 2px;
   padding: 10px 12px;
-  /* Fond blanc + bordure accent (retour briac 25/07) — le pavé bleu pâle
-     alourdissait la fiche. */
-  border: 1px solid var(--accent);
+  /* Fond blanc + bordure (retour briac 25/07 — le pavé bleu pâle
+     alourdissait la fiche). Bordure à la couleur du statut « RDV pris »
+     plutôt que l'accent (audit design 24/09 : l'orange = actions). */
+  border: 1px solid color-mix(in srgb, var(--st-rdv) 45%, transparent);
   border-radius: var(--r-md);
   background: var(--surface);
 }
@@ -2949,13 +2957,12 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--ink);
 }
 .rdv-when svg {
-  color: var(--accent);
+  color: var(--st-rdv);
 }
 .rdv-outcome {
   font-size: 12px;
@@ -3112,6 +3119,15 @@ select.field-input {
 .btn-primary {
   background: var(--ink);
   color: #ffffff;
+}
+/* Action principale indisponible (rien à enregistrer) : pavé neutre et
+   texte discret plutôt qu'un gris « cassé » à 50 % (audit design 24/09) —
+   il reprend l'encre dès qu'il y a quelque chose à faire. */
+.btn-primary:disabled,
+[data-theme='dark'] .btn-primary:disabled {
+  opacity: 1;
+  background: var(--surface-2);
+  color: var(--ink-3);
 }
 .btn-danger {
   background: var(--danger-weak);

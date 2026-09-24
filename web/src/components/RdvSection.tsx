@@ -42,7 +42,9 @@ interface Props {
 }
 
 /** « Sam. 26 juil. · 16:00 » — l'heure séparée par un point médian. */
-function formatRdvWhen(iso: string): string {
+/** Jour en Geist, heure seule en mono (doctrine typo 26/07 : le mono est
+    réservé aux données chiffrées — audit design 24/09). */
+function formatRdvWhen(iso: string): { day: string; time: string } {
   const d = new Date(iso)
   const day = new Intl.DateTimeFormat('fr-FR', {
     weekday: 'short',
@@ -50,7 +52,7 @@ function formatRdvWhen(iso: string): string {
     month: 'short',
   }).format(d)
   const time = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(d)
-  return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time}`
+  return { day: `${day.charAt(0).toUpperCase()}${day.slice(1)}`, time }
 }
 
 /** Fin de la journée courante — les issues ne sont tapables que du jour J
@@ -149,7 +151,8 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
       <span className="rdv-block-head">
         <span className="rdv-when">
           <CalendarClock size={15} strokeWidth={2} />
-          {formatRdvWhen(shownRdv.scheduled_at)}
+          {formatRdvWhen(shownRdv.scheduled_at).day} ·{' '}
+          <span className="tnum">{formatRdvWhen(shownRdv.scheduled_at).time}</span>
         </span>
         {shownStatus !== 'a_venir' && (
           <span
