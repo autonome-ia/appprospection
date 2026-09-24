@@ -217,7 +217,9 @@
   position: absolute;
   top: 12px;
   left: max(12px, env(safe-area-inset-left));
-  right: max(56px, calc(44px + env(safe-area-inset-right)));
+  /* 12 (marge) + 44 (bouton position) + 8 d'écart : la barre touchait le
+     bouton (audit design 24/09). */
+  right: max(64px, calc(52px + env(safe-area-inset-right)));
   z-index: 7;
 }
 .address-field {
@@ -346,6 +348,13 @@
   width: 44px;
   height: 44px;
 }
+/* Bouton position ROND, même famille que la recherche (pilule) et le FAB. */
+.maplibregl-ctrl-top-right .maplibregl-ctrl-group {
+  border-radius: var(--r-full);
+}
+.maplibregl-ctrl-bottom-left .maplibregl-ctrl {
+  margin: 0 0 10px max(10px, env(safe-area-inset-left));
+}
 /* Stats — « Points posés » (29/07) : une ligne par statut, barre
    proportionnelle à la couleur SÉMANTIQUE, compte en mono à droite. */
 .statmix {
@@ -460,6 +469,9 @@
 }
 /* Chips posées sur la carte pannable : un tap raté de quelques px partait
    dans le pan/tap carte — zone tapable étendue à ~44 px, visuel inchangé. */
+.chip:disabled {
+  opacity: 0.45;
+}
 .chip::after {
   content: '';
   position: absolute;
@@ -1422,7 +1434,7 @@
    douce plutôt qu'un « ↓ 50 % » rouge qui se lisait comme une chute. */
 .fun-rate .tnum {
   padding: 1px 6px;
-  margin-left: -6px;
+  margin-left: -4px;
   border-radius: var(--r-full);
 }
 .fun-rate.is-leak .tnum {

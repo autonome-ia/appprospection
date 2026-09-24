@@ -4,7 +4,7 @@ import { wazeUrl } from '../lib/nav'
 import { StatusPicker } from './StatusPicker'
 import { HouseBadges } from './HouseBadges'
 import { RoofModule } from './RoofModule'
-import { STATUS_BY_VALUE, type PointStatus } from '../domain/status'
+import type { PointStatus } from '../domain/status'
 import type { HouseInfo } from '../data/enrich'
 import type { LidarResult } from '../data/lidar'
 import { suggestedWastePct } from '../domain/house'
@@ -20,10 +20,8 @@ interface Props {
   info: HouseInfo | null
   /** Mesure LiDAR de la toiture, null pendant le calcul. */
   lidar: LidarResult | null
-  activeStatus: PointStatus
-  onStatusChange: (s: PointStatus) => void
   onOpenChange: (open: boolean) => void
-  /** Pose un point sur cette maison avec le statut choisi. */
+  /** Pose un point sur cette maison : un tap sur un statut suffit. */
   onPose: (status: PointStatus) => void
 }
 
@@ -38,8 +36,6 @@ export function HousePreviewSheet({
   coords,
   info,
   lidar,
-  activeStatus,
-  onStatusChange,
   onOpenChange,
   onPose,
 }: Props) {
@@ -98,8 +94,10 @@ export function HousePreviewSheet({
 
           {/* Picker AVANT le bloc toiture (audit UX A2) : les chips passaient
               hors champ sous la 3D — l'acte principal reste au-dessus du pli. */}
+          {/* Pose en 1 tap (chantier design 24/09, décision briac) : le
+              statut touché EST la pose — le toast « Annuler » sert de filet. */}
           <p className="eyebrow field-label">Poser un point</p>
-          <StatusPicker active={activeStatus} onChange={onStatusChange} />
+          <StatusPicker onChange={onPose} />
 
           {lidarOk && lidar.toit_lidar_pans && (
             // REPLIÉ comme partout (décision briac 25/07) : quand la mesure
@@ -133,17 +131,6 @@ export function HousePreviewSheet({
             >
               <Navigation size={15} strokeWidth={1.9} /> Y aller
             </a>
-            {/* Libellé dynamique (audit UX A2) : le bouton disait « Poser le
-                point » sans refléter le statut — risque de poser le statut
-                resté actif de la maison précédente. */}
-            <button
-              type="button"
-              className="btn btn-primary"
-              style={{ background: STATUS_BY_VALUE[activeStatus].color }}
-              onClick={() => onPose(activeStatus)}
-            >
-              Poser · {STATUS_BY_VALUE[activeStatus].label}
-            </button>
           </div>
           </div>
         </Drawer.Content>

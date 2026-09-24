@@ -134,7 +134,6 @@ export function MapView({
   const mapRef = useRef<maplibregl.Map | null>(null)
 
   const { points, addPoint, updatePoint, addNote, removePoint } = usePoints(profile)
-  const [activeStatus, setActiveStatus] = useState<PointStatus>('absent')
   const [mapLoaded, setMapLoaded] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   // Point pour lequel on saisit un RDV (après avoir posé/marqué "RDV pris"),
@@ -191,7 +190,7 @@ export function MapView({
   // Badge du bouton filtres (nb de critères actifs).
   const nFilters =
     statusFilter.size + (ageFilter !== null ? 1 : 0) + (whoFilter.size > 0 ? 1 : 0) + (dueOnly ? 1 : 0)
-  // « Poser ici » grisé tant que le zoom ne permet pas de viser une maison.
+  // Chips de statut grisées tant que le zoom ne permet pas de viser une maison.
   const [placeZoomOk, setPlaceZoomOk] = useState(true)
   // Déplacement d'un point mal posé (demande briac 25/07) : appui long sur
   // SON marqueur → le point se soulève et SUIT LE DOIGT, on le lâche sur la
@@ -275,7 +274,9 @@ export function MapView({
       style: PLAN_IGN_STYLE_URL,
       center: initCenter,
       zoom: initZoom,
-      attributionControl: { compact: true },
+      // Attribution ajoutée à la main en BAS À GAUCHE : en bas à droite, le
+      // « + » recouvrait « © IGN » (audit design 24/09).
+      attributionControl: false,
       // Parents gardés en mémoire sur 10 niveaux (défaut 5) : en re-pannant,
       // MapLibre affiche le flou-puis-net au lieu d'un carré blanc.
       maxTileCacheZoomLevels: 10,
@@ -393,6 +394,7 @@ export function MapView({
       onRemove: () => locateBtn.parentElement?.remove(),
     }
     map.addControl(locateCtl, 'top-right')
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left')
 
     map.on('load', () => {
       // Repère : premier calque de texte (labels) — l'ortho s'insère juste en
@@ -657,6 +659,14 @@ export function MapView({
         setSelectedId(null)
         return
       }
+      // Fiche maison ouverte : un tap sur une maison voisine BASCULE la fiche
+      // dessus (chantier design 24/09, décision briac) — une porte = un tap,
+      // plus de tap « fermer » entre deux maisons d'une même rue. Pour
+      // fermer : la croix ou le glisser de la sheet.
+      if (housePreviewRef.current && !wasPending && map.getZoom() >= PREVIEW_MIN_ZOOM) {
+        setHousePreview({ lng: e.lngLat.lng, lat: e.lngLat.lat })
+        return
+      }
       if (housePreviewRef.current) {
         setHousePreview(null)
         return
@@ -873,7 +883,7 @@ export function MapView({
     }
   }, [mapLoaded, updatePoint])
 
-  // Suit le zoom pendant la visée : grise « Poser ici » sous le seuil.
+  // Suit le zoom pendant la visée : grise les chips de statut sous le seuil.
   useEffect(() => {
     const map = mapRef.current
     if (!placing || !map) return
@@ -885,8 +895,8 @@ export function MapView({
     }
   }, [placing])
 
-  // Pose le point sous le réticule.
-  const confirmPlace = () => {
+  // Pose le point sous le réticule : le statut touché EST la pose (1 tap).
+  const confirmPlace = (status: PointStatus) => {
     const map = mapRef.current
     if (!map) return
     if (map.getZoom() < PLACE_MIN_ZOOM) {
@@ -896,7 +906,7 @@ export function MapView({
       return
     }
     const { lng, lat } = map.getCenter()
-    poseAt(lng, lat, activeStatus)
+    poseAt(lng, lat, status)
     setPlacing(false)
   }
 
@@ -1282,19 +1292,13 @@ export function MapView({
             </svg>
           </div>
           <div className="place-bar">
-            <p className="eyebrow place-hint">Déplacez la carte : la maison sous le viseur</p>
-            <StatusPicker active={activeStatus} onChange={setActiveStatus} />
+            <p className="eyebrow place-hint">
+              {placeZoomOk ? 'Visez la maison, puis touchez son statut' : 'Zoomez pour viser la maison'}
+            </p>
+            <StatusPicker onChange={confirmPlace} disabled={!placeZoomOk} />
             <div className="place-actions">
               <button type="button" className="btn btn-ghost" onClick={() => setPlacing(false)}>
                 Annuler
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={confirmPlace}
-                disabled={!placeZoomOk}
-              >
-                {placeZoomOk ? 'Poser ici' : 'Zoomez pour viser'}
               </button>
             </div>
           </div>
@@ -1309,8 +1313,6 @@ export function MapView({
           coords={housePreview}
           info={houseInfo}
           lidar={houseLidar}
-          activeStatus={activeStatus}
-          onStatusChange={setActiveStatus}
           onOpenChange={(o) => !o && setHousePreview(null)}
           onPose={(status) => {
             poseAt(housePreview.lng, housePreview.lat, status)

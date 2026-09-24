@@ -61,7 +61,7 @@ const GUIDES: Guide[] = [
         img: v3('carte-2'),
         alt: 'La grille des 6 statuts en mode visée',
         title: 'Les 6 statuts',
-        text: 'Choisissez le statut dans la grille, du simple « Absent » au « RDV pris », puis « Poser ici ».',
+        text: 'Touchez le statut, du simple « Absent » au « RDV pris » : le point est posé. « Annuler » dans la notification rattrape une erreur.',
       },
       {
         img: v3('carte-3'),
