@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Drawer } from 'vaul'
+import { AnimatePresence, motion } from 'motion/react'
+import { EASE_OUT, SPRING_SMOOTH } from '../lib/motion'
 import { toast } from 'sonner'
 import { CalendarClock, X } from 'lucide-react'
 import { fetchPendingOutcomes, setAppointmentOutcome } from '../data/appointments'
@@ -105,8 +107,26 @@ export function PendingOutcomes({ profile }: { profile: Profile }) {
                 : 'Un RDV passé attend son issue : les stats sont datées du jour du RDV.'}
             </p>
 
+            {/* RDV soldé : sa carte glisse et se replie, les suivantes remontent
+                (chantier design 24/09) au lieu d'un saut sec de la liste. */}
+            <AnimatePresence initial={false}>
             {list.map((a) => (
-              <div key={a.id} className="pending-rdv">
+              <motion.div
+                key={a.id}
+                className="pending-rdv"
+                layout
+                transition={SPRING_SMOOTH}
+                exit={{
+                  opacity: 0,
+                  x: -48,
+                  height: 0,
+                  marginTop: 0,
+                  marginBottom: 0,
+                  paddingTop: 0,
+                  paddingBottom: 0,
+                  transition: { duration: 0.24, ease: EASE_OUT },
+                }}
+              >
                 <span className="pending-when">
                   <CalendarClock size={14} strokeWidth={2} />
                   <span className="tnum">{fmtWhen(a.scheduled_at)}</span>
@@ -155,8 +175,9 @@ export function PendingOutcomes({ profile }: { profile: Profile }) {
                     )
                   })}
                 </div>
-              </div>
+              </motion.div>
             ))}
+            </AnimatePresence>
 
             <div className="drawer-footer">
               <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>
