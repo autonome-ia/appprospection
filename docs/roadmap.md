@@ -394,8 +394,9 @@ Concept validé par le directeur régional de Mister Toiture (présentation d'Al
   mobile-native (tap-highlight, touch-action, user-select, focus-visible, theme-color #f6f6f5),
   retour au toucher généralisé (`styles/interactions.css`), reduced-motion (CSS + MotionConfig),
   `<Segmented>` à ressort partout, code mort retiré, App.css découpé en 13 fichiers par zone
-  (`web/src/styles/`, CSS compilé identique à l'octet). RESTE : `<Sheet>` (9 drawers),
-  tokenisation espacements/rayons/z-index, primitives Button/Chip/ListRow.
+  (`web/src/styles/`, CSS compilé identique à l'octet), `<Sheet>` commun aux 9 sheets
+  (`components/ui/Sheet.tsx`, correctifs iOS verrouillés). RESTE : tokenisation
+  espacements/rayons/z-index, primitives Button/Chip/ListRow.
 - [~] Phase 3 : écran par écran — FAIT : Stats (tunnel aux couleurs des statuts, taux neutres,
   objectif bleu→vert, estompe au changement de période), couleurs d'issue en tokens (Refus lisible
   en sombre), Carte (pose en 1 tap, bascule directe, contrôles sans chevauchement), fiche point
