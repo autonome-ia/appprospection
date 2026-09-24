@@ -42,7 +42,7 @@ interface Guide {
   steps: GuideStep[]
 }
 
-const v3 = (name: string) => `/guide/${name}.webp?v=3`
+const v3 = (name: string) => `/guide/${name}.webp?v=4`
 
 const GUIDES: Guide[] = [
   {
