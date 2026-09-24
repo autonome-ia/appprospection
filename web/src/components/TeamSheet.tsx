@@ -118,7 +118,7 @@ export function TeamSheet({
   // — WhatsApp/SMS/Mail). Pas d'email automatique : il faudrait un serveur et
   // la clé secrète ; le partage natif est plus direct et plus personnel.
   const inviteText = code
-    ? `Rejoins l’équipe ${orgName ?? 'de ton agence'} sur AppProspection :\n${window.location.origin}\n\nCode d’invitation : ${code}\nSur l’écran d’accueil, choisis « J’ai un code d’invitation : créer mon compte ».`
+    ? `Rejoins l’équipe ${orgName ?? 'de ton agence'} sur Doorz :\n${window.location.origin}\n\nCode d’invitation : ${code}\nSur l’écran d’accueil, choisis « J’ai un code d’invitation : créer mon compte ».`
     : null
 
   const share = async () => {

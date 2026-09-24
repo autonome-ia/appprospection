@@ -124,8 +124,10 @@ export function AuthScreen() {
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1, transition: { duration: 0.35, ease: EASE_OUT } }}
       >
-        <span className="auth-mark">
-          AppProspection<span className="auth-mark-dot">.</span>
+        {/* Logo Doorz (24/09) : variante claire / sombre selon le thème. */}
+        <span className="brand-logo" role="img" aria-label="Doorz">
+          <img className="brand-logo-light" src="/logo-doorz.png" alt="" />
+          <img className="brand-logo-dark" src="/logo-doorz-dark.png" alt="" />
         </span>
         <span className="auth-tagline">Prospection porte-à-porte</span>
       </motion.div>

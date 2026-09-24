@@ -139,3 +139,27 @@
   color: var(--st-vendu);
   margin-bottom: 8px;
 }
+
+/* Logo Doorz (24/09) : deux variantes, le thème choisit (texte noir en
+   clair, blanc cassé en sombre ; le vert de la marque ne change pas). */
+.brand-logo {
+  display: block;
+  height: 40px;
+}
+.brand-logo img {
+  display: block;
+  height: 100%;
+  width: auto;
+}
+.brand-logo-dark {
+  display: none !important;
+}
+[data-theme='dark'] .brand-logo-light {
+  display: none !important;
+}
+[data-theme='dark'] .brand-logo-dark {
+  display: block !important;
+}
+.app-loading-mark .brand-logo {
+  height: 44px;
+}
