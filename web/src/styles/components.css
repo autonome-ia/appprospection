@@ -506,14 +506,19 @@ textarea.form-input {
   background: #ffffff;
   box-shadow: 0 0 0 1px var(--line);
 }
-/* Héros des Stats : le rond / logo calé en haut à droite de la carte. */
-.stats-hero {
-  position: relative;
+/* Héros des Stats : bloc texte à gauche, rond / logo à droite, centré
+   verticalement sur lui (retour briac 24/09). */
+.hero-top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.hero-main {
+  flex: 1;
+  min-width: 0;
 }
 .hero-mark {
-  position: absolute;
-  top: 16px;
-  right: 16px;
+  flex: none;
 }
 /* Profil : le rond est le bouton « changer sa photo ». */
 .user-avatar {
@@ -561,10 +566,6 @@ textarea.form-input {
 }
 .rank-name .avatar {
   margin-right: 2px;
-}
-/* Le nom du héros ne passe jamais sous le rond / logo. */
-.stats-hero > .eyebrow {
-  padding-right: 72px;
 }
 /* Bouton autour de l'avatar de l'Accueil : transparent, rond. */
 .avatar-btn {

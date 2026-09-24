@@ -563,28 +563,34 @@ export function StatsScreen({
         // de l'onglet — la vente en chiffre star avec sa comparaison juste
         // dessous, puis portes · RDV pris · rang, chacun avec son écart.
         <section className="card stats-hero">
-          {/* À droite du héros (idée briac 24/09) : le logo de l'agence en vue
-              Équipe, le rond du commercial (photo ou initiales) sinon. */}
-          <div className="hero-mark">
-            {focusId ? (
-              <Avatar
-                id={focusId}
-                name={nameOf(focusId)}
-                color={profiles.find((p) => p.id === focusId)?.color}
-                size={56}
-              />
-            ) : (
-              <OrgLogo size={56} />
-            )}
+          {/* Haut du héros : nom, ventes et comparaison à gauche ; à droite,
+              CENTRÉ sur ce bloc (retour briac 24/09 : collé au coin, il
+              flottait), le logo de l'agence en vue Équipe, le rond du
+              commercial (photo ou initiales) sinon. */}
+          <div className="hero-top">
+            <div className="hero-main">
+              <p className="eyebrow">{focusId ? nameOf(focusId) : 'Équipe'}</p>
+              <div className="hero-line">
+                <span className="hero-value tnum">
+                  <Num value={cur.ventes} fromZero={!heroPlayed} />
+                </span>
+                <span className="hero-unit">vente{cur.ventes > 1 ? 's' : ''}</span>
+              </div>
+              <HeroDelta value={cur.ventes - prev.ventes} period={period} />
+            </div>
+            <div className="hero-mark">
+              {focusId ? (
+                <Avatar
+                  id={focusId}
+                  name={nameOf(focusId)}
+                  color={profiles.find((p) => p.id === focusId)?.color}
+                  size={72}
+                />
+              ) : (
+                <OrgLogo size={72} />
+              )}
+            </div>
           </div>
-          <p className="eyebrow">{focusId ? nameOf(focusId) : 'Équipe'}</p>
-          <div className="hero-line">
-            <span className="hero-value tnum">
-              <Num value={cur.ventes} fromZero={!heroPlayed} />
-            </span>
-            <span className="hero-unit">vente{cur.ventes > 1 ? 's' : ''}</span>
-          </div>
-          <HeroDelta value={cur.ventes - prev.ventes} period={period} />
           <div className="hero-ribbon">
             <RibbonStat value={<Num value={cur.portes} />} label="portes" delta={cur.portes - prev.portes} />
             <RibbonStat
