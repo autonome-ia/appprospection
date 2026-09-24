@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { Sheet } from './ui/Sheet'
 import { ChevronRight, LogOut, Users } from 'lucide-react'
+import { removeMyAvatar, uploadMyAvatar, useMedia } from '../data/media'
+import { Avatar } from './ui/Avatar'
+import { toast } from 'sonner'
 import { useSession } from '../lib/session'
 import { setThemePref, useThemePref, type ThemePref } from '../lib/theme'
 import { isSupervisorRole, roleLabel } from '../domain/types'
@@ -21,12 +24,6 @@ const THEMES: { value: ThemePref; label: string }[] = [
   { value: 'system', label: 'Auto' },
 ]
 
-function initials(name: string | null | undefined, fallback: string): string {
-  const src = name?.trim() || fallback
-  const parts = src.split(/[\s@.]+/).filter(Boolean)
-  return (parts[0]?.[0] ?? '?').concat(parts[1]?.[0] ?? '').toUpperCase()
-}
-
 export function ProfileSheet({
   open,
   onOpenChange,
@@ -35,6 +32,35 @@ export function ProfileSheet({
   onOpenChange: (o: boolean) => void
 }) {
   const { profile, session, signOut } = useSession()
+  const media = useMedia()
+  const hasPhoto = Boolean(profile && media.avatars[profile.id])
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const changePhoto = async (file: File) => {
+    if (!profile) return
+    setPhotoBusy(true)
+    try {
+      await uploadMyAvatar(profile.id, file)
+      toast.success('Photo mise à jour')
+    } catch (e) {
+      console.error('Photo :', e)
+      toast.error('Photo non enregistrée : réessaie avec une autre image')
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
+  const dropPhoto = async () => {
+    if (!profile) return
+    setPhotoBusy(true)
+    try {
+      await removeMyAvatar(profile.id)
+      toast('Photo retirée : tes initiales reprennent leur place')
+    } catch (e) {
+      console.error('Photo :', e)
+      toast.error('Impossible de retirer la photo')
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
   const themeChoice = useThemePref()
   const [teamOpen, setTeamOpen] = useState(false)
   const name = profile?.full_name ?? session?.user.email ?? null
@@ -47,13 +73,53 @@ export function ProfileSheet({
         title="Profil & réglages"
       >
         <div className="user-card">
-          <span className="avatar">{initials(profile?.full_name, session?.user.email ?? '?')}</span>
+          {/* Sa photo (db/0025) : chacun la sienne — tap sur le rond ou sur
+              « Changer la photo ». Recadrée et réduite sur le téléphone. */}
+          <label className={`user-avatar ${media.supported && profile ? 'is-editable' : ''}`}>
+            <Avatar id={profile?.id} name={profile?.full_name ?? session?.user.email} size={52} />
+            {media.supported && profile && (
+              <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    disabled={photoBusy}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      e.target.value = ''
+                      if (f) void changePhoto(f)
+                    }}
+                  />
+            )}
+          </label>
           <div className="user-meta">
             <span className="user-name">{name ?? 'Utilisateur'}</span>
             <span className="user-role">
               {roleLabel(profile?.role)}
               {session?.user.email ? ` · ${session.user.email}` : ''}
             </span>
+            {media.supported && profile && (
+              <span className="user-photo-actions">
+                <label className="text-btn">
+                  {photoBusy ? 'Envoi…' : hasPhoto ? 'Changer la photo' : 'Ajouter une photo'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    disabled={photoBusy}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      e.target.value = ''
+                      if (f) void changePhoto(f)
+                    }}
+                  />
+                </label>
+                {hasPhoto && !photoBusy && (
+                  <button type="button" className="text-btn" onClick={() => void dropPhoto()}>
+                    Retirer
+                  </button>
+                )}
+              </span>
+            )}
           </div>
         </div>
         {/* Thème : préférence de l'appareil (localStorage), appliquée

@@ -473,3 +473,102 @@ textarea.form-input {
   font-weight: 500;
   color: var(--ink-3);
 }
+
+/* --- Photos et logo (db/0025, chantier design 24/09) --- */
+.avatar {
+  flex: none;
+  overflow: hidden;
+}
+.avatar-photo {
+  display: block;
+  object-fit: cover;
+  background: var(--surface-2);
+  border-radius: 50%;
+}
+/* Logo d'agence : image posée par le manager, sinon monogramme encre façon
+   icône d'app (blanc pur sur nuit en sombre, comme les boutons encre). */
+.org-logo {
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: #111113;
+  color: #ffffff;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+[data-theme='dark'] .org-logo {
+  background: #ffffff;
+  color: #111113;
+}
+.org-logo-img {
+  display: block;
+  object-fit: contain;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px var(--line);
+}
+/* Héros des Stats : le rond / logo calé en haut à droite de la carte. */
+.stats-hero {
+  position: relative;
+}
+.hero-mark {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+/* Profil : le rond est le bouton « changer sa photo ». */
+.user-avatar {
+  position: relative;
+  flex: none;
+  border-radius: 50%;
+}
+.user-avatar.is-editable {
+  cursor: pointer;
+}
+.user-photo-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 6px;
+}
+.user-photo-actions .text-btn,
+.team-logo-actions .text-btn {
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+/* Écran Équipe : bloc logo (manager). */
+.team-logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.team-logo-texts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.team-logo-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+.team-logo-actions {
+  display: flex;
+  gap: 16px;
+}
+.rank-name .avatar {
+  margin-right: 2px;
+}
+/* Le nom du héros ne passe jamais sous le rond / logo. */
+.stats-hero > .eyebrow {
+  padding-right: 72px;
+}
+/* Bouton autour de l'avatar de l'Accueil : transparent, rond. */
+.avatar-btn {
+  display: grid;
+  background: none;
+  border-radius: 50%;
+}

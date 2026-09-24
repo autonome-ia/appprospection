@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Sheet } from './ui/Sheet'
 import { toast } from 'sonner'
 import { Check, Copy, RefreshCw, Share2 } from 'lucide-react'
+import { removeOrgLogo, uploadOrgLogo, useMedia } from '../data/media'
+import { Avatar, OrgLogo } from './ui/Avatar'
 import {
   fetchOrgProfiles,
   updateStatsVisible,
@@ -26,10 +28,6 @@ import { ROLE_LABELS, roleLabel, type Profile, type UserRole } from '../domain/t
 
 const ROLE_ORDER: UserRole[] = ['manager', 'chef_ventes', 'secretaire', 'commercial']
 
-function initials(name: string | null): string {
-  const parts = (name ?? '?').trim().split(/[\s@.]+/).filter(Boolean)
-  return (parts[0]?.[0] ?? '?').concat(parts[1]?.[0] ?? '').toUpperCase()
-}
 
 export function TeamSheet({
   open,
@@ -41,6 +39,32 @@ export function TeamSheet({
   profile: Profile
 }) {
   const isManager = profile.role === 'manager'
+  const media = useMedia()
+  const [logoBusy, setLogoBusy] = useState(false)
+  const changeLogo = async (file: File) => {
+    setLogoBusy(true)
+    try {
+      await uploadOrgLogo(profile.organization_id, file)
+      toast.success('Logo de l’agence mis à jour')
+    } catch (e) {
+      console.error('Logo :', e)
+      toast.error('Logo non enregistré : réessaie avec une autre image')
+    } finally {
+      setLogoBusy(false)
+    }
+  }
+  const dropLogo = async () => {
+    setLogoBusy(true)
+    try {
+      await removeOrgLogo(profile.organization_id)
+      toast('Logo retiré : le monogramme reprend sa place')
+    } catch (e) {
+      console.error('Logo :', e)
+      toast.error('Impossible de retirer le logo')
+    } finally {
+      setLogoBusy(false)
+    }
+  }
   const [members, setMembers] = useState<OrgProfile[]>([])
   const [code, setCode] = useState<string | null>(null)
   const [orgName, setOrgName] = useState<string | null>(null)
@@ -261,6 +285,38 @@ export function TeamSheet({
         </div>
       )}
 
+      {/* --- Logo de l'agence (db/0025) : manager seul ; tout le monde le
+          voit (ou son monogramme) dans la vue Équipe des Stats. --- */}
+      {isManager && media.supported && media.org && (
+        <div className="team-logo">
+          <OrgLogo size={52} />
+          <div className="team-logo-texts">
+            <span className="team-logo-name">{media.org.name}</span>
+            <span className="team-logo-actions">
+              <label className="text-btn">
+                {logoBusy ? 'Envoi…' : media.org.logo_url ? 'Changer le logo' : 'Ajouter le logo'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  disabled={logoBusy}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    e.target.value = ''
+                    if (f) void changeLogo(f)
+                  }}
+                />
+              </label>
+              {media.org.logo_url && !logoBusy && (
+                <button type="button" className="text-btn" onClick={() => void dropLogo()}>
+                  Retirer
+                </button>
+              )}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* --- Code d'invitation --- */}
       {code && (
         <div className="team-invite">
@@ -339,12 +395,7 @@ export function TeamSheet({
               onClick={expandable ? () => openPanel(m, expanded) : undefined}
               disabled={!expandable}
             >
-              <span
-                className="avatar team-avatar"
-                style={{ background: colorForCommercial(m.id, m.color), color: '#fff' }}
-              >
-                {initials(m.full_name)}
-              </span>
+              <Avatar id={m.id} name={m.full_name} color={m.color} size={34} className="team-avatar" />
               <span className="team-texts">
                 <span className="team-name">
                   {m.full_name ?? 'Sans nom'}

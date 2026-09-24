@@ -10,6 +10,7 @@ import {
   Phone,
   Settings,
 } from 'lucide-react'
+import { Avatar } from './ui/Avatar'
 import { useSession } from '../lib/session'
 import { fetchRelances, localDayKey } from '../data/points'
 import { fetchStats, type StatsResult } from '../data/stats'
@@ -36,11 +37,6 @@ function relanceLabel(iso: string): string {
   return `depuis le ${new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(d)}`
 }
 
-function initials(name: string | null | undefined, fallback: string): string {
-  const src = name?.trim() || fallback
-  const parts = src.split(/[\s@.]+/).filter(Boolean)
-  return (parts[0]?.[0] ?? '?').concat(parts[1]?.[0] ?? '').toUpperCase()
-}
 
 const fmtTime = (iso: string) =>
   new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
@@ -240,11 +236,15 @@ export function AccueilScreen({
       <motion.header className="accueil-head" variants={fade} custom={1} initial={introPlayed ? false : 'hidden'} animate="show">
         <button
           type="button"
-          className="avatar avatar-btn"
+          className="avatar-btn"
           onClick={() => setProfileOpen(true)}
           aria-label="Profil et déconnexion"
         >
-          {initials(profile?.full_name, session?.user.email ?? '?')}
+          <Avatar
+            id={profile?.id}
+            name={profile?.full_name ?? session?.user.email}
+            color={orgProfiles.find((p) => p.id === profile?.id)?.color}
+          />
         </button>
         {/* La date du jour au-dessus du prénom (audit design 24/09) : la ligne
             « Prospection » redondante est partie, le rôle vit dans le profil. */}

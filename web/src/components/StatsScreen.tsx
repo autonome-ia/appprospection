@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ArrowUp, ArrowDown, ChevronLeft, CornerDownRight, ChevronRight, MapPin, Minus, Pencil, Plus } from 'lucide-react'
+import { Avatar, OrgLogo } from './ui/Avatar'
 import {
   fetchStatsComparison,
   periodRange,
@@ -11,7 +12,6 @@ import {
   type StatsResult,
 } from '../data/stats'
 import { fetchOrgProfiles, updateWeeklyTarget, type OrgProfile } from '../data/profiles'
-import { colorForCommercial } from '../domain/colors'
 import { CLIENT_STATUSES, DISPLAY_STATUSES, isClientStatus } from '../domain/status'
 import { markerDataUrl } from '../config/markers'
 import { isManagerHiddenFor, isSupervisorRole, type Profile } from '../domain/types'
@@ -563,6 +563,20 @@ export function StatsScreen({
         // de l'onglet — la vente en chiffre star avec sa comparaison juste
         // dessous, puis portes · RDV pris · rang, chacun avec son écart.
         <section className="card stats-hero">
+          {/* À droite du héros (idée briac 24/09) : le logo de l'agence en vue
+              Équipe, le rond du commercial (photo ou initiales) sinon. */}
+          <div className="hero-mark">
+            {focusId ? (
+              <Avatar
+                id={focusId}
+                name={nameOf(focusId)}
+                color={profiles.find((p) => p.id === focusId)?.color}
+                size={56}
+              />
+            ) : (
+              <OrgLogo size={56} />
+            )}
+          </div>
           <p className="eyebrow">{focusId ? nameOf(focusId) : 'Équipe'}</p>
           <div className="hero-line">
             <span className="hero-value tnum">
@@ -696,7 +710,7 @@ export function StatsScreen({
                 <button type="button" className="rank-body rank-clickable" onClick={() => setDrillId(p.id)}>
                   <div className="rank-line">
                     <span className="rank-name">
-                      <span className="status-dot" style={{ background: colorForCommercial(p.id, p.color) }} />
+                      <Avatar id={p.id} name={p.full_name} color={p.color} size={24} />
                       {p.full_name ?? 'Commercial'}
                     </span>
                     <span className="rank-sales tnum">
