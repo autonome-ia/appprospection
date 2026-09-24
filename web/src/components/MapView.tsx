@@ -36,7 +36,7 @@ import { fetchPointPans, localDayKey, reverseGeocode } from '../data/points'
 import type { HouseInfo } from '../data/enrich'
 import type { LidarResult } from '../data/lidar'
 import type { LidarPan, RoofData } from '../domain/house'
-import { AddressSearch } from './AddressSearch'
+import { AddressSearch, setSearchBias } from './AddressSearch'
 import { AppointmentForm } from './AppointmentForm'
 import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
 import { colorForCommercial } from '../domain/colors'
@@ -287,9 +287,12 @@ export function MapView({
 
     // Caméra persistée à chaque arrêt de mouvement (le boot suivant repart
     // d'ici). moveend est rare, l'écriture est négligeable.
+    setSearchBias(initCenter[0], initCenter[1])
     map.on('moveend', () => {
+      const c = map.getCenter()
+      // Les recherches d'adresse favorisent la zone regardée (AddressSearch).
+      setSearchBias(c.lng, c.lat)
       try {
-        const c = map.getCenter()
         localStorage.setItem(
           'map-camera-v1',
           JSON.stringify({ lng: c.lng, lat: c.lat, zoom: map.getZoom() }),

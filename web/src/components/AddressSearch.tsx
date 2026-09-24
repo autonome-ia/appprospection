@@ -14,21 +14,121 @@ interface Props {
 
 const BAN_URL = 'https://data.geopf.fr/geocodage/search/'
 
-/** Recherche BAN brute — partagée avec le champ adresse du formulaire RDV
-    (audit UX B12). L'appelant gère debounce et annulation. */
-export async function searchAddresses(q: string, signal?: AbortSignal): Promise<AddressResult[]> {
-  const url = `${BAN_URL}?q=${encodeURIComponent(q)}&limit=6&autocomplete=1`
-  const res = await fetch(url, { signal })
+// Point de référence des recherches (retour briac 24/09 : « 24 rue du
+// Rétalaire » doit d'abord proposer celle d'à côté, pas celle à 500 km) :
+// le CENTRE DE LA CARTE — là où l'on prospecte, ou la zone qu'on prépare
+// depuis le canapé ; marche sans GPS. Tenu à jour par MapView à chaque arrêt
+// de la caméra ; repli sur la dernière caméra mémorisée (formulaires ouverts
+// hors carte).
+let bias: { lng: number; lat: number } | null = null
+export function setSearchBias(lng: number, lat: number) {
+  bias = { lng, lat }
+}
+function currentBias(): { lng: number; lat: number } | null {
+  if (bias) return bias
+  try {
+    const cam = JSON.parse(localStorage.getItem('map-camera-v1') ?? 'null') as { lng?: number; lat?: number } | null
+    if (cam && Number.isFinite(cam.lng) && Number.isFinite(cam.lat)) return { lng: cam.lng!, lat: cam.lat! }
+  } catch {
+    /* stockage indisponible : recherche sans préférence */
+  }
+  return null
+}
+
+/** Distance approchée en km (équirectangulaire : largement assez pour trier). */
+function distKm(a: { lng: number; lat: number }, b: { lng: number; lat: number }) {
+  const x = ((b.lng - a.lng) * Math.PI) / 180 * Math.cos((((a.lat + b.lat) / 2) * Math.PI) / 180)
+  const y = ((b.lat - a.lat) * Math.PI) / 180
+  return Math.sqrt(x * x + y * y) * 6371
+}
+
+/** « 24 Rue du Rétalaire 29260 Lesneven » → « 24 rue du retalaire » (sans
+    ville ni accents) : ce qui distingue deux homonymes, c'est la commune. */
+const streetKey = (label: string) =>
+  label
+    .replace(/\s+\d{5}\s.*$/, '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .trim()
+
+// Code postal de la zone regardée (géocodage inverse du point de référence),
+// mis en cache par maille de ~2 km : une requête par secteur, pas par frappe.
+const postcodeCache = new Map<string, Promise<string | null>>()
+function postcodeNear(near: { lng: number; lat: number }): Promise<string | null> {
+  const key = `${near.lat.toFixed(2)},${near.lng.toFixed(2)}`
+  let p = postcodeCache.get(key)
+  if (!p) {
+    p = fetch(`https://data.geopf.fr/geocodage/reverse/?lat=${near.lat}&lon=${near.lng}&limit=1`)
+      .then((r) => r.json())
+      .then((j) => (j.features?.[0]?.properties?.postcode as string | undefined) ?? null)
+      .catch(() => {
+        postcodeCache.delete(key) // échec réseau : on retentera
+        return null
+      })
+    postcodeCache.set(key, p)
+  }
+  return p
+}
+
+type BanFeature = {
+  geometry: { coordinates: [number, number] }
+  properties: { label: string; context?: string; score?: number }
+}
+const toResult = (f: BanFeature): AddressResult & { score: number } => ({
+  label: f.properties.label,
+  context: f.properties.context ?? '',
+  lng: f.geometry.coordinates[0],
+  lat: f.geometry.coordinates[1],
+  score: f.properties.score ?? 0,
+})
+
+async function banSearch(q: string, extra: string, signal?: AbortSignal) {
+  const res = await fetch(`${BAN_URL}?q=${encodeURIComponent(q)}&autocomplete=1${extra}`, { signal })
   const json = await res.json()
-  return ((json.features ?? []) as {
-    geometry: { coordinates: [number, number] }
-    properties: { label: string; context?: string }
-  }[]).map((f) => ({
-    label: f.properties.label,
-    context: f.properties.context ?? '',
-    lng: f.geometry.coordinates[0],
-    lat: f.geometry.coordinates[1],
-  }))
+  return ((json.features ?? []) as BanFeature[]).map(toResult)
+}
+
+// Pertinence minimale d'un résultat LOCAL pour passer devant : sous ce seuil,
+// on cherchait sans doute ailleurs (« 24 rue de la paix nantes » ne remonte
+// qu'à 0,62 dans le 29260, contre 0,96 sans la ville).
+const LOCAL_MIN_SCORE = 0.7
+
+/** Recherche BAN — partagée avec les champs adresse des formulaires RDV et
+    contact (audit UX B12). L'appelant gère debounce et annulation.
+    Proximité (retour briac 24/09) : la préférence lat/lon de la BAN est trop
+    faible (« 24 rue de la paix » depuis Lesneven : Quimper, Cherbourg… et
+    pas Le Folgoët, pourtant à 2 km, même dans les 20 premiers). Deux
+    requêtes en parallèle : nationale (avec préférence) + LOCALE (code postal
+    de la zone regardée). Les locales pertinentes passent devant, triées par
+    distance ; les homonymes restants sont aussi rangés du plus proche au
+    plus lointain. */
+export async function searchAddresses(q: string, signal?: AbortSignal): Promise<AddressResult[]> {
+  const near = currentBias()
+  const nearParams = near ? `&lat=${near.lat.toFixed(5)}&lon=${near.lng.toFixed(5)}` : ''
+  const [global, local] = await Promise.all([
+    banSearch(q, `&limit=8${nearParams}`, signal),
+    near
+      ? postcodeNear(near).then((pc) =>
+          pc ? banSearch(q, `&limit=5&postcode=${pc}`, signal).catch(() => []) : [],
+        )
+      : Promise.resolve([]),
+  ])
+  const byDistance = (a: AddressResult, b: AddressResult) => (near ? distKm(near, a) - distKm(near, b) : 0)
+  const localFirst = local.filter((r) => r.score >= LOCAL_MIN_SCORE).sort(byDistance)
+  const seen = new Set(localFirst.map((r) => r.label))
+  const rest = global.filter((r) => !seen.has(r.label))
+  if (near) {
+    // Homonymes (même numéro + même rue, communes différentes) : chaque groupe
+    // garde la place de son premier représentant, le plus proche devant.
+    const firstIdx = new Map<string, number>()
+    rest.forEach((r, i) => {
+      const k = streetKey(r.label)
+      if (!firstIdx.has(k)) firstIdx.set(k, i)
+    })
+    rest.sort((a, b) => firstIdx.get(streetKey(a.label))! - firstIdx.get(streetKey(b.label))! || byDistance(a, b))
+  }
+  return [...localFirst, ...rest].slice(0, 6).map(({ label, context, lng, lat }) => ({ label, context, lng, lat }))
 }
 
 // Dernières adresses CHOISIES (pas les frappes), mémorisées sur l'appareil :
