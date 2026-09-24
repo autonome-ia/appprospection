@@ -393,7 +393,16 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 14px;
+  /* De l'air autour du réglage (retour briac 24/09 : « Thème » collait à la
+     carte profil, les actions collaient entre elles). */
+  margin: 22px 0 22px;
+}
+.row-action + .row-action {
+  margin-top: 10px;
+}
+/* « Se déconnecter » : l'action à part, un cran plus détachée. */
+.row-action + .row-action-danger {
+  margin-top: 18px;
 }
 .theme-pick .seg {
   margin-bottom: 0;
