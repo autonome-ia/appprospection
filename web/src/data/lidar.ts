@@ -340,6 +340,9 @@ async function fetchMnhMax(ring: Ring): Promise<number | null> {
 const MAX_SNAP_M = 10
 
 interface BuildingInfo {
+  /** Clé du cache par bâtiment (db/0026) : cleabs BD TOPO, « #<id RNB> »
+      si la bande fusionnée a été découpée. null = pas de cache possible. */
+  key: string | null
   ring: Ring
   neighbors: Ring[]
   /** Voisins accolés de la MÊME parcelle (annexe/extension de la propriété,
@@ -361,6 +364,9 @@ interface BuildingInfo {
   /** Année d'apparition du bâtiment — un no_data avec apparition postérieure
       au survol a une cause certaine. */
   anneeApparition: number | null
+  /** Voisins ACCOLÉS candidats « même parcelle » (résolus par withAnnexes,
+      APRÈS la consultation du cache : BAN-PLUS prend 5-8 s). */
+  touching: { ring: Ring; cleabs: string }[]
 }
 
 /** Bâtiment tapé + polygones des voisins accolés (mitoyens, à exclure). */
@@ -414,6 +420,7 @@ async function fetchBuildingAndNeighbors(lng: number, lat: number): Promise<Buil
       ? props.identifiants_rnb.split('/').filter(Boolean)
       : []
   let rnbSplit = false
+  let rnbPick: string | null = null
   if (rnbIds.length > 1 && rnbIds.length <= 6) {
     const shapes = await fetchRnbShapes(rnbIds)
     if (shapes) {
@@ -429,6 +436,7 @@ async function fetchBuildingAndNeighbors(lng: number, lat: number): Promise<Buil
       })
       if (bestIdx >= 0) {
         ring = shapes[bestIdx]
+        rnbPick = rnbIds[bestIdx]
         shapes.forEach((s, i) => {
           if (i !== bestIdx) neighborFeats.push({ ring: s, cleabs: null })
         })
@@ -437,22 +445,11 @@ async function fetchBuildingAndNeighbors(lng: number, lat: number): Promise<Buil
     }
   }
 
-  // Voisin ACCOLÉ de la même parcelle cadastrale (BAN-PLUS) : annexe ou
-  // extension de la propriété — voire moitié de toit éclatée par la BD TOPO
-  // (Deschard). Ses points rejoignent la collecte au lieu d'être exclus ;
-  // le corps principal (soudures) garde le badge sur LA maison.
-  const annexes: Ring[] = []
-  const touching = neighborFeats.filter((n) => n.cleabs && ringGap(ring!, n.ring) < 0.5)
-  if (typeof mainId === 'string' && touching.length) {
-    const parc = await fetchParcelles([mainId, ...touching.map((n) => n.cleabs!)])
-    const mainIdu = parc?.get(mainId)
-    if (parc && mainIdu) {
-      for (const n of touching) {
-        if (parc.get(n.cleabs!) === mainIdu) annexes.push(n.ring)
-      }
-    }
-  }
-  const neighbors = neighborFeats.filter((n) => !annexes.includes(n.ring)).map((n) => n.ring)
+  const touching = neighborFeats.filter(
+    (n): n is { ring: Ring; cleabs: string } => Boolean(n.cleabs) && ringGap(ring!, n.ring) < 0.5,
+  )
+  const key =
+    typeof mainId === 'string' && mainId ? (rnbPick ? `${mainId}#${rnbPick}` : mainId) : null
   const altToit =
     typeof props.altitude_minimale_toit === 'number' ? props.altitude_minimale_toit : null
   const altSol =
@@ -462,9 +459,11 @@ async function fetchBuildingAndNeighbors(lng: number, lat: number): Promise<Buil
       ? Number(props.date_d_apparition.slice(0, 4))
       : NaN
   return {
+    key,
     ring,
-    neighbors,
-    annexes,
+    neighbors: neighborFeats.map((n) => n.ring),
+    annexes: [],
+    touching,
     hauteur: typeof props.hauteur === 'number' && props.hauteur > 0 ? props.hauteur : null,
     gouttiereSol: altToit != null && altSol != null && altToit > altSol ? altToit - altSol : null,
     logements:
@@ -474,6 +473,23 @@ async function fetchBuildingAndNeighbors(lng: number, lat: number): Promise<Buil
     rnbSplit,
     anneeApparition: Number.isFinite(apparition) && apparition > 1000 ? apparition : null,
   }
+}
+
+/**
+ * Voisin ACCOLÉ de la même parcelle cadastrale (BAN-PLUS) : annexe ou
+ * extension de la propriété — voire moitié de toit éclatée par la BD TOPO
+ * (Deschard). Ses points rejoignent la collecte au lieu d'être exclus ; le
+ * corps principal (soudures) garde le badge sur LA maison.
+ */
+async function withAnnexes(b: BuildingInfo): Promise<BuildingInfo> {
+  const mainId = b.key?.split('#')[0]
+  if (!mainId || !b.touching.length) return b
+  const parc = await fetchParcelles([mainId, ...b.touching.map((n) => n.cleabs)])
+  const mainIdu = parc?.get(mainId)
+  if (!parc || !mainIdu) return b
+  const annexes = b.touching.filter((n) => parc.get(n.cleabs) === mainIdu).map((n) => n.ring)
+  if (!annexes.length) return b
+  return { ...b, annexes, neighbors: b.neighbors.filter((r) => !annexes.includes(r)) }
 }
 
 interface DalleInfo {
@@ -524,6 +540,36 @@ async function fetchDalles(bb: Bbox): Promise<DalleInfo[]> {
       }
       return { url: f.properties!.url_npl!, acquisition, classif, edition }
     })
+}
+
+// Dalles par carré kilométrique (les dalles LiDAR HD sont des carrés de 1 km
+// calés sur le km Lambert-93) : une seule requête WFS de métadonnées par
+// carré et par session, au lieu d'une par maison — et le préchauffage du
+// quartier la paie avant le tap.
+const tileDalles = new Map<string, Promise<DalleInfo[]>>()
+
+function dallesFor(bb: Bbox): Promise<DalleInfo[]> {
+  const tiles: Promise<DalleInfo[]>[] = []
+  for (let tx = Math.floor(bb.minx / 1000); tx <= Math.floor(bb.maxx / 1000); tx++) {
+    for (let ty = Math.floor(bb.miny / 1000); ty <= Math.floor(bb.maxy / 1000); ty++) {
+      const k = `${tx}:${ty}`
+      let p = tileDalles.get(k)
+      if (!p) {
+        // Petite boîte au CENTRE du carré : ne renvoie que sa dalle.
+        const cx = tx * 1000 + 500
+        const cy = ty * 1000 + 500
+        p = fetchDalles({ minx: cx - 50, miny: cy - 50, maxx: cx + 50, maxy: cy + 50 })
+        tileDalles.set(k, p)
+        p.catch(() => tileDalles.delete(k)) // échec réseau : re-tentable
+      }
+      tiles.push(p)
+    }
+  }
+  return Promise.all(tiles).then((lists) => {
+    const byUrl = new Map<string, DalleInfo>()
+    for (const d of lists.flat()) byUrl.set(d.url, d)
+    return [...byUrl.values()]
+  })
 }
 
 // Le service IGN limite le débit : concurrence plafonnée ici ; le backoff
@@ -639,10 +685,26 @@ function nodeCachePut(key: string, arr: Float64Array): void {
  * session : quadruplets [x, y, z, classe]. Le filtre est indépendant de la
  * maison — les filtres bbox/emprise/voisins restent appliqués par maison.
  */
-async function loadNodeUseful(d: DalleIndex, url: string, key: string): Promise<Float64Array> {
+// Téléchargements de nœuds EN COURS : la mesure qui demande un nœud que le
+// préchauffage est déjà en train de lire s'y greffe au lieu de le refaire.
+const nodeInFlight = new Map<string, Promise<Float64Array>>()
+
+function loadNodeUseful(d: DalleIndex, url: string, key: string): Promise<Float64Array> {
   const ck = `${url}|${key}`
   const hit = nodeCacheGet(ck)
-  if (hit) return hit
+  if (hit) return Promise.resolve(hit)
+  const pending = nodeInFlight.get(ck)
+  if (pending) return pending
+  const p = decodeNode(d, key, ck)
+  nodeInFlight.set(ck, p)
+  void p.then(
+    () => nodeInFlight.delete(ck),
+    () => nodeInFlight.delete(ck),
+  )
+  return p
+}
+
+async function decodeNode(d: DalleIndex, key: string, ck: string): Promise<Float64Array> {
   const lazPerf = await getLazPerf()
   // ⚠ toujours passer { lazPerf } : sans lui, copc.js instancierait un
   // DEUXIÈME wasm laz-perf.
@@ -702,7 +764,7 @@ async function collectRoofPoints(
     edition: null,
     horsCouverture: false,
   }
-  const dalles = await fetchDalles(bb)
+  const dalles = await dallesFor(bb)
   if (!dalles.length) return { ...empty, horsCouverture: true }
   // Maison à cheval sur 2 dalles d'acquisitions différentes : afficher le
   // survol le plus récent (dates ISO, tri lexicographique suffisant).
@@ -770,13 +832,178 @@ async function collectRoofPoints(
   return { pts, pts67, vegetationPct, millesime, classif, edition, horsCouverture: false }
 }
 
+// --- Cache par bâtiment (db/0026) --------------------------------------------------
+// Toute mesure (fiche maison consultée OU point posé) est rangée par bâtiment
+// et par agence : le tap suivant sur la même maison, par n'importe quel
+// membre, s'affiche sans rappeler l'IGN. Repli silencieux tant que la
+// migration n'est pas exécutée (table absente -> on n'insiste plus).
+let roofCacheOff = !supabase
+
+interface RoofCacheRow {
+  version: number
+  emprise: [number, number][]
+  result: LidarResult
+}
+
+function roofCacheFailed(error: { code?: string; message?: string }): void {
+  // Table/fonction absente (migration non exécutée) : désactivé pour la session.
+  if (['42P01', 'PGRST205', 'PGRST202', '42883'].includes(error.code ?? '')) roofCacheOff = true
+  else console.error('Cache LiDAR par bâtiment :', error.message)
+}
+
+function usableRow(row: RoofCacheRow | null | undefined): LidarResult | null {
+  if (!row || row.version !== LIDAR_VERSION) return null
+  return row.result?.toit_lidar_statut ? row.result : null
+}
+
+async function roofCacheByPoint(lng: number, lat: number): Promise<LidarResult | null> {
+  if (roofCacheOff || !supabase) return null
+  try {
+    const { data, error } = await supabase
+      .from('roof_measures')
+      .select('version, emprise, result')
+      .lte('min_lng', lng)
+      .gte('max_lng', lng)
+      .lte('min_lat', lat)
+      .gte('max_lat', lat)
+      .eq('version', LIDAR_VERSION)
+      .limit(6)
+    if (error) {
+      roofCacheFailed(error)
+      return null
+    }
+    // Boîte englobante ≠ emprise : le tap doit être DANS le polygone (les
+    // boîtes de maisons voisines se chevauchent).
+    const row = (data as RoofCacheRow[] | null)?.find((r) => pointInRing(lng, lat, r.emprise))
+    return usableRow(row)
+  } catch {
+    return null // le cache ne doit jamais bloquer la mesure
+  }
+}
+
+async function roofCacheByKey(key: string): Promise<LidarResult | null> {
+  if (roofCacheOff || !supabase) return null
+  try {
+    const { data, error } = await supabase
+      .from('roof_measures')
+      .select('version, emprise, result')
+      .eq('building_key', key)
+      .maybeSingle()
+    if (error) {
+      roofCacheFailed(error)
+      return null
+    }
+    return usableRow(data as RoofCacheRow | null)
+  } catch {
+    return null
+  }
+}
+
+async function roofCacheStore(b: BuildingInfo, result: LidarResult): Promise<void> {
+  if (roofCacheOff || !supabase || !b.key) return
+  // Jamais une panne réseau, ni une zone pas encore survolée : à re-tenter.
+  if (result.toit_lidar_statut === 'error' || result.toit_lidar_diag?.motif === 'hors_couverture')
+    return
+  const ll = b.ring.map(([x, y]) => roundLL(fromL93(x, y)))
+  const lngs = ll.map((p) => p[0])
+  const lats = ll.map((p) => p[1])
+  try {
+    const { error } = await supabase.rpc('cache_building_lidar', {
+      p_key: b.key,
+      p_version: LIDAR_VERSION,
+      p_min_lng: Math.min(...lngs),
+      p_min_lat: Math.min(...lats),
+      p_max_lng: Math.max(...lngs),
+      p_max_lat: Math.max(...lats),
+      p_emprise: ll,
+      p_result: result,
+    })
+    if (error) roofCacheFailed(error)
+  } catch {
+    /* non bloquant */
+  }
+}
+
+// --- Préchauffage du quartier -------------------------------------------------------
+// Pendant que le commercial regarde sa rue (carte arrêtée, zoom maison), on
+// télécharge en fond l'index de la dalle et les nœuds du nuage autour du
+// centre : au tap, la mesure trouve ses nœuds déjà en mémoire (cache COPC par
+// dalle) et ne paie plus le serveur IGN lent. Discret par construction :
+// 4 lectures à la fois (0 × 429 observé), budget par passe, interrompu dès qu'une mesure
+// démarre (elle a la priorité) ou que la carte bouge (nouvelle passe).
+const PREWARM_RADIUS_M = 60
+const PREWARM_MAX_NODES = 60
+let measuring = 0
+let prewarmSeq = 0
+
+export async function prewarmAround(lng: number, lat: number): Promise<void> {
+  const seq = ++prewarmSeq
+  const stale = () => seq !== prewarmSeq || measuring > 0
+  try {
+    const [x, y] = toL93(lng, lat)
+    const bb: Bbox = {
+      minx: x - PREWARM_RADIUS_M,
+      maxx: x + PREWARM_RADIUS_M,
+      miny: y - PREWARM_RADIUS_M,
+      maxy: y + PREWARM_RADIUS_M,
+    }
+    const dalles = await dallesFor(bb)
+    for (const { url } of dalles) {
+      if (stale()) return
+      const d = await getDalleIndex(url)
+      const cube = d.copc.info.cube
+      // Nœuds peu profonds d'abord (ils couvrent toute la rue, partagés par
+      // toutes les maisons), puis les feuilles, les plus proches du centre
+      // en premier.
+      const dist = (key: string) => {
+        const b = nodeBounds(cube, key)
+        return Math.hypot((b.minx + b.maxx) / 2 - x, (b.miny + b.maxy) / 2 - y)
+      }
+      const depth = (key: string) => Number(key.split('-')[0])
+      const wanted = [...d.nodes.keys()]
+        .filter((key) => intersects(nodeBounds(cube, key), bb))
+        .filter((key) => !nodeCache.has(`${url}|${key}`))
+        .sort((a, b) => depth(a) - depth(b) || dist(a) - dist(b))
+        .slice(0, PREWARM_MAX_NODES)
+      let next = 0
+      await Promise.all(
+        [0, 1, 2, 3].map(async () => {
+          while (next < wanted.length && !stale()) {
+            await loadNodeUseful(d, url, wanted[next++]).catch(() => {})
+          }
+        }),
+      )
+    }
+  } catch {
+    /* préchauffage : best effort, jamais d'erreur visible */
+  }
+}
+
 // --- Orchestration ----------------------------------------------------------------
 
 async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
-  const building = await fetchBuildingAndNeighbors(lng, lat)
-  if (!building) {
+  // Cache par bâtiment (db/0026), 1er niveau : tap DANS une emprise déjà
+  // mesurée -> aucune requête IGN. Le WFS bâtiment part en parallèle : en
+  // cas d'absence, pas d'aller-retour perdu.
+  const buildingP = fetchBuildingAndNeighbors(lng, lat)
+  buildingP.catch(() => {}) // consommée plus bas ; évite un rejet orphelin
+  const byPoint = await roofCacheByPoint(lng, lat)
+  if (byPoint) return byPoint
+  const found = await buildingP
+  if (!found) {
     return emptyResult('no_data', null, { motif: 'sans_batiment' })
   }
+  // 2e niveau : tap à côté de l'emprise (jardin, trottoir) -> par clé.
+  if (found.key) {
+    const byKey = await roofCacheByKey(found.key)
+    if (byKey) return byKey
+  }
+  const result = await measureBuilding(await withAnnexes(found))
+  void roofCacheStore(found, result)
+  return result
+}
+
+async function measureBuilding(building: BuildingInfo): Promise<LidarResult> {
   const emprise = ringArea(building.ring)
   // Verdict grand_batiment CROISÉ (v18) : le seuil d'emprise seul condamnait
   // à tort les grandes longères et maisons cossues (lesneven-1 : 496 m²
@@ -959,6 +1186,7 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
 
 async function computeSafe(lng: number, lat: number): Promise<LidarResult> {
   let timer: ReturnType<typeof setTimeout> | undefined
+  measuring++
   try {
     const deadline = new Promise<never>((_, reject) => {
       timer = setTimeout(
@@ -971,6 +1199,7 @@ async function computeSafe(lng: number, lat: number): Promise<LidarResult> {
     console.error('Mesure LiDAR :', e)
     return emptyResult('error', null, null)
   } finally {
+    measuring--
     clearTimeout(timer)
   }
 }

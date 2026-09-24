@@ -138,6 +138,7 @@ DA **« Encre & signal »** (choisie par briac le 26/07/2026 sur prototypes comp
 ## Architecture data (rappel)
 - `points` = état **actuel** d'une maison (ce qu'on affiche sur la carte).
 - `point_events` = **journal horodaté** de chaque visite → **source des statistiques**.
+- `roof_measures` (db/0026) = mesure LiDAR **par bâtiment et par agence** (fiche maison comprise) : le re-tap d'une maison mesurée ne rappelle pas l'IGN ; les colonnes `toit_lidar_*` de `points` restent le cache du point.
 - `appointments` = agenda partagé : **RDV et tâches libres** (colonne `kind`, db/0016 — une tâche
   « aller chercher l'acompte » n'a ni point, ni issues, et ne compte dans AUCUNE stat ; sa note est
   son titre). Poser/éditer un statut écrit dans **points ET point_events**.

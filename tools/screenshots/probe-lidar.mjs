@@ -6,6 +6,10 @@
 // PANNE=1 : simule le serveur COPC IGN injoignable -> attend « mesure laser
 // indisponible » + « Réessayer », rétablit le réseau, tape « Réessayer » et
 // exige la mesure (le chemin de repli, vérifié de bout en bout).
+// WARM=20 : attend 20 s carte arrêtée avant le tap (préchauffage du quartier).
+// SECOND="adresse" ou "px:dx,dy" : puis mesure une 2e maison (la tournée) ; AGAIN=1 : puis
+// re-tape la 1re maison (cache par bâtiment, db/0026).
+// Chaque mesure est chronométrée (tap -> verdict).
 import { chromium, devices } from 'playwright'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -25,6 +29,9 @@ if (!/^sondes-/.test(env.GUIDE_EMAIL ?? '')) {
 const ADDRESS = process.argv[2] ?? '18 Rue du Retalaire Lesneven'
 const BASE = process.argv[3] ?? 'http://localhost:5173'
 const PANNE = process.env.PANNE === '1'
+const WARM_S = Number(process.env.WARM ?? 0)
+const SECOND = process.env.SECOND ?? null
+const AGAIN = process.env.AGAIN === '1'
 const COPC = /data\.geopf\.fr\/telechargement\//
 
 const browser = await chromium.launch()
@@ -35,7 +42,7 @@ const t0 = Date.now()
 const ts = () => `${((Date.now() - t0) / 1000).toFixed(1)}s`
 const CHAIN = /geopf\.fr|rnb-api|\.wasm|lidar|copc|laz-perf|three/i
 page.on('console', (m) => {
-  if (m.type() === 'error' || m.type() === 'warning' || /lidar|mesure/i.test(m.text()))
+  if (m.type() === 'error' || m.type() === 'warning' || /lidar|mesure|prewarm/i.test(m.text()))
     console.log(`[${ts()}] console.${m.type()}: ${m.text().slice(0, 400)}`)
 })
 page.on('pageerror', (e) => console.log(`[${ts()}] pageerror: ${e.message}`))
@@ -57,38 +64,69 @@ await page.getByRole('button', { name: 'Se connecter' }).click()
 await page.waitForSelector('canvas', { timeout: 20000 })
 await page.waitForTimeout(2000)
 const input = page.getByPlaceholder(/Rechercher/)
-await input.fill(ADDRESS)
-await page.waitForTimeout(2500)
-await page.locator('.address-results button').first().click()
-await page.waitForTimeout(4500)
-await input.fill('')
-await page.evaluate(() => document.activeElement?.blur?.())
 const VP = page.viewportSize()
-console.log(`[${ts()}] tap maison`)
-await page.mouse.click(Math.round(VP.width / 2), Math.round(VP.height / 2))
-await page.waitForTimeout(1500)
 const sheet = page.locator('.drawer-content')
-if (!(await sheet.count())) {
-  console.log('! pas de fiche maison après le tap')
-  await page.screenshot({ path: resolve(OUT, 'probe-lidar-fail.png') })
-  await browser.close()
-  process.exit(1)
+async function goTo(address, waitMs) {
+  await input.fill(address)
+  await page.waitForTimeout(2500)
+  await page.locator('.address-results button').first().click()
+  await page.waitForTimeout(waitMs)
+  await input.fill('')
+  await page.evaluate(() => document.activeElement?.blur?.())
 }
+let tapAt = 0
+async function tapHouse(label, dx = 0, dy = 0) {
+  console.log(`[${ts()}] tap maison (${label})`)
+  tapAt = Date.now()
+  await page.mouse.click(Math.round(VP.width / 2) + dx, Math.round(VP.height / 2) + dy)
+  for (let i = 0; i < 12 && !(await sheet.count()); i++) await page.waitForTimeout(250)
+  if (!(await sheet.count())) {
+    console.log('! pas de fiche maison après le tap')
+    await page.screenshot({ path: resolve(OUT, 'probe-lidar-fail.png') })
+    await browser.close()
+    process.exit(1)
+  }
+}
+const chrono = () => `${((Date.now() - tapAt) / 1000).toFixed(1)} s`
+await goTo(ADDRESS, 4500 + WARM_S * 1000)
+await tapHouse(ADDRESS)
 // Verdict : module « Toiture mesurée » OU disparition du « mesure… » (100 s
 // > garde-fou de 90 s de la mesure).
 async function waitVerdict() {
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 400; i++) {
     // Un seul instantané du texte par tour : pas de course entre deux lectures.
     const txt = (await sheet.innerText().catch(() => '')) || ''
     if (/Toiture mesurée/.test(txt)) return 'ok'
-    if (i > 3 && !/mesure du toit/i.test(txt)) {
+    if (i > 12 && !/mesure du toit/i.test(txt)) {
       return /mesure laser indisponible/.test(txt) ? 'indisponible' : 'sans-module'
     }
-    await page.waitForTimeout(1000)
+    await page.waitForTimeout(250)
   }
   return 'timeout'
 }
 let verdict = await waitVerdict()
+console.log(`[${ts()}] MESURE 1 : ${verdict} en ${chrono()}`)
+async function closeSheet() {
+  await sheet.getByRole('button', { name: 'Fermer' }).first().click()
+  await page.waitForTimeout(800)
+}
+if (SECOND && verdict === 'ok') {
+  await closeSheet()
+  // « px:dx,dy » : maison voisine à un décalage écran du 1er centre (zoom 18
+  // après recherche ≈ 0,2 m/px) — les points BAN tombent souvent hors toit.
+  const px = SECOND.match(/^px:(-?\d+),(-?\d+)$/)
+  await goTo(px ? ADDRESS : SECOND, 3000)
+  await tapHouse(SECOND, px ? Number(px[1]) : 0, px ? Number(px[2]) : 0)
+  verdict = await waitVerdict()
+  console.log(`[${ts()}] MESURE 2 (voisine) : ${verdict} en ${chrono()}`)
+}
+if (AGAIN && verdict === 'ok') {
+  await closeSheet()
+  await goTo(ADDRESS, 3000)
+  await tapHouse(`${ADDRESS}, à nouveau`)
+  verdict = await waitVerdict()
+  console.log(`[${ts()}] MESURE 3 (même maison) : ${verdict} en ${chrono()}`)
+}
 if (PANNE) {
   const retry = sheet.getByRole('button', { name: 'Réessayer' })
   const shown = verdict === 'indisponible' && (await retry.count()) === 1

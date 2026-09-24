@@ -302,6 +302,28 @@ export function MapView({
       }
     })
 
+    // Préchauffage LiDAR du quartier (24/09) : carte arrêtée au zoom maison,
+    // on télécharge en fond le nuage autour du centre — au tap, la mesure ne
+    // paie plus le serveur IGN lent. Débounce 1 s, rien si le centre a bougé
+    // de moins de 40 m, rien en mode « économie de données ».
+    let prewarmTimer: ReturnType<typeof setTimeout> | undefined
+    let prewarmed: maplibregl.LngLat | null = null
+    map.on('moveend', () => {
+      clearTimeout(prewarmTimer)
+      if (map.getZoom() < PREVIEW_MIN_ZOOM) return
+      const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection
+      if (conn?.saveData) return
+      prewarmTimer = setTimeout(() => {
+        if (mapRef.current !== map) return
+        const c = map.getCenter()
+        if (prewarmed && prewarmed.distanceTo(c) < 40) return
+        prewarmed = c
+        void import('../data/lidar')
+          .then((m) => m.prewarmAround(c.lng, c.lat))
+          .catch(() => {})
+      }, 1000)
+    })
+
     // --- Position vivante (retour terrain 27/07 : « le point ne me suit
     // pas »). Le GeolocateControl de MapLibre couple le point et la caméra :
     // en one-shot le point restait planté, en suivi la caméra volait vers la

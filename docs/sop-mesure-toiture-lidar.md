@@ -52,6 +52,25 @@ exponentiel ; délai de corps 25 s, 45 s par requête, 90 s par mesure. Échec
 final → badge « mesure laser indisponible » + bouton **« Réessayer »** (les deux
 fiches). Le statut `error` n'est jamais persisté.
 
+Vitesse (24/09/2026, soir) : trois niveaux de cache, du plus rapide au plus lent.
+1. **Cache par bâtiment en base** (`roof_measures`, `db/0026`, par agence) :
+   toute mesure, fiche maison comprise, y est rangée ; un tap DANS l'emprise
+   d'une maison déjà mesurée par n'importe quel membre = ~0,2 s, zéro requête
+   IGN. Tap à côté (jardin) : WFS bâtiment puis cache par clé (`cleabs`,
+   `#<id RNB>` si bande découpée). Repli silencieux si la table n'existe pas.
+2. **Cache mémoire de la session** : dalles par km² (1 requête WFS de
+   métadonnées par km²), index COPC par dalle, nœuds décodés (LRU 30 Mo),
+   téléchargements en cours partagés entre mesure et préchauffage.
+3. **Préchauffage du quartier** (`prewarmAround`, déclenché par la carte :
+   arrêt ≥ 1 s au zoom ≥ 16, centre déplacé de plus de 40 m, pas en « économie
+   de données ») : index + nœuds dans 60 m (~42 nœuds, ~4,7 Mo à la 1re rue
+   d'une dalle, peu ensuite), 4 lectures à la fois, cède la place dès qu'une
+   mesure démarre.
+Chronos sondés (serveur IGN lent) : 1re maison d'une dalle 20-35 s (les gros
+nœuds peu profonds, communs à tout le km², dominent) ; **maison voisine 2-3 s** ;
+même maison 0,8-1,4 s. Sonde : `WARM=15 SECOND="px:15,115" AGAIN=1 node
+probe-lidar.mjs` (voisine = maison résidentielle à 23 m au sud de la référence).
+
 ## Architecture cible (rappel de la décision)
 
 **Aucune nouvelle carte, aucun nouvel écran.** Un module de calcul en arrière-plan :
@@ -565,3 +584,16 @@ formes en L. À faire de préférence AVANT la phase 2 pour que le fallback soit
   `tools/screenshots/probe-lidar.mjs`. Reste : la durée dépend de l'IGN (le cache
   de dalle accélère dès la 2e maison) ; lancer la sonde de contrat de façon
   planifiée si les pannes se répètent.
+- **24/09/2026 (soir) : vitesse de mesure, cache par bâtiment + préchauffage.**
+  Constat briac : « avant ~10 s, maintenant 30-60 s ». Décomposition sondée : le
+  temps part à 70-85 % dans les nœuds COPC (serveur IGN lent depuis le 18/09) ;
+  une maison de dalle neuve lit ~9 nœuds / ~2,8 Mo dont les gros nœuds peu
+  profonds, communs à tout le km². Livré : (1) `roof_measures` (**`db/0026` À
+  EXÉCUTER**) : mesure rangée par bâtiment et par agence, lue par emprise puis
+  par clé, avant la requête BAN-PLUS (5-8 s) désormais faite APRÈS la
+  consultation du cache (`withAnnexes`) ; (2) préchauffage du quartier depuis
+  la carte ; (3) dalles mémorisées par km² ; (4) téléchargements de nœuds
+  partagés. Mesuré : voisine 2-3 s (contre 20-35 s), même maison < 1,5 s. Le
+  préchauffage aide peu la TOUTE 1re maison quand l'IGN est lent (4 gros nœuds
+  en 11 s observés) : l'étape suivante serait le pré-calcul serveur / miroir
+  des dalles (option 4 de l'analyse).
