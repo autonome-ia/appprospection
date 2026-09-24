@@ -387,12 +387,26 @@ Concept validé par le directeur régional de Mister Toiture (présentation d'Al
 - [x] **Phase 0a : skills** — Emil Kowalski (apple-design, emil-design-eng, mobile-native,
   review-animations) + Jakub Krehel (make-interfaces-feel-better) dans `.claude/skills/`,
   `frontend-design` désactivé pour le projet.
-- [ ] Phase 0b : captures « avant » de tous les écrans (clair + sombre)
-- [ ] Phase 1 : audit « écart Apple » + comptage des taps des 3 parcours clés
-- [ ] Phase 2 : fondations (tokens de mouvement, primitives, découpage App.css)
-- [ ] Phase 3 : écran par écran (Carte + fiches, Agenda, Accueil, Stats)
-- [ ] Phase 4 : moments « wow »
-- [ ] Phase 5 : recette (perf, reduced-motion, a11y, terrain)
+- [x] Phase 0b : captures « avant » (`REF=avant [THEME=dark] node tools/screenshots/shoot.mjs`,
+  `screenshoots/design/`) + canal de test : branche `design` + 2e site Render (pastille β).
+- [x] Phase 1 : audit « écart Apple » 4 auditeurs → `docs/audit-design-2026-09.md`.
+- [~] Phase 2 : socle — FAIT : tokens de mouvement (`index.css` + `lib/motion.ts`), base
+  mobile-native (tap-highlight, touch-action, user-select, focus-visible, theme-color #f6f6f5),
+  retour au toucher généralisé (`styles/interactions.css`), reduced-motion (CSS + MotionConfig),
+  `<Segmented>` à ressort partout, code mort retiré. RESTE : `<Sheet>` (9 drawers), découpage
+  d'App.css, tokenisation espacements/rayons/z-index, primitives Button/Chip/ListRow.
+- [~] Phase 3 : écran par écran — FAIT : Stats (tunnel aux couleurs des statuts, taux neutres,
+  objectif bleu→vert, estompe au changement de période), couleurs d'issue en tokens (Refus lisible
+  en sombre), Carte (pose en 1 tap, bascule directe, contrôles sans chevauchement), fiche point
+  (orange rendu aux actions, heure seule en mono), Accueil (date, rythme 24 px, « Ma journée »,
+  cascade une fois par session), Agenda (titre sur une ligne, civilité retirée des pilules,
+  semaines vides compactes, 3 issues + « Le RDV n'a pas eu lieu »), Connexion (champs groupés,
+  spinner, secousse). RESTE : Contacts en liste groupée, Équipe/Profil, formulaires RDV.
+- [~] Phase 4 : wow — FAIT : chiffres qui roulent (NumberFlow), viseur/barre de visée animés,
+  onde couleur statut à la pose, popup du matin animé. RESTE : objectif atteint, « Vendu » qui se
+  ressent, mois au doigt, écran de démarrage iOS, récap hebdo partageable.
+- [ ] Phase 5 : recette (perf, reduced-motion, a11y, terrain) + régénérer les images du Guide
+  (le parcours de pose a changé : `shoot.mjs` + `convert.mjs`).
 
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)

@@ -64,3 +64,6 @@ dont le parcours va changer serait du travail jeté).
 - 24/09 : cadrage, recherche et inspection des skills, installation (phase 0).
 - 24/09 : canal de test = branche `design` + 2e site Render (pastille β, `RENDER_GIT_BRANCH`).
 - 24/09 : captures « avant » + audit 4 auditeurs (phase 1) → `docs/audit-design-2026-09.md`.
+- 24/09 : lots socle + corrections visibles + premiers « wow » livrés sur `design` (détail dans
+  la roadmap). À faire valider par briac : bordure du bloc RDV passée de l'accent au bleu
+  « RDV pris » (choix briac du 25/07) ; ligne « Prospection » de l'Accueil remplacée par la date.
