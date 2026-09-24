@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { CheckCircle2, MailCheck } from 'lucide-react'
+import { motion, useAnimationControls } from 'motion/react'
+import { EASE_OUT } from '../lib/motion'
 import { supabase } from '../lib/supabase'
 
 /**
@@ -39,6 +41,16 @@ export function AuthScreen() {
   const [codeCheck, setCodeCheck] = useState<CodeCheck>({ state: 'idle' })
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Carte : entrée en fondu montant, puis secousse courte à chaque erreur
+  // (le « non » d'iOS sur un mauvais mot de passe — chantier design 24/09).
+  const shake = useAnimationControls()
+  useEffect(() => {
+    void shake.start({ opacity: 1, y: 0, transition: { duration: 0.35, ease: EASE_OUT, delay: 0.05 } })
+  }, [shake])
+  useEffect(() => {
+    if (!error) return
+    void shake.start({ x: [0, -6, 6, -4, 4, 0], transition: { duration: 0.32, ease: 'easeOut' } })
+  }, [error, shake])
   // Compte créé mais email à confirmer (selon le réglage Supabase du projet).
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   // Jeton anti-course : seule la réponse du DERNIER code saisi compte.
@@ -107,12 +119,16 @@ export function AuthScreen() {
 
   return (
     <div className="auth-screen">
-      <div className="auth-brand">
+      <motion.div
+        className="auth-brand"
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1, transition: { duration: 0.35, ease: EASE_OUT } }}
+      >
         <span className="auth-mark">
           AppProspection<span className="auth-mark-dot">.</span>
         </span>
         <span className="auth-tagline">Prospection porte-à-porte</span>
-      </div>
+      </motion.div>
 
       {pendingEmail ? (
         <div className="auth-card">
@@ -127,7 +143,12 @@ export function AuthScreen() {
           </button>
         </div>
       ) : (
-        <form className="auth-card" onSubmit={onSubmit}>
+        <motion.form
+          className="auth-card"
+          onSubmit={onSubmit}
+          initial={{ opacity: 0, y: 12 }}
+          animate={shake}
+        >
           <h1 className="auth-title">{mode === 'login' ? 'Connexion' : 'Rejoindre son agence'}</h1>
           <p className="auth-subtitle">
             {mode === 'login'
@@ -154,7 +175,7 @@ export function AuthScreen() {
               {codeCheck.state === 'ok' && (
                 <p className="auth-code-status is-ok">
                   <CheckCircle2 size={15} strokeWidth={2} />
-                  Vous rejoignez {codeCheck.org}
+                  Tu rejoins {codeCheck.org}
                 </p>
               )}
               {codeCheck.state === 'bad' && (
@@ -174,28 +195,39 @@ export function AuthScreen() {
             </>
           )}
 
-          <p className="eyebrow field-label">Email</p>
-          <input
-            className="field-input"
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            required
-          />
-
-          <p className="eyebrow field-label">Mot de passe</p>
-          <input
-            className="field-input"
-            type="password"
-            placeholder="Mot de passe"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            required
-            minLength={6}
-          />
+          {/* Identifiants groupés dans UN bloc façon iOS (chantier design 24/09) :
+              le label doublait le placeholder. Labels gardés pour les lecteurs
+              d'écran. Placeholders « Email » / « Mot de passe » INTOUCHABLES
+              (point d'entrée des sondes Playwright). */}
+          <div className="field-group">
+            <label className="sr-only" htmlFor="auth-email">
+              Email
+            </label>
+            <input
+              id="auth-email"
+              className="field-group-input"
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              required
+            />
+            <label className="sr-only" htmlFor="auth-password">
+              Mot de passe
+            </label>
+            <input
+              id="auth-password"
+              className="field-group-input"
+              type="password"
+              placeholder="Mot de passe"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              required
+              minLength={6}
+            />
+          </div>
 
           {error && <p className="auth-error">{error}</p>}
 
@@ -204,7 +236,8 @@ export function AuthScreen() {
             className="btn btn-primary auth-submit"
             disabled={busy || (mode === 'signup' && codeCheck.state !== 'ok')}
           >
-            {busy ? '…' : mode === 'login' ? 'Se connecter' : 'Créer mon compte'}
+            {busy && <span className="btn-spinner" aria-hidden="true" />}
+            {mode === 'login' ? 'Se connecter' : 'Créer mon compte'}
           </button>
 
           <button
@@ -214,7 +247,7 @@ export function AuthScreen() {
           >
             {mode === 'login' ? 'J’ai un code d’invitation : créer mon compte' : 'Déjà un compte ? Se connecter'}
           </button>
-        </form>
+        </motion.form>
       )}
     </div>
   )

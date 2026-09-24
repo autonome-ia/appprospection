@@ -3211,6 +3211,44 @@ select.field-input {
 .auth-submit {
   margin-top: 18px;
 }
+/* Identifiants en un bloc (réglages iOS) : deux champs, un filet entre. */
+.field-group {
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  overflow: hidden;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.field-group:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.field-group-input {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 14px;
+  font-size: 15px;
+  color: var(--ink);
+  outline: none;
+}
+.field-group-input + .sr-only + .field-group-input {
+  border-top: 1px solid var(--line);
+}
+.field-group-input::placeholder {
+  color: var(--ink-3);
+}
+/* Envoi en cours : spinner DANS le bouton, libellé et largeur inchangés. */
+.btn-spinner {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 0.7s linear infinite;
+}
 .auth-switch {
   align-self: center;
   margin-top: 10px;
