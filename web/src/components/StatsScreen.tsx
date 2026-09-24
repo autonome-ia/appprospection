@@ -248,7 +248,7 @@ function Chart({ daily, days }: { daily: Record<string, number>; days: string[] 
         </span>
       </div>
       <div
-        className={`chart-bars ${active !== null ? 'is-scrubbing' : ''}`}
+        className={`chart-bars ${isMonth ? '' : 'has-values'} ${active !== null ? 'is-scrubbing' : ''}`}
         onPointerDown={(e) => {
           window.clearTimeout(releaseTimer.current)
           e.currentTarget.setPointerCapture(e.pointerId)
@@ -266,8 +266,15 @@ function Chart({ daily, days }: { daily: Record<string, number>; days: string[] 
           const v = daily[d] ?? 0
           return (
             <div key={d} className="chart-col">
-              {!isMonth && <span className="chart-val tnum">{v > 0 ? v : ''}</span>}
               <div className="chart-stick">
+                {/* Valeur posée JUSTE au-dessus de sa barre (retour briac
+                    24/09 : en haut de colonne, elle flottait loin des barres
+                    courtes). */}
+                {!isMonth && v > 0 && (
+                  <span className="chart-val tnum" style={{ bottom: `calc(${(v / max) * 100}% + 4px)` }}>
+                    {v}
+                  </span>
+                )}
                 <div
                   className={`chart-bar ${d === todayKey ? 'is-today' : ''} ${i === active ? 'is-active' : ''} ${v === 0 ? 'is-zero' : ''}`}
                   style={{ height: `${(v / max) * 100}%` }}

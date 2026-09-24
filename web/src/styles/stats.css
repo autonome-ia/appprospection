@@ -484,3 +484,19 @@
 .chart-bars.is-scrubbing .chart-bar.is-zero.is-active {
   opacity: 1;
 }
+
+/* Vue Semaine : la valeur suit le sommet de SA barre (position absolue dans
+   la colonne) ; 18 px de marge en haut pour celle de la barre la plus haute. */
+.chart-bars.has-values {
+  padding-top: 18px;
+}
+.chart-stick {
+  position: relative;
+}
+.chart-stick .chart-val {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: auto;
+  line-height: 14px;
+}
