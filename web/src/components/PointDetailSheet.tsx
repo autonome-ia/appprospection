@@ -552,10 +552,13 @@ export function PointDetailSheet({
               />
             </FormRow>
           {/* Date de relance DANS la section client (retour briac 25/07),
-              sans presets — le champ date natif suffit. Visible aussi pour
-              « RDV pris » (12/08) : la relance J+7 d'un « En attente »
-              se lit et s'ajuste ici. */}
-          {(status === 'a_revoir' || status === 'rdv_pris') && (
+              sans presets — le champ date natif suffit. « RDV pris » : SEULEMENT
+              quand une relance existe (12/08 : la J+7 d'un « En attente » se
+              lit et s'ajuste ici) — juste après la pose, le RDV est à venir et
+              un « Revoir le » vide n'avait rien à faire là (retour briac 24/09). */}
+          {(status === 'a_revoir' ||
+            (status === 'rdv_pris' &&
+              (Boolean(point.revisit_at) || Boolean(appts?.some((a) => a.status === 'effectue'))))) && (
             <FormRow label="Revoir le">
               <input
                 className="form-input"
