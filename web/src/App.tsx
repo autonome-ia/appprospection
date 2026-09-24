@@ -9,6 +9,7 @@ import { AgendaScreen } from './components/AgendaScreen'
 import { StatsScreen } from './components/StatsScreen'
 import { ScreenBoundary } from './components/ScreenBoundary'
 import { PendingOutcomes } from './components/PendingOutcomes'
+import { Celebration } from './components/ui/Celebration'
 import { SessionProvider, useSession } from './lib/session'
 import { useIsDark } from './lib/theme'
 import { isSupabaseConfigured } from './lib/supabase'
@@ -161,6 +162,7 @@ export default function App() {
     <MotionConfig reducedMotion="user">
       <SessionProvider>
         <AppInner />
+        <Celebration />
         <Toaster
           position="top-center"
           theme={dark ? 'dark' : 'light'}

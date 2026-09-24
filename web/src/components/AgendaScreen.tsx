@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
+import { celebrate } from '../lib/celebrate'
 import {
   Plus,
   Phone,
@@ -256,6 +257,7 @@ function AppointmentCard({
                       const { pointSynced } = await setAppointmentOutcome(profile, appt, o)
                       onChanged()
                       toast.success(outcomeToastMessage(o))
+                      if (o === 'vendu') celebrate('Vendu')
                       if (!pointSynced) {
                         toast.error(
                           'La maison n’a pas pu être mise à jour sur la carte : rouvrez sa fiche pour corriger',

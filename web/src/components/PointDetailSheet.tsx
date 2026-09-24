@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
+import { celebrate } from '../lib/celebrate'
 import { X, Trash2, Clock, User, MapPin, Phone, CalendarPlus } from 'lucide-react'
 import {
   getPointDetail,
@@ -359,6 +360,7 @@ export function PointDetailSheet({
       }
       onOpenChange(false)
       toast.success(becameSale ? 'Vendu : la maison passe en « Client »' : 'Point mis à jour')
+      if (becameSale) celebrate('Vendu')
       if (becameRdv) onRdvNeeded?.({ ...point, status: 'rdv_pris' })
     } catch (e) {
       console.error('Modification du point :', e)

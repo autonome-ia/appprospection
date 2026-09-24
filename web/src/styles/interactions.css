@@ -119,3 +119,35 @@ button.rdv-history-row:active,
     display: none;
   }
 }
+
+/* Célébration (vente, objectif) — components/ui/Celebration.tsx. Vert
+   « Client » : c'est une donnée métier (la vente), pas une action. */
+.celebration {
+  position: fixed;
+  left: 50%;
+  top: 42%;
+  translate: -50% -50%;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 26px 16px;
+  border-radius: 22px;
+  background: rgba(17, 17, 19, 0.82);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: 0 20px 48px rgba(17, 17, 19, 0.3);
+  pointer-events: none;
+}
+.celebration svg {
+  border-radius: 50%;
+  background: var(--st-vendu);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--st-vendu) 25%, transparent);
+}
+.celebration-label {
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}

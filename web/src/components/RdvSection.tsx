@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { celebrate } from '../lib/celebrate'
 import { CalendarClock, CalendarPlus, Navigation, Pencil, Phone } from 'lucide-react'
 import { setAppointmentOutcome } from '../data/appointments'
 import {
@@ -187,6 +188,7 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
                     setOverride({ id: shownRdv.id, status: o })
                     onChanged?.()
                     toast.success(outcomeToastMessage(o))
+                    if (o === 'vendu') celebrate('Vendu')
                     if (!pointSynced) {
                       toast.error(
                         'La maison n’a pas pu être mise à jour sur la carte : rouvrez sa fiche pour corriger',

@@ -3,6 +3,7 @@ import { Drawer } from 'vaul'
 import { AnimatePresence, motion } from 'motion/react'
 import { EASE_OUT, SPRING_SMOOTH } from '../lib/motion'
 import { toast } from 'sonner'
+import { celebrate } from '../lib/celebrate'
 import { CalendarClock, X } from 'lucide-react'
 import { fetchPendingOutcomes, setAppointmentOutcome } from '../data/appointments'
 import {
@@ -152,6 +153,7 @@ export function PendingOutcomes({ profile }: { profile: Profile }) {
                           try {
                             const { pointSynced } = await setAppointmentOutcome(profile, a, o)
                             toast.success(outcomeToastMessage(o))
+                            if (o === 'vendu') celebrate('Vendu')
                             if (!pointSynced) {
                               toast.error(
                                 'La maison n’a pas pu être mise à jour sur la carte : rouvrez sa fiche pour corriger',

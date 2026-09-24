@@ -14,6 +14,7 @@ import { useSession } from '../lib/session'
 import { fetchRelances, localDayKey } from '../data/points'
 import { fetchStats, type StatsResult } from '../data/stats'
 import { toast } from 'sonner'
+import { celebrate } from '../lib/celebrate'
 import { fetchAppointments, updateAppointment } from '../data/appointments'
 import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
 import { STATUS_BY_VALUE } from '../domain/status'
@@ -203,6 +204,33 @@ export function AccueilScreen({
         .filter((p) => !p.disabled_at && p.role !== 'secretaire' && !p.is_support)
         .reduce((s, p) => s + (p.weekly_rdv_target ?? 0), 0)
     : (orgProfiles.find((p) => p.id === meId)?.weekly_rdv_target ?? 0)
+
+  // Objectif de la semaine atteint : célébré UNE fois par semaine et par
+  // compte (clé localStorage), à l'ouverture de l'Accueil — la barre passe
+  // au vert en même temps (chantier design 24/09).
+  const objReached = !loading && objTarget > 0 && rdvSemaine >= objTarget
+  useEffect(() => {
+    if (!objReached || !meId) return
+    const monday = new Date()
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
+    const key = `obj-celebrated-${meId}-${localDayKey(monday)}`
+    try {
+      if (localStorage.getItem(key)) return
+    } catch {
+      return // stockage indisponible : pas de célébration à répétition
+    }
+    // Clé posée AU MOMENT de célébrer : un effet annulé (StrictMode, onglet
+    // quitté dans les 700 ms) ne consomme pas la célébration de la semaine.
+    const t = window.setTimeout(() => {
+      try {
+        localStorage.setItem(key, '1')
+      } catch {
+        // tant pis : au pire, une célébration de plus
+      }
+      celebrate('Objectif de la semaine atteint')
+    }, 700)
+    return () => window.clearTimeout(t)
+  }, [objReached, meId])
 
   return (
     <div className="screen accueil-screen">
