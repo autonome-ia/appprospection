@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
 import { CalendarX, MapPin, Trash2, X } from 'lucide-react'
+import { FormGroup, FormRow } from './ui/Form'
 import { bookRdvFor, createAppointment, deleteAppointment, updateAppointment } from '../data/appointments'
 import { addPointNote, syncPointClient } from '../data/points'
 import { searchAddresses, type AddressResult } from './AddressSearch'
@@ -288,24 +289,31 @@ export function AppointmentForm({
               s'affiche en gras dans l'agenda. */}
           {isTache && (
             <>
-              <p className="eyebrow field-label">Quoi faire</p>
-              <textarea
-                className="field-input"
-                rows={2}
-                placeholder="Ex : aller chercher l’acompte, récupérer le panneau…"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
+              <FormGroup title="Quoi faire">
+                <textarea
+                  className="form-input"
+                  rows={2}
+                  placeholder="Ex : aller chercher l’acompte, récupérer le panneau…"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </FormGroup>
             </>
           )}
           {/* Les presets « Demain / Après-demain / Samedi » (A15) ont été
               RETIRÉS (décision briac 25/07) : de la place pour rien — la
               roue iOS suffit. */}
           {secretaire && !isTache && (
-            <>
-              <p className="eyebrow field-label">Pour quel commercial</p>
+            <FormGroup
+              hint={
+                existing
+                  ? 'Changer de commercial déplace le RDV dans son agenda.'
+                  : 'Le RDV appartiendra à ce commercial (son agenda, ses stats).'
+              }
+            >
+              <FormRow label="Commercial" select>
               <select
-                className="field-input"
+                className="form-input"
                 value={ownerId}
                 onChange={(e) => setOwnerId(e.target.value)}
               >
@@ -318,27 +326,21 @@ export function AppointmentForm({
                   </option>
                 ))}
               </select>
-              <p className="field-hint">
-                {existing
-                  ? 'Changer de commercial déplace le RDV dans son agenda.'
-                  : 'Le RDV appartiendra à ce commercial (son agenda, ses stats).'}
-              </p>
-            </>
+              </FormRow>
+            </FormGroup>
           )}
-          <div className="field-grid">
-            <div>
-              <p className="eyebrow field-label">Date</p>
+          <FormGroup title="Quand">
+            <FormRow label="Date">
               <input
-                className="field-input"
+                className="form-input"
                 type="date"
                 value={dateStr}
                 onChange={(e) => setDateStr(e.target.value)}
               />
-            </div>
-            <div>
-              <p className="eyebrow field-label">Heure</p>
+            </FormRow>
+            <FormRow label="Heure" select>
               <select
-                className="field-input tnum"
+                className="form-input tnum"
                 value={timeStr}
                 onChange={(e) => setTimeStr(e.target.value)}
               >
@@ -351,35 +353,31 @@ export function AppointmentForm({
                   </option>
                 ))}
               </select>
-            </div>
-          </div>
+            </FormRow>
+          </FormGroup>
 
-          <div className="field-grid">
-            <div>
-              <p className="eyebrow field-label">Client</p>
+          <FormGroup title="Client">
+            <FormRow label="Nom">
               <input
-                className="field-input"
+                className="form-input"
                 type="text"
                 placeholder={isTache ? 'Nom (facultatif)' : 'Nom'}
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
               />
-            </div>
-            <div>
-              <p className="eyebrow field-label">Téléphone</p>
+            </FormRow>
+            <FormRow label="Téléphone">
               <input
-                className="field-input"
+                className="form-input"
                 type="tel"
                 placeholder="06 …"
                 value={clientPhone}
                 onChange={(e) => setClientPhone(e.target.value)}
               />
-            </div>
-          </div>
-
-          <p className="eyebrow field-label">Adresse</p>
+            </FormRow>
+            <FormRow label="Adresse">
           <input
-            className="field-input"
+            className="form-input"
             type="text"
             placeholder="Adresse"
             autoComplete="off"
@@ -392,6 +390,8 @@ export function AppointmentForm({
               window.setTimeout(() => setAddrOpen(false), 150)
             }}
           />
+            </FormRow>
+          </FormGroup>
           {addrOpen && addrResults.length > 0 && (
             // Liste EN FLUX (pas de dropdown absolu : le corps de la sheet
             // défile, un overlay serait rogné) — même style que la carte.
@@ -423,14 +423,15 @@ export function AppointmentForm({
 
           {!isTache && (
             <>
-              <p className="eyebrow field-label">Note du RDV</p>
-              <textarea
-                className="field-input"
-                rows={2}
-                placeholder="Ex : sonner 2 fois, passer par l’arrière, devis à préparer…"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
+              <FormGroup title="Note du RDV">
+                <textarea
+                  className="form-input"
+                  rows={2}
+                  placeholder="Ex : sonner 2 fois, passer par l’arrière, devis à préparer…"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </FormGroup>
             </>
           )}
 

@@ -3,6 +3,7 @@ import { Drawer } from 'vaul'
 import { toast } from 'sonner'
 import { celebrate } from '../lib/celebrate'
 import { X, Trash2, Clock, User, MapPin, Phone, CalendarPlus } from 'lucide-react'
+import { FormRow } from './ui/Form'
 import {
   getPointDetail,
   fetchPointNotes,
@@ -526,40 +527,45 @@ export function PointDetailSheet({
               </div>
               {/* Nom + téléphone côte à côte (audit UX B10) : le « voilà mon
                   06 » d'un « à revoir » a enfin sa place hors note libre. */}
-              <div className="field-grid">
-                <input
-                  className="field-input"
-                  type="text"
-                  placeholder="Nom (facultatif)"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  disabled={readOnlyPoint}
-                />
-                <input
-                  className="field-input"
-                  type="tel"
-                  placeholder="06 …"
-                  value={clientPhone}
-                  onChange={(e) => setClientPhone(e.target.value)}
-                  disabled={readOnlyPoint}
-                />
-              </div>
+              {/* Bloc façon Réglages iOS (chantier design 24/09) : nom,
+                  téléphone et relance dans UN groupe. */}
+              <div className="form-group">
+                <FormRow label="Nom">
+                  <input
+                    className="form-input"
+                    type="text"
+                    placeholder="Nom (facultatif)"
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    disabled={readOnlyPoint}
+                  />
+                </FormRow>
+                <FormRow label="Téléphone">
+                  <input
+                    className="form-input"
+                    type="tel"
+                    placeholder="06 …"
+                    value={clientPhone}
+                    onChange={(e) => setClientPhone(e.target.value)}
+                    disabled={readOnlyPoint}
+                  />
+                </FormRow>
               {/* Date de relance DANS la section client (retour briac 25/07),
                   sans presets — le champ date natif suffit. Visible aussi pour
                   « RDV pris » (12/08) : la relance J+7 d'un « En attente »
                   se lit et s'ajuste ici. */}
               {(status === 'a_revoir' || status === 'rdv_pris') && (
-                <>
-                  <p className="eyebrow field-label">Revoir le</p>
+                <FormRow label="Revoir le">
                   <input
-                    className="field-input"
+                    className="form-input"
                     type="date"
                     value={revisitAt}
                     onChange={(e) => setRevisitAt(e.target.value)}
                     disabled={readOnlyPoint}
                   />
-                </>
+                </FormRow>
               )}
+              </div>
             </>
           )}
 
@@ -630,17 +636,19 @@ export function PointDetailSheet({
               ))}
             </ul>
           )}
-          <textarea
-            className="field-input"
-            placeholder={
-              shownNotes.length
-                ? 'Ajouter une note (la précédente est conservée)…'
-                : 'Ex : repasser en soirée, portail bleu…'
-            }
-            value={newNote}
-            onChange={(e) => setNewNote(e.target.value)}
-            rows={2}
-          />
+          <div className="form-group">
+            <textarea
+              className="form-input"
+              placeholder={
+                shownNotes.length
+                  ? 'Ajouter une note (la précédente est conservée)…'
+                  : 'Ex : repasser en soirée, portail bleu…'
+              }
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              rows={2}
+            />
+          </div>
 
           {/* Statut COMPACT (réorganisation briac 25/07) : posé à la pose, il
               change rarement à la réouverture — les 6 chips ne s'affichent

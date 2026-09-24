@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
 import { MapPin, X } from 'lucide-react'
+import { FormGroup, FormRow } from './ui/Form'
 import { searchAddresses, type AddressResult } from './AddressSearch'
 import { TIME_SLOTS } from './AppointmentForm'
 import { findPointByAddress, insertPoint } from '../data/points'
@@ -209,9 +210,9 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
           </div>
 
           <div className="drawer-body" data-vaul-no-drag>
-            <p className="eyebrow field-label">Adresse</p>
+            <FormGroup title="Maison">
             <input
-              className="field-input"
+              className="form-input form-input-solo"
               type="text"
               placeholder="Adresse de la maison…"
               value={address}
@@ -225,6 +226,7 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
                 window.setTimeout(() => setAddrOpen(false), 150)
               }}
             />
+            </FormGroup>
             {addrOpen && addrResults.length > 0 && (
               // Liste EN FLUX (pas de dropdown absolu — même raison que le
               // formulaire RDV : le corps de la sheet défile).
@@ -251,10 +253,10 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
             )}
 
             {secretaire && (
-              <>
-                <p className="eyebrow field-label">Pour quel commercial</p>
+              <FormGroup hint="Le contact et son RDV appartiendront à ce commercial (sa carte, ses stats).">
+                <FormRow label="Commercial" select>
                 <select
-                  className="field-input"
+                  className="form-input"
                   value={ownerId}
                   onChange={(e) => setOwnerId(e.target.value)}
                 >
@@ -267,13 +269,11 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
                     </option>
                   ))}
                 </select>
-                <p className="field-hint">
-                  Le contact et son RDV appartiendront à ce commercial (sa carte, ses stats).
-                </p>
-              </>
+                </FormRow>
+              </FormGroup>
             )}
 
-            <p className="eyebrow field-label">Statut</p>
+            <p className="eyebrow form-section-title form-section-title-solo">Statut</p>
             {/* « Client » (fusion 29/07, valeur `ancien_client` — jamais une
                 vente au tunnel) : ressaisir les maisons déjà vendues depuis
                 le canapé — ni RDV ni relance, juste les coordonnées. */}
@@ -292,56 +292,53 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
               ))}
             </div>
 
-            <div className="field-grid">
-              <div>
-                <p className="eyebrow field-label">Client</p>
+            <FormGroup title="Client">
+              <FormRow label="Nom">
                 <input
-                  className="field-input"
+                  className="form-input"
                   type="text"
                   placeholder="Nom (facultatif)"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
-              </div>
-              <div>
-                <p className="eyebrow field-label">Téléphone</p>
+              </FormRow>
+              <FormRow label="Téléphone">
                 <input
-                  className="field-input"
+                  className="form-input"
                   type="tel"
                   placeholder="06…"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                 />
-              </div>
-            </div>
+              </FormRow>
+            </FormGroup>
 
             {status === 'a_revoir' && (
-              <>
-                <p className="eyebrow field-label">Revoir le</p>
-                <input
-                  className="field-input"
-                  type="date"
-                  value={revisitAt}
-                  onChange={(e) => setRevisitAt(e.target.value)}
-                />
-              </>
+              <FormGroup title="Relance">
+                <FormRow label="Revoir le">
+                  <input
+                    className="form-input"
+                    type="date"
+                    value={revisitAt}
+                    onChange={(e) => setRevisitAt(e.target.value)}
+                  />
+                </FormRow>
+              </FormGroup>
             )}
 
             {status === 'rdv_pris' && (
-              <div className="field-grid">
-                <div>
-                  <p className="eyebrow field-label">RDV le</p>
+              <FormGroup title="Rendez-vous">
+                <FormRow label="Date">
                   <input
-                    className="field-input"
+                    className="form-input"
                     type="date"
                     value={rdvDate}
                     onChange={(e) => setRdvDate(e.target.value)}
                   />
-                </div>
-                <div>
-                  <p className="eyebrow field-label">Heure</p>
+                </FormRow>
+                <FormRow label="Heure" select>
                   <select
-                    className="field-input"
+                    className="form-input"
                     value={rdvTime}
                     onChange={(e) => setRdvTime(e.target.value)}
                   >
@@ -351,18 +348,19 @@ export function ContactForm({ profile, onOpenChange, onCreated, onShowOnMap }: P
                       </option>
                     ))}
                   </select>
-                </div>
-              </div>
+                </FormRow>
+              </FormGroup>
             )}
 
-            <p className="eyebrow field-label">Note</p>
-            <textarea
-              className="field-input"
-              rows={2}
-              placeholder="Contexte, consigne… (facultatif)"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
+            <FormGroup title="Note">
+              <textarea
+                className="form-input"
+                rows={2}
+                placeholder="Contexte, consigne… (facultatif)"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </FormGroup>
 
             <div className="drawer-footer">
               <button type="button" className="btn btn-ghost" onClick={() => onOpenChange(false)}>

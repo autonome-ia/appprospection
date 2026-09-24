@@ -103,3 +103,9 @@
 .row-action-danger svg {
   color: var(--danger);
 }
+/* « Fait » (tâche) et « Replanifier » vivent aussi dans .appt-outcomes mais
+   ne sont PAS des issues : taille naturelle, pas étirés sur la rangée. */
+.appt-outcomes .outcome-btn:not([data-outcome]) {
+  flex: 0 0 auto;
+  padding: 10px 16px;
+}

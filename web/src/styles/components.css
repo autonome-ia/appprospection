@@ -335,3 +335,108 @@
 .roof3d-full .roof3d-legend {
   justify-content: center;
 }
+
+/* --- Formulaires façon Réglages iOS (components/ui/Form.tsx, 24/09) --- */
+.form-section {
+  margin-top: 18px;
+}
+.form-section:first-child {
+  margin-top: 4px;
+}
+.form-section-title {
+  margin: 0 4px 7px;
+}
+.form-group {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.form-group:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.form-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 14px;
+}
+.form-row + .form-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 14px;
+  right: 0;
+  border-top: 1px solid var(--line);
+}
+.form-row-label {
+  flex: 0 0 92px;
+  font-size: 15px;
+  color: var(--ink-2);
+}
+.form-row-control {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.form-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 13px 0;
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.form-input::placeholder {
+  color: var(--ink-3);
+}
+/* iOS centre la valeur d'un champ date : on l'aligne comme le reste. */
+.form-input::-webkit-date-and-time-value {
+  text-align: left;
+}
+.form-row.is-select .form-input {
+  padding-right: 22px;
+}
+.form-row-chevron {
+  position: absolute;
+  right: 0;
+  color: var(--ink-3);
+  pointer-events: none;
+}
+/* Zone de texte : pleine largeur, sans label de ligne (le titre du bloc). */
+textarea.form-input {
+  padding: 12px 14px;
+  resize: none;
+  line-height: 1.45;
+}
+.form-section .form-address-results {
+  margin-top: 6px;
+}
+/* Champ seul dans son bloc (adresse) : marge intérieure de ligne. */
+.form-input-solo {
+  padding: 13px 14px;
+}
+.form-section-title-solo {
+  margin-top: 18px;
+}
+.form-input:disabled {
+  color: var(--ink-2);
+  -webkit-text-fill-color: var(--ink-2);
+  opacity: 1;
+}
+/* Historique des notes au-dessus du champ : un peu d'air avant le bloc. */
+.note-history + .form-group {
+  margin-top: 8px;
+}
