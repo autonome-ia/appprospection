@@ -91,9 +91,11 @@ export function ProfileSheet({
                 </button>
               )}
               {session && (
+                // Action, pas navigation (audit design 24/09) : ni chevron, ni
+                // air de ligne de menu — rouge et à part, en bas.
                 <button
                   type="button"
-                  className="row-action"
+                  className="row-action row-action-danger"
                   onClick={() => {
                     onOpenChange(false)
                     void signOut()
@@ -101,7 +103,6 @@ export function ProfileSheet({
                 >
                   <LogOut size={18} strokeWidth={1.8} />
                   <span>Se déconnecter</span>
-                  <ChevronRight size={17} strokeWidth={1.8} className="row-chevron" />
                 </button>
               )}
             </div>

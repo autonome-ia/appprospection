@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
-import { Check, Copy, RefreshCw, Share2, X, CheckSquare, Square } from 'lucide-react'
+import { Check, Copy, RefreshCw, Share2, X } from 'lucide-react'
 import {
   fetchOrgProfiles,
   updateStatsVisible,
@@ -305,25 +305,22 @@ export function TeamSheet({
 
             {/* --- Visibilité du manager dans les stats (db/0023) --- */}
             {isManager && meRow && (
+              // Interrupteur iOS (chantier design 24/09) : la case à cocher
+              // Lucide ne se lisait pas comme un réglage ; aide ramenée à une ligne.
               <button
                 type="button"
                 className={`team-check ${meRow.stats_visible ? 'is-on' : ''}`}
                 onClick={() => void toggleStatsVisible()}
                 disabled={busy}
-                role="checkbox"
+                role="switch"
                 aria-checked={meRow.stats_visible}
               >
-                {meRow.stats_visible ? (
-                  <CheckSquare size={20} strokeWidth={2} />
-                ) : (
-                  <Square size={20} strokeWidth={1.8} />
-                )}
                 <span className="team-check-texts">
-                  <span className="team-check-label">M’afficher dans les stats de l’équipe</span>
-                  <span className="team-check-hint">
-                    Décoché : tes chiffres comptent dans les totaux, mais ton nom n’apparaît pas
-                    au classement des commerciaux et chefs des ventes. Toi, tu vois tout le monde.
-                  </span>
+                  <span className="team-check-label">M’afficher au classement</span>
+                  <span className="team-check-hint">Tes chiffres comptent toujours dans les totaux.</span>
+                </span>
+                <span className="switch" aria-hidden="true">
+                  <span className="switch-thumb" />
                 </span>
               </button>
             )}
