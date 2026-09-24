@@ -44,6 +44,8 @@ import { colorForCommercial } from '../domain/colors'
 import { ProfileSheet } from './ProfileSheet'
 import { isSecretaireRole, isSupervisorRole, type MapPoint, type Profile } from '../domain/types'
 import { Segmented } from './ui/Segmented'
+import { motion } from 'motion/react'
+import { EASE_OUT } from '../lib/motion'
 
 function fmt(iso: string, timeOnly = false): string {
   return new Intl.DateTimeFormat(
@@ -739,8 +741,14 @@ export function AgendaScreen({
   const monthLabel = capitalize(
     new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(monthDate),
   )
-  const shiftMonth = (delta: number) =>
+  // Sens de la dernière navigation : la nouvelle période entre du côté d'où
+  // vient le doigt (chantier design 24/09). 0 = pas encore navigué (aucune
+  // animation au premier affichage).
+  const [navDir, setNavDir] = useState(0)
+  const shiftMonth = (delta: number) => {
+    setNavDir(delta)
     setMonthDate(new Date(monthDate.getFullYear(), monthDate.getMonth() + delta, 1))
+  }
 
   // Vue Semaine : 7 jours à partir du lundi affiché.
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -756,10 +764,38 @@ export function AgendaScreen({
       ? `${weekDate.getDate()} - ${fmtDM(weekEnd)}`
       : `${fmtDM(weekDate)} - ${fmtDM(weekEnd)}`
   const shiftWeek = (delta: number) => {
+    setNavDir(delta)
     const d = new Date(weekDate)
     d.setDate(weekDate.getDate() + delta * 7)
     setWeekDate(d)
   }
+  // Balayage horizontal sur la grille = période suivante / précédente
+  // (geste natif des calendriers iOS). Seuils : ≥ 50 px, nettement plus
+  // horizontal que vertical, en moins de 600 ms — un tap ou un défilement
+  // vertical ne déclenche rien.
+  const swipeStart = useRef<{ x: number; y: number; t: number } | null>(null)
+  const swipe = {
+    onTouchStart: (e: React.TouchEvent) => {
+      const t = e.touches[0]
+      swipeStart.current = { x: t.clientX, y: t.clientY, t: Date.now() }
+    },
+    onTouchEnd: (e: React.TouchEvent) => {
+      const st = swipeStart.current
+      swipeStart.current = null
+      if (!st) return
+      const t = e.changedTouches[0]
+      const dx = t.clientX - st.x
+      const dy = t.clientY - st.y
+      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5 || Date.now() - st.t > 600) return
+      const delta = dx < 0 ? 1 : -1
+      if (calMode === 'mois') shiftMonth(delta)
+      else shiftWeek(delta)
+    },
+  }
+  const periodEnter = navDir
+    ? { x: navDir * 28, opacity: 0 }
+    : false
+  const periodShow = { x: 0, opacity: 1, transition: { duration: 0.26, ease: EASE_OUT } }
   const onCurrentPeriod =
     calMode === 'mois'
       ? monthDate.getMonth() === today.getMonth() && monthDate.getFullYear() === today.getFullYear()
@@ -1024,7 +1060,13 @@ export function AgendaScreen({
           /* Une rangée par jour : heure mono + pilule entière (couleur =
              commercial, pastille = type — même langage que le mois). Tap
              n'importe où sur le jour = la même sheet que le mois. */
-          <div className="week-list">
+          <motion.div
+            key={dateKey(weekDate)}
+            className="week-list"
+            initial={periodEnter}
+            animate={periodShow}
+            {...swipe}
+          >
             {weekDays.map((d) => {
               const k = dateKey(d)
               const dayAppts = (byDay[k] ?? []).sort((a, b) =>
@@ -1093,7 +1135,7 @@ export function AgendaScreen({
                 </button>
               )
             })}
-          </div>
+          </motion.div>
         )}
 
         {calMode === 'mois' && (
@@ -1104,7 +1146,13 @@ export function AgendaScreen({
           ))}
         </div>
 
-        <div className="cal-grid">
+        <motion.div
+          key={dateKey(monthDate)}
+          className="cal-grid"
+          initial={periodEnter}
+          animate={periodShow}
+          {...swipe}
+        >
           {cells.map((d) => {
             const dayAppts = (byDay[dateKey(d)] ?? []).sort((a, b) =>
               a.scheduled_at.localeCompare(b.scheduled_at),
@@ -1182,7 +1230,7 @@ export function AgendaScreen({
               </button>
             )
           })}
-        </div>
+        </motion.div>
         </>
         )}
       </div>
