@@ -44,6 +44,7 @@ import { colorForCommercial } from '../domain/colors'
 import { ProfileSheet } from './ProfileSheet'
 import { isSecretaireRole, isSupervisorRole, type MapPoint, type Profile } from '../domain/types'
 import { Segmented } from './ui/Segmented'
+import { hhmm, relativeDay } from '../lib/relative-day'
 import { motion } from 'motion/react'
 import { EASE_OUT } from '../lib/motion'
 
@@ -55,10 +56,6 @@ function fmt(iso: string, timeOnly = false): string {
       : { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' },
   ).format(new Date(iso))
 }
-
-/** Date seule (échéance de relance dans la liste Contacts). */
-const fmtDateOnly = (iso: string) =>
-  new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(new Date(iso))
 
 /** Nom affichable d'un commercial : jamais l'email brut (audit UX A11). */
 function displayName(p: OrgProfile | undefined): string {
@@ -910,30 +907,45 @@ export function AgendaScreen({
               </p>
             </div>
           ) : (
-            shownContacts.map(({ p }) => {
+            // Liste GROUPÉE façon Réglages iOS (audit design 24/09) : un bloc,
+            // des filets entre les lignes, au lieu d'une pile de cartes. La
+            // pastille dit le statut ; le sous-titre, l'adresse seule.
+            <div className="list-group">
+            {shownContacts.map(({ p }) => {
               const status = STATUS_BY_VALUE[p.status]
               const rdv = p.status === 'rdv_pris' ? nextRdvByPoint[p.id] : undefined
+              const revisit = p.revisit_at ? new Date(p.revisit_at) : null
               return (
                 <button
                   key={p.id}
                   type="button"
-                  className="home-row"
+                  className="home-row list-row"
                   onClick={() => setContactOpen(p)}
                 >
-                  <span className="status-dot" style={{ background: status.color }} />
+                  <span
+                    className="status-dot"
+                    style={{ background: status.color }}
+                    aria-label={status.label}
+                  />
                   <span className="home-row-main">
                     <span className="home-row-title">{p.client_name ?? p.address ?? 'Contact'}</span>
-                    <span className="home-row-sub">
-                      {p.client_name && p.address ? `${p.address} · ` : ''}
-                      {status.label}
+                    <span className="home-row-sub">{p.client_name ? (p.address ?? status.label) : status.label}</span>
+                  </span>
+                  {rdv ? (
+                    <span className="home-row-when">
+                      {relativeDay(new Date(rdv.scheduled_at))} ·{' '}
+                      <span className="tnum">{hhmm(new Date(rdv.scheduled_at))}</span>
                     </span>
-                  </span>
-                  <span className="home-row-when tnum">
-                    {rdv ? fmt(rdv.scheduled_at) : p.revisit_at ? fmtDateOnly(p.revisit_at) : ''}
-                  </span>
+                  ) : revisit ? (
+                    <span className="home-row-when">{relativeDay(revisit)}</span>
+                  ) : p.status === 'rdv_pris' ? (
+                    // RDV pris sans RDV en agenda : le trou silencieux, dit.
+                    <span className="home-row-when is-warn">À planifier</span>
+                  ) : null}
                 </button>
               )
-            })
+            })}
+            </div>
           )}
         </section>
       )}

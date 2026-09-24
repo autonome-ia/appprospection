@@ -3552,3 +3552,41 @@ select.field-input {
   color: var(--ink-3) !important;
   font-weight: 500;
 }
+
+/* Liste groupée façon Réglages iOS (Contacts — audit design 24/09) : un
+   seul bloc, filets entre les lignes décalés après la pastille. */
+.list-group {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.list-group .list-row {
+  position: relative;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  padding: 12px 14px;
+  align-items: center;
+}
+.list-group .list-row + .list-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 34px;
+  right: 0;
+  border-top: 1px solid var(--line);
+}
+.list-group .list-row:active {
+  scale: 1;
+  background: var(--surface-2);
+}
+.home-row-when {
+  white-space: nowrap;
+}
+.home-row-when.is-warn {
+  color: var(--st-revoir);
+  font-weight: 600;
+}

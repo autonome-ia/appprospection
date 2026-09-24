@@ -3,6 +3,7 @@ import { Drawer } from 'vaul'
 import { AnimatePresence, motion } from 'motion/react'
 import { EASE_OUT, SPRING_SMOOTH } from '../lib/motion'
 import { toast } from 'sonner'
+import { hhmm, relativeDay } from '../lib/relative-day'
 import { celebrate } from '../lib/celebrate'
 import { CalendarClock, X } from 'lucide-react'
 import { fetchPendingOutcomes, setAppointmentOutcome } from '../data/appointments'
@@ -27,17 +28,6 @@ import type { Profile } from '../domain/types'
 // -----------------------------------------------------------------------------
 
 const DAY_KEY = 'rdv-solder-jour'
-
-const fmtWhen = (iso: string) => {
-  const d = new Date(iso)
-  const day = new Intl.DateTimeFormat('fr-FR', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  }).format(d)
-  const time = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(d)
-  return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time}`
-}
 
 export function PendingOutcomes({ profile }: { profile: Profile }) {
   const [list, setList] = useState<Appointment[]>([])
@@ -130,7 +120,8 @@ export function PendingOutcomes({ profile }: { profile: Profile }) {
               >
                 <span className="pending-when">
                   <CalendarClock size={14} strokeWidth={2} />
-                  <span className="tnum">{fmtWhen(a.scheduled_at)}</span>
+                  {relativeDay(new Date(a.scheduled_at))} ·{' '}
+                  <span className="tnum">{hhmm(new Date(a.scheduled_at))}</span>
                 </span>
                 <span className="pending-title">
                   {a.client_name ?? a.address ?? 'Rendez-vous'}
