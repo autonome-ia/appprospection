@@ -22,7 +22,13 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
-const OUT = resolve(root, 'screenshoots', 'guide')
+// Mode référence du chantier design (24/09) : REF=avant|apres [THEME=dark]
+// → screenshoots/design/<REF>-<clair|sombre>/, sans halos.
+const REF = process.env.REF
+const DARK = process.env.THEME === 'dark'
+const OUT = REF
+  ? resolve(root, 'screenshoots', 'design', `${REF}-${DARK ? 'sombre' : 'clair'}`)
+  : resolve(root, 'screenshoots', 'guide')
 const BASE = process.env.BASE_URL ?? 'http://localhost:5173'
 const PROBE = process.argv.includes('--probe')
 
@@ -68,6 +74,7 @@ const ctx = await browser.newContext({
   timezoneId: 'Europe/Paris',
 })
 const page = await ctx.newPage()
+if (DARK) await page.addInitScript(() => localStorage.setItem('theme', 'dark'))
 const VP = page.viewportSize()
 const CX = Math.round(VP.width / 2)
 const CY = Math.round(VP.height / 2)
@@ -81,7 +88,7 @@ const shot = async (name) => {
 
 /** Halo orange DA sur la cible d'une étape : anneau injecté sur l'élément réel. */
 const halo = (locator) =>
-  locator.evaluate((el) => {
+  REF ? Promise.resolve() : locator.evaluate((el) => {
     el.style.outline = '3px solid #f54e00'
     el.style.outlineOffset = '2px'
   })
