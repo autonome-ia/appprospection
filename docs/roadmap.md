@@ -381,6 +381,19 @@ phrase, halo orange sur la cible).
   migration/déploiement est indifférent). **`db/0022_profil_support.sql` À EXÉCUTER en prod**
   (démo optionnelle).
 
+## CHANTIER DESIGN « next level » (ouvert le 24/09/2026 — plan : `docs/plan-chantier-design.md`)
+Concept validé par le directeur régional de Mister Toiture (présentation d'Alexis). Cible : qualité
+« Apple », animations, effet wow. DA évolutive sur planches, parcours retouchables, 4 onglets gardés.
+- [x] **Phase 0a : skills** — Emil Kowalski (apple-design, emil-design-eng, mobile-native,
+  review-animations) + Jakub Krehel (make-interfaces-feel-better) dans `.claude/skills/`,
+  `frontend-design` désactivé pour le projet.
+- [ ] Phase 0b : captures « avant » de tous les écrans (clair + sombre)
+- [ ] Phase 1 : audit « écart Apple » + comptage des taps des 3 parcours clés
+- [ ] Phase 2 : fondations (tokens de mouvement, primitives, découpage App.css)
+- [ ] Phase 3 : écran par écran (Carte + fiches, Agenda, Accueil, Stats)
+- [ ] Phase 4 : moments « wow »
+- [ ] Phase 5 : recette (perf, reduced-motion, a11y, terrain)
+
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)
 - Carnet de contacts / mini-CRM (clients à rappeler, R2)
