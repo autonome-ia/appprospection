@@ -21,6 +21,7 @@ import { createLazPerf } from 'laz-perf'
 import lazPerfWasmUrl from 'laz-perf/lib/web/laz-perf.wasm?url'
 import { supabase } from '../lib/supabase'
 import { fetchRetry, type RetryOptions } from './net'
+import { lidarKey, publishLidarPoints, publishLidarProgress, resetLidarProgress } from './lidar-progress'
 import {
   CELL,
   closeCells,
@@ -741,11 +742,48 @@ interface RoofPoints {
   horsCouverture: boolean
 }
 
+/**
+ * Avancement : points « bâtiment » d'un nœud qui vient d'arriver, projetés en
+ * lon/lat pour le balayage de la carte. Même filtre que la collecte, mais
+ * calculé À PART : l'ordre des points de la mesure (RANSAC déterministe)
+ * reste strictement celui d'avant.
+ */
+function reportNode(
+  key: string,
+  arr: Float64Array,
+  ring: Ring,
+  neighbors: Ring[],
+  annexes: Ring[],
+  bb: Bbox,
+): void {
+  const coords: number[] = []
+  let count = 0
+  for (let i = 0; i < arr.length; i += 4) {
+    if (arr[i + 3] !== 6) continue
+    const x = arr[i]
+    const y = arr[i + 1]
+    if (x < bb.minx || x > bb.maxx || y < bb.miny || y > bb.maxy) continue
+    const inside =
+      pointInRing(x, y, ring) ||
+      distToRing(x, y, ring) <= BUFFER_M ||
+      annexes.some((a) => pointInRing(x, y, a) || distToRing(x, y, a) <= BUFFER_M)
+    if (!inside || neighbors.some((nr) => pointInRing(x, y, nr))) continue
+    count++
+    // Un point sur deux suffit à l'œil (et divise la projection par deux).
+    if (count % 2 === 0) {
+      const [lng, lat] = fromL93(x, y)
+      coords.push(lng, lat)
+    }
+  }
+  publishLidarPoints(key, count, new Float64Array(coords))
+}
+
 /** Points « bâtiment » (classe 6) dans le polygone bufferisé, toutes dalles. */
 async function collectRoofPoints(
   ring: Ring,
   neighbors: Ring[],
   annexes: Ring[] = [],
+  progressKey: string | null = null,
 ): Promise<RoofPoints> {
   const xs = [ring, ...annexes].flat().map((p) => p[0])
   const ys = [ring, ...annexes].flat().map((p) => p[1])
@@ -764,6 +802,9 @@ async function collectRoofPoints(
     edition: null,
     horsCouverture: false,
   }
+  // L'ouverture du fichier (index de dalle) prend déjà quelques secondes :
+  // la fiche annonce la lecture du nuage dès maintenant.
+  if (progressKey) publishLidarProgress(progressKey, { stage: 'nuage' })
   const dalles = await dallesFor(bb)
   if (!dalles.length) return { ...empty, horsCouverture: true }
   // Maison à cheval sur 2 dalles d'acquisitions différentes : afficher le
@@ -784,6 +825,7 @@ async function collectRoofPoints(
 
   const pts: Pt[] = []
   const pts67: Pt[] = []
+  let nodesTotal = 0
   // Végétation haute : cellules de la grille (0,5 m) touchées par la classe 5
   // dans l'emprise — GRATUIT, l'attribut Classification est déjà décodé.
   const vegCells = new Set<string>()
@@ -791,8 +833,14 @@ async function collectRoofPoints(
     const d = await getDalleIndex(url)
     const cube = d.copc.info.cube
     const wanted = [...d.nodes.keys()].filter((key) => intersects(nodeBounds(cube, key), bb))
+    nodesTotal += wanted.length
+    if (progressKey) publishLidarProgress(progressKey, { stage: 'nuage', nodesTotal })
     const arrays = await pAll(
-      wanted.map((key) => () => loadNodeUseful(d, url, key)),
+      wanted.map((key) => async () => {
+        const arr = await loadNodeUseful(d, url, key)
+        if (progressKey) reportNode(progressKey, arr, ring, neighbors, annexes, bb)
+        return arr
+      }),
       4,
     )
     for (const arr of arrays) {
@@ -837,7 +885,10 @@ async function collectRoofPoints(
 // et par agence : le tap suivant sur la même maison, par n'importe quel
 // membre, s'affiche sans rappeler l'IGN. Repli silencieux tant que la
 // migration n'est pas exécutée (table absente -> on n'insiste plus).
-let roofCacheOff = !supabase
+// `?lidar-nocache` (dev uniquement) : ignore le cache en base pour filmer /
+// sonder une VRAIE mesure sur une maison déjà mesurée.
+let roofCacheOff =
+  !supabase || (import.meta.env.DEV && typeof location !== 'undefined' && location.search.includes('lidar-nocache'))
 
 interface RoofCacheRow {
   version: number
@@ -981,14 +1032,17 @@ export async function prewarmAround(lng: number, lat: number): Promise<void> {
 
 // --- Orchestration ----------------------------------------------------------------
 
-async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
+async function computeLidar(lng: number, lat: number, key: string): Promise<LidarResult> {
   // Cache par bâtiment (db/0026), 1er niveau : tap DANS une emprise déjà
   // mesurée -> aucune requête IGN. Le WFS bâtiment part en parallèle : en
   // cas d'absence, pas d'aller-retour perdu.
   const buildingP = fetchBuildingAndNeighbors(lng, lat)
   buildingP.catch(() => {}) // consommée plus bas ; évite un rejet orphelin
   const byPoint = await roofCacheByPoint(lng, lat)
-  if (byPoint) return byPoint
+  if (byPoint) {
+    publishLidarProgress(key, { stage: 'cache' })
+    return byPoint
+  }
   const found = await buildingP
   if (!found) {
     return emptyResult('no_data', null, { motif: 'sans_batiment' })
@@ -996,14 +1050,24 @@ async function computeLidar(lng: number, lat: number): Promise<LidarResult> {
   // 2e niveau : tap à côté de l'emprise (jardin, trottoir) -> par clé.
   if (found.key) {
     const byKey = await roofCacheByKey(found.key)
-    if (byKey) return byKey
+    if (byKey) {
+      publishLidarProgress(key, { stage: 'cache' })
+      return byKey
+    }
   }
-  const result = await measureBuilding(await withAnnexes(found))
+  publishLidarProgress(key, {
+    stage: 'batiment',
+    emprise: found.ring.map(([x, y]) => roundLL(fromL93(x, y))),
+  })
+  const result = await measureBuilding(await withAnnexes(found), key)
   void roofCacheStore(found, result)
   return result
 }
 
-async function measureBuilding(building: BuildingInfo): Promise<LidarResult> {
+async function measureBuilding(
+  building: BuildingInfo,
+  progressKey: string | null = null,
+): Promise<LidarResult> {
   const emprise = ringArea(building.ring)
   // Verdict grand_batiment CROISÉ (v18) : le seuil d'emprise seul condamnait
   // à tort les grandes longères et maisons cossues (lesneven-1 : 496 m²
@@ -1025,7 +1089,7 @@ async function measureBuilding(building: BuildingInfo): Promise<LidarResult> {
   // ou classification pauvre. (Le court-circuit séquentiel a été écarté :
   // payer un aller-retour sur TOUTES les mesures pour un cas rare.)
   const [collected, mnhMax] = await Promise.all([
-    collectRoofPoints(building.ring, building.neighbors, building.annexes),
+    collectRoofPoints(building.ring, building.neighbors, building.annexes, progressKey),
     fetchMnhMax(building.ring),
   ])
   if (collected.horsCouverture) {
@@ -1065,6 +1129,10 @@ async function measureBuilding(building: BuildingInfo): Promise<LidarResult> {
     return emptyResult('no_data', collected.millesime, { ...baseDiag, motif })
   }
   const millesime = collected.millesime
+  if (progressKey) publishLidarProgress(progressKey, { stage: 'pans' })
+  // Un tour de boucle : la fiche peint « pans » avant le calcul (≈ 0,1-0,5 s
+  // de CPU qui bloque le fil principal).
+  await new Promise((res) => setTimeout(res, 0))
   const m = measureRoof(pts, building.ring)
   const statut: LidarStatut =
     secours67 || m.coverage < MIN_COVERAGE ? 'faible_confiance' : 'ok'
@@ -1185,6 +1253,8 @@ async function measureBuilding(building: BuildingInfo): Promise<LidarResult> {
 }
 
 async function computeSafe(lng: number, lat: number): Promise<LidarResult> {
+  const key = lidarKey(lng, lat)
+  resetLidarProgress(key)
   let timer: ReturnType<typeof setTimeout> | undefined
   measuring++
   try {
@@ -1194,9 +1264,12 @@ async function computeSafe(lng: number, lat: number): Promise<LidarResult> {
         MEASURE_TIMEOUT_MS,
       )
     })
-    return await Promise.race([computeLidar(lng, lat), deadline])
+    const r = await Promise.race([computeLidar(lng, lat, key), deadline])
+    publishLidarProgress(key, { stage: r.toit_lidar_statut === 'error' ? 'erreur' : 'fini' })
+    return r
   } catch (e) {
     console.error('Mesure LiDAR :', e)
+    publishLidarProgress(key, { stage: 'erreur' })
     return emptyResult('error', null, null)
   } finally {
     measuring--
@@ -1210,7 +1283,7 @@ const coordCache = new Map<string, Promise<LidarResult>>()
 
 /** Mesure de la toiture d'une maison consultée (sans point posé, sans écriture). */
 export function fetchHouseLidar(lng: number, lat: number): Promise<LidarResult> {
-  const key = `${lng.toFixed(5)},${lat.toFixed(5)}`
+  const key = lidarKey(lng, lat)
   const hit = coordCache.get(key)
   if (hit) return hit
   const p = computeSafe(lng, lat)

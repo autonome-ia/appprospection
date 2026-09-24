@@ -97,8 +97,10 @@ async function waitVerdict() {
     // Un seul instantané du texte par tour : pas de course entre deux lectures.
     const txt = (await sheet.innerText().catch(() => '')) || ''
     if (/Toiture mesurée/.test(txt)) return 'ok'
-    if (i > 12 && !/mesure du toit/i.test(txt)) {
-      return /mesure laser indisponible/.test(txt) ? 'indisponible' : 'sans-module'
+    // « Mesure laser du toit » (carte de progression, 24/09) ou l'ancienne
+    // pastille « mesure du toit… ».
+    if (i > 12 && !/mesure (laser )?du toit/i.test(txt)) {
+      return /mesure laser indisponible/i.test(txt) ? 'indisponible' : 'sans-module'
     }
     await page.waitForTimeout(250)
   }

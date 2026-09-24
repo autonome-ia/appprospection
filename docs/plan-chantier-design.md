@@ -67,3 +67,13 @@ dont le parcours va changer serait du travail jeté).
 - 24/09 : lots socle + corrections visibles + premiers « wow » livrés sur `design` (détail dans
   la roadmap). À faire valider par briac : bordure du bloc RDV passée de l'accent au bleu
   « RDV pris » (choix briac du 25/07) ; ligne « Prospection » de l'Accueil remplacée par la date.
+- 24/09 (soir) : **chargement de la mesure du toit** (demande briac, prototypes A + B). A = balayage
+  laser sur la photo (`RoofScan`, canvas : emprise voilée d'encre, faisceau, VRAIS points LiDAR
+  qui arrivent, fondu sur les pans colorés) ; B = carte « Mesure laser du toit » (`RoofProgress`)
+  à la place de la pastille, avancement réel publié par `data/lidar-progress.ts`. Variante
+  « ligne » par défaut (hauteur du module final : zéro saut), « étapes » via `?roofui=etapes`
+  (à retirer après choix). Rien n'apparaît avant 400 ms (cache = pas de spectacle). Recadrage
+  carte qui suit la hauteur réelle de la fiche (plafond 70 %). Planches : `node
+  tools/screenshots/film-roof.mjs [ligne|etapes]` (+ `THEME=dark`, `PANNE=1`) →
+  `screenshoots/roof-ui/index.html`. **En attente du choix briac.**
+

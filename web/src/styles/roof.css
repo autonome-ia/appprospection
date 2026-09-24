@@ -528,3 +528,181 @@
   font-weight: 500;
   text-decoration: none;
 }
+
+/* --- Carte « Mesure laser du toit » (chantier design 24/09) -----------------
+   Remplace la pastille « mesure du toit… » : même gabarit que le module
+   « Toiture mesurée » qui prend sa place, avancement RÉEL de la mesure.
+   Encre seule (l'orange reste aux actions : « Réessayer »). */
+.roof-progress {
+  padding-bottom: 12px;
+  animation: roof-progress-in var(--dur-base) var(--ease-out);
+}
+@keyframes roof-progress-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.roof-progress-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 6px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+.roof-progress-head > svg:first-child {
+  color: var(--ink-3);
+}
+/* Le laser « respire » : seule animation continue, lente et discrète. */
+.roof-progress-scan {
+  animation: roof-scan-breathe 1.6s ease-in-out infinite;
+}
+@keyframes roof-scan-breathe {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Variante « étapes » */
+.roof-steps {
+  display: grid;
+  gap: 8px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.roof-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ink-3);
+  transition: color var(--dur-base) ease;
+}
+.roof-steps li.is-active {
+  color: var(--ink);
+  font-weight: 500;
+}
+.roof-steps li.is-done {
+  color: var(--ink-2);
+}
+.roof-step-icon {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  transition:
+    background-color var(--dur-base) ease,
+    border-color var(--dur-base) ease;
+}
+.roof-step-icon.is-done {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+.roof-step-icon.is-done svg {
+  animation: roof-check-in var(--dur-base) var(--ease-out);
+}
+@keyframes roof-check-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+    filter: blur(2px);
+  }
+}
+/* Étape en cours : anneau qui tourne (vite = perçu comme plus rapide). */
+.roof-step-icon.is-active {
+  border-color: var(--line);
+  border-top-color: var(--ink);
+  animation: roof-spin 0.7s linear infinite;
+}
+@keyframes roof-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Variante « ligne » : gabarit EXACT de l'en-tête replié du module (même
+   padding, même ligne) ; la progression court sur le filet du bas. */
+.roof-progress.is-ligne {
+  position: relative;
+  padding-bottom: 4px;
+  overflow: hidden;
+}
+.roof-progress-line {
+  cursor: default;
+}
+.roof-progress-line > svg:first-child {
+  color: var(--ink-3);
+}
+.roof-progress-status {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.roof-progress-status .tnum {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.roof-progress-rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--surface-2);
+}
+.roof-progress-rail span {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  transform-origin: left center;
+  transition: transform 420ms var(--ease-out);
+}
+
+/* Échec réseau */
+.roof-progress.is-failed .roof-progress-head {
+  padding-bottom: 4px;
+}
+.roof-progress-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--surface);
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.roof-progress-retry:active {
+  transform: scale(0.97);
+}
+.roof-progress-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roof-progress,
+  .roof-progress-scan,
+  .roof-step-icon.is-done svg {
+    animation: none;
+  }
+  /* L'étape en cours reste lisible sans rotation. */
+  .roof-step-icon.is-active {
+    animation: none;
+    border-color: var(--ink);
+  }
+}

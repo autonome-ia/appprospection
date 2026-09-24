@@ -26,6 +26,7 @@ import {
 import type { LidarResult } from '../data/lidar'
 import { HouseBadges } from './HouseBadges'
 import { RoofModule } from './RoofModule'
+import { RoofProgress, useLidarProgress } from './RoofProgress'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useSession } from '../lib/session'
 import { markerDataUrl } from '../config/markers'
@@ -131,6 +132,8 @@ export function PointDetailSheet({
   // changement de fiche ne doit pas s'afficher sur un autre point.
   const shownIdRef = useRef<string | null>(null)
   shownIdRef.current = open && point ? point.id : null
+  // Mesure faite sous les yeux (pas le cache) : la surface roule depuis 0.
+  const liveStage = useLidarProgress(point?.lng ?? null, point?.lat ?? null)?.stage
   // Suppression en deux taps (voir remove()).
   const [confirmDelete, setConfirmDelete] = useState(false)
   // RDV liés au point (bloc « Rendez-vous », audit UX B1) — null = pas encore
@@ -607,6 +610,15 @@ export function PointDetailSheet({
         lidarDiag={liveLidar ? liveLidar.toit_lidar_diag : point.toit_lidar_diag}
         hideMeasured={lidarPans !== null}
         onRetryLidar={retryLidar}
+        measureCard
+      />
+
+      <RoofProgress
+        lng={point.lng}
+        lat={point.lat}
+        pending={lidarPending && lidarM2 == null}
+        failed={lidarStatut === 'error'}
+        onRetry={retryLidar}
       />
 
       {lidarPans && (
@@ -619,6 +631,7 @@ export function PointDetailSheet({
           maisonM2={lidarM2}
           totalM2={liveLidar ? liveLidar.toit_lidar_m2 : point.toit_lidar_m2}
           millesime={lidarMillesime}
+          fromZero={liveLidar !== null && liveStage === 'fini'}
         />
       )}
 

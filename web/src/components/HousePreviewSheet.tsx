@@ -5,6 +5,7 @@ import { splitAddress } from '../lib/address'
 import { StatusPicker } from './StatusPicker'
 import { HouseBadges } from './HouseBadges'
 import { RoofModule } from './RoofModule'
+import { RoofProgress, useLidarProgress } from './RoofProgress'
 import type { PointStatus } from '../domain/status'
 import type { HouseInfo } from '../data/enrich'
 import type { LidarResult } from '../data/lidar'
@@ -44,6 +45,8 @@ export function HousePreviewSheet({
   onRetryLidar,
 }: Props) {
   const lidarOk = lidar?.toit_lidar_statut === 'ok'
+  // Mesure faite sous les yeux (pas le cache) : la surface roule depuis 0.
+  const liveStage = useLidarProgress(coords.lng, coords.lat)?.stage
   const hasInfo =
     info !== null &&
     (info.annee_construction !== null ||
@@ -98,6 +101,7 @@ export function HousePreviewSheet({
           lidarDiag={lidar?.toit_lidar_diag}
           hideMeasured={Boolean(lidarOk && lidar.toit_lidar_pans)}
           onRetryLidar={onRetryLidar}
+          measureCard
         />
       ) : (
         <p className="house-loading">Pas d’informations pour ce bâtiment.</p>
@@ -109,6 +113,14 @@ export function HousePreviewSheet({
           statut touché EST la pose — le toast « Annuler » sert de filet. */}
       <p className="eyebrow field-label">Poser un point</p>
       <StatusPicker onChange={onPose} />
+
+      <RoofProgress
+        lng={coords.lng}
+        lat={coords.lat}
+        pending={lidar === null}
+        failed={lidar?.toit_lidar_statut === 'error'}
+        onRetry={onRetryLidar}
+      />
 
       {lidarOk && lidar.toit_lidar_pans && (
         // REPLIÉ comme partout (décision briac 25/07) : quand la mesure
@@ -125,6 +137,7 @@ export function HousePreviewSheet({
           maisonM2={lidar.toit_lidar_principal_m2 || lidar.toit_lidar_m2}
           totalM2={lidar.toit_lidar_m2}
           millesime={lidar.toit_lidar_millesime}
+          fromZero={liveStage === 'fini'}
         />
       )}
 

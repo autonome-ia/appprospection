@@ -57,6 +57,9 @@ interface Props {
   /** Relance la mesure après un échec réseau (statut `error`) : bouton
       « Réessayer » à côté de l'excuse, plutôt que fermer/rouvrir la fiche. */
   onRetryLidar?: () => void
+  /** La carte « Mesure laser du toit » (RoofProgress) porte l'attente et
+      l'échec : ni pastille « mesure du toit… », ni excuse d'erreur ici. */
+  measureCard?: boolean
 }
 
 /** Explication d'une mesure LiDAR absente (verdicts parlants, v18). */
@@ -121,9 +124,10 @@ export function HouseBadges({
   lidarDiag,
   hideMeasured,
   onRetryLidar,
+  measureCard,
 }: Props) {
   const matToit = matToitLabel(matCode)
-  const excuse = lidarExcuse(lidarStatut, lidarDiag)
+  const excuse = measureCard && lidarStatut === 'error' ? null : lidarExcuse(lidarStatut, lidarDiag)
   // Végétation surplombante : argument métier (mousse, gouttières) même
   // quand la mesure réussit.
   const vegBadge =
@@ -195,7 +199,7 @@ export function HouseBadges({
             <Scan size={11} strokeWidth={2} /> {lidarM2} m² · laser
           </Badge>
         )
-      ) : lidarPending ? (
+      ) : lidarPending && !measureCard ? (
         <Badge className="is-pending" info="Mesure de la toiture au laser en cours">
           mesure du toit…
         </Badge>
@@ -210,7 +214,7 @@ export function HouseBadges({
           {excuse.label}
         </Badge>
       )}
-      {lidarStatut === 'error' && onRetryLidar && !lidarPending && (
+      {lidarStatut === 'error' && onRetryLidar && !lidarPending && !measureCard && (
         <button type="button" className="house-badge is-action" onClick={onRetryLidar}>
           <RotateCw size={11} strokeWidth={2} /> Réessayer
         </button>

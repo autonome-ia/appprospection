@@ -32,6 +32,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { EASE_DRAWER, EASE_OUT, SPRING_SMOOTH } from '../lib/motion'
 import { PointDetailSheet } from './PointDetailSheet'
 import { HousePreviewSheet } from './HousePreviewSheet'
+import { RoofScan } from './RoofScan'
 import { fetchPointPans, localDayKey, reverseGeocode } from '../data/points'
 import type { HouseInfo } from '../data/enrich'
 import type { LidarResult } from '../data/lidar'
@@ -86,13 +87,13 @@ const PREVIEW_DELAY = 300
 // Recadrage au-dessus de la sheet : hauteur RÉELLE de la sheet ouverte,
 // mesurée au moment du mouvement — l'ancienne constante 310 datait d'avant
 // l'enrichissement de la fiche (badges, 3D, plan coté) : le point et ses
-// pans de toit étaient recadrés DERRIÈRE la sheet. Plafonné à 60 % du
+// pans de toit étaient recadrés DERRIÈRE la sheet. Plafonné à 70 % du
 // viewport pour garder une bande de carte utile ; 310 reste le plancher
 // (sheet pas encore montée au moment d'un flyTo).
 function sheetPadding(): number {
   const el = document.querySelector('.drawer-content')
   const h = el ? Math.round(el.getBoundingClientRect().height) + 16 : 0
-  return Math.min(Math.max(h, 310), Math.round(window.innerHeight * 0.6))
+  return Math.min(Math.max(h, 310), Math.round(window.innerHeight * 0.7))
 }
 
 const EMPTY_FC: FeatureCollection<Point> = { type: 'FeatureCollection', features: [] }
@@ -1165,15 +1166,49 @@ export function MapView({
     // pouvait pas vérifier QUELLE maison la fiche décrit avant de poser.
     const target = pt ?? housePreview
     if (target) {
-      // rAF : laisse la sheet se monter pour mesurer sa hauteur réelle.
-      const raf = requestAnimationFrame(() => {
+      const frame = () =>
         map.easeTo({
           center: [target.lng, target.lat],
           padding: { top: 0, bottom: sheetPadding(), left: 0, right: 0 },
           duration: 350,
         })
+      // rAF : laisse la sheet se monter pour mesurer sa hauteur réelle.
+      const raf = requestAnimationFrame(frame)
+      // La fiche GRANDIT après l'ouverture (infos maison, statut, mesure du
+      // toit) : on suit sa hauteur réelle — sinon la maison, et le balayage
+      // laser de la mesure, finissaient sous la fiche. Jamais contre le
+      // geste : dès que l'utilisateur touche la carte, on ne recadre plus.
+      let touched = false
+      const onTouch = (e: { originalEvent?: unknown }) => {
+        if (e.originalEvent) touched = true
+      }
+      map.on('movestart', onTouch)
+      let lastPad = -1
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const ro = new ResizeObserver(() => {
+        clearTimeout(timer)
+        timer = setTimeout(() => {
+          const pad = sheetPadding()
+          if (touched || Math.abs(pad - lastPad) < 24) return
+          lastPad = pad
+          frame()
+        }, 120)
       })
-      return () => cancelAnimationFrame(raf)
+      const attach = () => {
+        const el = document.querySelector('.drawer-content')
+        if (el) {
+          lastPad = sheetPadding()
+          ro.observe(el)
+        }
+      }
+      const raf2 = requestAnimationFrame(attach)
+      return () => {
+        cancelAnimationFrame(raf)
+        cancelAnimationFrame(raf2)
+        clearTimeout(timer)
+        ro.disconnect()
+        map.off('movestart', onTouch)
+      }
     }
     map.easeTo({ padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: 250 })
   }, [selectedId, housePreview, mapLoaded])
@@ -1398,6 +1433,12 @@ export function MapView({
           }}
         />
       )}
+
+      {/* Balayage laser pendant la mesure du toit (fiche maison ou point). */}
+      <RoofScan
+        map={mapLoaded ? mapRef.current : null}
+        target={housePreview ?? (selectedPoint ? { lng: selectedPoint.lng, lat: selectedPoint.lat } : null)}
+      />
 
       <PointDetailSheet
         open={selectedPoint !== null}

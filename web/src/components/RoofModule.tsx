@@ -4,6 +4,7 @@ import type { RoofData } from '../domain/house'
 import { Roof3D, defaultExcluded } from './Roof3D'
 import { RoofDiagram } from './RoofDiagram'
 import { RoofReport } from './RoofReport'
+import { Num } from './ui/Num'
 
 interface Props {
   roof: RoofData
@@ -13,6 +14,9 @@ interface Props {
   maisonM2: number | null
   totalM2: number | null
   millesime: string | null
+  /** Mesure qui vient d'être FAITE sous les yeux (pas le cache) : la
+      surface roule depuis 0, relais de la carte de progression. */
+  fromZero?: boolean
 }
 
 /**
@@ -21,7 +25,15 @@ interface Props {
  * trois blocs empilés s'intercalaient entre le statut et les notes de la
  * fiche point (audit UX, B2).
  */
-export function RoofModule({ roof, wastePct, address, maisonM2, totalM2, millesime }: Props) {
+export function RoofModule({
+  roof,
+  wastePct,
+  address,
+  maisonM2,
+  totalM2,
+  millesime,
+  fromZero = false,
+}: Props) {
   // TOUJOURS replié à l'ouverture (décision briac 25/07) : dans les trois
   // fiches, c'est le commercial qui déplie — la 3D ne surgit jamais seule.
   const [open, setOpen] = useState(false)
@@ -58,7 +70,11 @@ export function RoofModule({ roof, wastePct, address, maisonM2, totalM2, millesi
       >
         <Box size={15} strokeWidth={1.9} />
         <span className="roof-module-title">Toiture mesurée</span>
-        {m2 != null && <span className="roof-module-m2 tnum">{m2} m²</span>}
+        {m2 != null && (
+          <span className="roof-module-m2 tnum">
+            <Num value={m2} fromZero={fromZero} /> m²
+          </span>
+        )}
         <ChevronDown
           size={16}
           strokeWidth={1.9}
