@@ -168,6 +168,7 @@ export function usePoints(profile: Profile | null) {
         address: null,
         revisit_at: null,
         visited_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
         annee_construction: null,
         mat_toit: null,
         mat_toit_confirme: null,

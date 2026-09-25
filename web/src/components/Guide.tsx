@@ -70,7 +70,7 @@ const GUIDES: Guide[] = [
         img: v3('carte-5'),
         alt: 'La barre de filtres de la carte',
         title: 'Les filtres',
-        text: 'Le bouton filtres trie vos portes par statut ou ancienneté : « À relancer » montre celles qui attendent.',
+        text: 'Le bouton filtres trie vos portes par statut ou ancienneté : « Aujourd’hui » montre celles posées dans la journée.',
       },
       {
         img: v3('carte-6'),

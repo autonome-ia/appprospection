@@ -426,6 +426,13 @@ Concept validé par le directeur régional de Mister Toiture (présentation d'Al
 - [ ] Phase 5 : recette (perf, reduced-motion, a11y, terrain) puis fusion `design` → `main`.
   Images du Guide régénérées (v4) ; toit-2/toit-3 non recapturées (3D en headless).
 
+- [x] **Filtre carte « Aujourd'hui » (25/09/2026, demande briac)** : remplace la chip « À relancer »
+  des filtres de la carte ; ne garde que les points POSÉS (créés) aujourd'hui, heure locale
+  (`created_at` ajouté à la projection `MapPoint`, temps réel compris). Combinable en ET avec les
+  autres filtres ; la pose ne l'assouplit plus (un point posé est forcément du jour). Les relances
+  restent sur l'Accueil (« À relancer ») et dans la fiche. Sonde lecture seule
+  `tools/screenshots/probe-filtre-aujourdhui.mjs`.
+
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)
 - Carnet de contacts / mini-CRM (clients à rappeler, R2)

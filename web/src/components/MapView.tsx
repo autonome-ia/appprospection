@@ -41,7 +41,7 @@ import { AddressSearch, setSearchBias } from './AddressSearch'
 import { AppointmentForm } from './AppointmentForm'
 import { fetchOrgProfiles, type OrgProfile } from '../data/profiles'
 import { colorForCommercial } from '../domain/colors'
-import { BellRing, Plus, SlidersHorizontal } from 'lucide-react'
+import { CalendarCheck, Plus, SlidersHorizontal } from 'lucide-react'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { usePoints } from '../hooks/usePoints'
 import { isSupervisorRole, type MapPoint, type Profile } from '../domain/types'
@@ -160,10 +160,9 @@ export function MapView({
   // combiné en ET avec le statut — ex. « Absent » + « > 1 mois » = les portes
   // à retenter en priorité.
   const [ageFilter, setAgeFilter] = useState<number | null>(null)
-  // Filtre « À relancer » (audit UX B6) : les « à revoir » dont la date de
-  // relance est atteinte — les relances dues, visibles là où on en a besoin
-  // (dans le quartier). Chip seule, pas de pastille marqueur (véto designer).
-  const [dueOnly, setDueOnly] = useState(false)
+  // Filtre « Aujourd'hui » (25/09, demande briac ; remplace « À relancer ») :
+  // seulement les points POSÉS (créés) aujourd'hui, la tournée du jour.
+  const [todayOnly, setTodayOnly] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
   // Filtre « Qui » (superviseur : manager + chef des ventes) : voir les
   // points d'un ou plusieurs commerciaux. Le commercial, lui, ne voit QUE ses
@@ -192,7 +191,7 @@ export function MapView({
   }, [whoFocus, onWhoFocusHandled])
   // Badge du bouton filtres (nb de critères actifs).
   const nFilters =
-    statusFilter.size + (ageFilter !== null ? 1 : 0) + (whoFilter.size > 0 ? 1 : 0) + (dueOnly ? 1 : 0)
+    statusFilter.size + (ageFilter !== null ? 1 : 0) + (whoFilter.size > 0 ? 1 : 0) + (todayOnly ? 1 : 0)
   // Chips de statut grisées tant que le zoom ne permet pas de viser une maison.
   const [placeZoomOk, setPlaceZoomOk] = useState(true)
   // Déplacement d'un point mal posé (demande briac 25/07) : appui long sur
@@ -756,7 +755,6 @@ export function MapView({
     // double pose (audit) : on l'assouplit. Le filtre d'ancienneté exclut par
     // construction un point qu'on vient de visiter.
     if (ageFilter !== null) setAgeFilter(null)
-    if (dueOnly) setDueOnly(false) // un point tout juste posé n'a pas de relance due
     if (statusFilter.size > 0 && !statusFilter.has(status)) setStatusFilter(new Set())
     const { point, saved } = addPoint(lng, lat, status)
     stampAt(lng, lat, STATUS_BY_VALUE[status].color)
@@ -1134,7 +1132,7 @@ export function MapView({
     if (!map || !mapLoaded) return
     const source = map.getSource(POINTS_SOURCE) as maplibregl.GeoJSONSource | undefined
     const cutoff = ageFilter !== null ? Date.now() - ageFilter * 86_400_000 : null
-    const today = localDayKey(new Date()) // relances dues = revisit_at ≤ aujourd'hui
+    const today = localDayKey(new Date()) // « Aujourd'hui » = posé ce jour (heure locale)
     const visible = points.filter(
       (p) =>
         // Carte privée : le commercial ne voit que SES points (les temp-
@@ -1148,13 +1146,10 @@ export function MapView({
           : p.created_by === null || p.created_by === profile?.id) &&
         (statusFilter.size === 0 || statusFilter.has(p.status)) &&
         (cutoff === null || (p.visited_at !== null && Date.parse(p.visited_at) < cutoff)) &&
-        (!dueOnly ||
-          ((p.status === 'a_revoir' || p.status === 'rdv_pris') &&
-            p.revisit_at !== null &&
-            p.revisit_at <= today)),
+        (!todayOnly || (!!p.created_at && localDayKey(new Date(p.created_at)) === today)),
     )
     source?.setData(toFeatureCollection(visible))
-  }, [points, mapLoaded, statusFilter, ageFilter, whoFilter, dueOnly, isSupervisor, profile?.id, dragId, supportIds])
+  }, [points, mapLoaded, statusFilter, ageFilter, whoFilter, todayOnly, isSupervisor, profile?.id, dragId, supportIds])
 
   // Surbrillance du point sélectionné.
   useEffect(() => {
@@ -1323,14 +1318,14 @@ export function MapView({
               </div>
             )}
             <div className="map-filterrow">
-              {/* Relances dues (revisit_at atteint) — audit UX B6. */}
+              {/* Points posés aujourd'hui (25/09, remplace « À relancer »). */}
               <button
                 type="button"
-                className={`chip ${dueOnly ? 'is-active' : ''}`}
-                onClick={() => setDueOnly((v) => !v)}
-                title="Points « à revoir » dont la date de relance est atteinte"
+                className={`chip ${todayOnly ? 'is-active' : ''}`}
+                onClick={() => setTodayOnly((v) => !v)}
+                title="Seulement les points posés aujourd’hui"
               >
-                <BellRing size={13} strokeWidth={2} /> À relancer
+                <CalendarCheck size={13} strokeWidth={2} /> Aujourd’hui
               </button>
               {(
                 [

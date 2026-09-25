@@ -149,7 +149,7 @@ DA **« Encre & signal »** (choisie par briac le 26/07/2026 sur prototypes comp
   posée, et RIEN n'est journalisé — un RDV honoré n'est pas une « porte toquée » (les portes = la
   prospection pure ; migration `db/0020` : les points basculés par d'anciens « En attente »
   re-passent `rdv_pris`). Le système de relances couvre donc `a_revoir` ET `rdv_pris`
-  (fetchRelances/fetchRevisits, filtre « À relancer » carte, champ « Revoir le » de la fiche).
+  (fetchRelances/fetchRevisits, bloc « À relancer » de l'Accueil, champ « Revoir le » de la fiche ; le filtre carte « À relancer » a été REMPLACÉ le 25/09 par « Aujourd'hui » = points posés ce jour).
   « Manqué » retiré des boutons (valeur conservée pour l'historique). **« En attente » est un état
   OUVERT** : le RDV continue de proposer « Vendu » / « Refus » sans limite de date (la réponse du
   prospect se donne sur le MÊME RDV — vente différée comptée ; « Vendu » efface la relance). La
