@@ -440,7 +440,8 @@ objectifs de CA. Besoin Alexis, cadrage briac (décisions D1-D17 du plan). Optio
 - [x] **N1** Migration `db/0031_numbers.sql` (ventes à 2 vendeurs max, taux figés par trigger, annulation qui
   défait la vente PARTOUT : point → Refus, événement `vendu` réécrit, RDV → Refus ; RLS + vue `sales_board`
   sans client ni taux ; RPC `ensure_vendu_sale` ; `numbers_activate`) + banc `rls-test.mjs numbers`.
-  **⚠ À EXÉCUTER dans Supabase puis activer la démo et l'agence du banc** (SQL en fin de migration).
+  **Exécutée le 25/09** ; Numbers activé sur Brest pour le test β de briac (drapeau + taux, SANS import des
+  ventes passées : `numbers_activate` attend N10). Banc RLS numbers pas encore déroulé.
 - [x] **N2** Règles de calcul pures + tests (`domain/sales.ts`, 14 tests), couche data (`data/sales.ts`).
 - [x] **N3-N7 (premier jet)** Switch d'espace, barre d'onglets Accueil · Ventes · Tableaux · Stats, formulaire de
   vente après chacun des 4 « Vendu » + « + Vente », cahier, tableaux (mon tableau / agence / par vendeur),
