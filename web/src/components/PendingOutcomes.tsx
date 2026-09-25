@@ -5,6 +5,7 @@ import { EASE_OUT, SPRING_SMOOTH } from '../lib/motion'
 import { toast } from 'sonner'
 import { hhmm, relativeDay } from '../lib/relative-day'
 import { celebrate } from '../lib/celebrate'
+import { openSaleFlow } from '../lib/sale-flow'
 import { CalendarClock } from 'lucide-react'
 import { fetchPendingOutcomes, setAppointmentOutcome } from '../data/appointments'
 import {
@@ -130,6 +131,10 @@ export function PendingOutcomes({ profile }: { profile: Profile }) {
                       const { pointSynced } = await setAppointmentOutcome(profile, a, o)
                       toast.success(outcomeToastMessage(o))
                       if (o === 'vendu') celebrate('Vendu')
+                      // Numbers : le formulaire de vente suit la célébration (sans
+                      // l'option, personne n'écoute : rien ne se passe).
+                      if (o === 'vendu' && a.point_id)
+                        openSaleFlow({ kind: 'vendu', pointId: a.point_id, appointmentId: a.id })
                       if (!pointSynced) {
                         toast.error(
                           'La maison n’a pas pu être mise à jour sur la carte : rouvrez sa fiche pour corriger',

@@ -67,8 +67,11 @@ const TODAY_LABEL = () => {
 
 export function AccueilScreen({
   onShowOnMap,
+  spaceSwitch,
 }: {
   onShowOnMap?: (target: { pointId: string; lng: number; lat: number }) => void
+  /** Switch Prospection · Numbers (chantier Numbers), sous l'en-tête. */
+  spaceSwitch?: React.ReactNode
 }) {
   const { profile, session } = useSession()
   const name = profile?.full_name ?? session?.user.email ?? null
@@ -265,6 +268,8 @@ export function AccueilScreen({
           <Settings size={19} strokeWidth={1.8} />
         </button>
       </motion.header>
+
+      {spaceSwitch}
 
       {loadError && (
         <div className="load-error">

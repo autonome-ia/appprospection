@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Sheet } from './ui/Sheet'
 import { toast } from 'sonner'
 import { celebrate } from '../lib/celebrate'
+import { openSaleFlow } from '../lib/sale-flow'
 import { Trash2, Clock, User, MapPin, Phone, CalendarPlus } from 'lucide-react'
 import { FormRow } from './ui/Form'
 import {
@@ -375,9 +376,11 @@ export function PointDetailSheet({
       if (newNote.trim()) await onAddNote(point.id, newNote.trim())
       // La vente marque aussi le RDV « à venir » lié en « Vendu » (best
       // effort) : l'historique et l'agenda racontent la même chose.
+      let saleAppt: string | null = null
       if (becameSale) {
         const upcoming = appts?.find((a) => a.status === 'a_venir')
         if (upcoming) {
+          saleAppt = upcoming.id
           updateAppointment(upcoming.id, { status: 'vendu' }).catch((e) =>
             console.error('Synchro du RDV vendu :', e),
           )
@@ -385,7 +388,11 @@ export function PointDetailSheet({
       }
       onOpenChange(false)
       toast.success(becameSale ? 'Vendu : la maison passe en « Client »' : 'Point mis à jour')
-      if (becameSale) celebrate('Vendu')
+      if (becameSale) {
+        celebrate('Vendu')
+        // Numbers : formulaire de vente (sans l'option, rien ne se passe).
+        openSaleFlow({ kind: 'vendu', pointId: point.id, appointmentId: saleAppt })
+      }
       if (becameRdv) onRdvNeeded?.({ ...point, status: 'rdv_pris' })
     } catch (e) {
       console.error('Modification du point :', e)

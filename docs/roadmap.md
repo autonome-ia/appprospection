@@ -433,6 +433,22 @@ Concept validé par le directeur régional de Mister Toiture (présentation d'Al
   restent sur l'Accueil (« À relancer ») et dans la fiche. Sonde lecture seule
   `tools/screenshots/probe-filtre-aujourdhui.mjs`.
 
+## CHANTIER NUMBERS (ouvert le 25/09/2026 — plan : `docs/plan-numbers.md`, branche `design`)
+Deuxième espace de l'app (switch Prospection · Numbers sur l'Accueil) : ventes, CA, commissions,
+objectifs de CA. Besoin Alexis, cadrage briac (décisions D1-D17 du plan). Option payante par agence
+(`organizations.numbers_enabled`, SQL seulement) ; activée sur la DÉMO seulement pendant la conception.
+- [x] **N1** Migration `db/0031_numbers.sql` (ventes à 2 vendeurs max, taux figés par trigger, annulation qui
+  défait la vente PARTOUT : point → Refus, événement `vendu` réécrit, RDV → Refus ; RLS + vue `sales_board`
+  sans client ni taux ; RPC `ensure_vendu_sale` ; `numbers_activate`) + banc `rls-test.mjs numbers`.
+  **⚠ À EXÉCUTER dans Supabase puis activer la démo et l'agence du banc** (SQL en fin de migration).
+- [x] **N2** Règles de calcul pures + tests (`domain/sales.ts`, 14 tests), couche data (`data/sales.ts`).
+- [x] **N3-N7 (premier jet)** Switch d'espace, barre d'onglets Accueil · Ventes · Tableaux · Stats, formulaire de
+  vente après chacun des 4 « Vendu » + « + Vente », cahier, tableaux (mon tableau / agence / par vendeur),
+  stats (CA, TRC, part toiture, prestations, comptant/financement, classement, drill-down).
+- [x] **N8 (premier jet)** Écran Équipe : taux de l'agence, objectif de CA mensuel, taux propres, droit du chef des ventes.
+- [ ] ⬜ Tests briac sur le β (démo), retours, passe DA, sondes Playwright clair + sombre (N9).
+- [ ] ⬜ **N10** Mise en prod sur feu vert briac : fusion `design` → `main`, `numbers_activate` sur Mister Toiture.
+
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)
 - Carnet de contacts / mini-CRM (clients à rappeler, R2)

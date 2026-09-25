@@ -1,0 +1,493 @@
+/* Espace Numbers (chantier 25/09/2026, docs/plan-numbers.md §5).
+   Même DA que la prospection : tokens, cartes, héros, classement réutilisés
+   tels quels ; ce fichier ne pose que ce qui est propre aux ventes.
+   Règles : l'argent est en ENCRE (jamais l'accent, réservé aux actions) ;
+   vert = vendu / objectif atteint, ambre = à compléter, danger = annulée ;
+   couleur = commercial (pastilles). Tailles dans l'échelle fermée. */
+
+/* --- Switch d'espace (Accueil des deux espaces) --- */
+.space-switch {
+  margin: 0;
+}
+
+/* --- Objectif de CA : de l'argent, donc en encre (vert une fois atteint) --- */
+.numbers-home .obj-bar,
+.numbers-screen .obj-bar {
+  background: var(--ink);
+}
+.numbers-home .obj-bar.is-done,
+.numbers-screen .obj-bar.is-done {
+  background: var(--st-vendu);
+}
+
+/* --- Formulaire de vente --- */
+.sale-fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.sale-banner {
+  margin: 0 16px 10px;
+  padding: 9px 12px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.sale-banner.is-cancelled {
+  background: var(--danger-weak);
+  color: var(--danger);
+}
+/* Le montant : LA donnée de la vente, en héros. */
+.sale-amount {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0 6px;
+}
+.sale-amount-field {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  border-bottom: 1px solid var(--line-strong);
+  padding-bottom: 6px;
+}
+.sale-amount-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 42px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  outline: none;
+}
+.sale-amount-input::placeholder {
+  color: var(--ink-3);
+}
+.sale-amount-field:focus-within {
+  border-bottom-color: var(--ink);
+}
+.sale-amount-unit {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+/* Prestations : grille 3 × 2, cellules égales (même logique que le picker
+   de statuts : le pouce mémorise les positions). */
+.sale-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.sale-choice-grid .chip {
+  justify-content: center;
+  padding: 9px 4px;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.2;
+}
+.sale-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sale-fieldset .seg {
+  margin-bottom: 0;
+}
+.sale-fieldset .form-section {
+  margin-top: 10px;
+}
+.sale-commission {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin: 18px 0 4px;
+  padding: 14px 16px;
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.sale-commission-value {
+  font-size: 24px;
+  font-weight: 650;
+  color: var(--ink);
+}
+.sale-commission-meta {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.sale-cancel {
+  width: 100%;
+  margin-top: 16px;
+}
+.sale-delete {
+  display: block;
+  margin: 12px auto 4px;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+/* --- Une vente en ligne (cahier, accueil) : même gabarit que .home-row --- */
+.sale-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  color: var(--ink);
+}
+.sale-row.is-clickable {
+  cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.sale-row.is-clickable:active {
+  transform: scale(var(--press-scale-lg));
+}
+.sale-row .rank-chevron {
+  margin-top: 3px;
+}
+.sale-sellers {
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+.sale-sellers > * + * {
+  margin-left: -7px;
+  box-shadow: 0 0 0 2px var(--surface);
+  border-radius: var(--r-full);
+}
+.sale-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.sale-row-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sale-row-meta {
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sale-row-note {
+  font-size: 12px;
+  color: var(--ink-2);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.sale-row-amount {
+  flex: 0 0 auto;
+  font-size: 15px;
+  font-weight: 600;
+}
+.sale-row-amount.is-cancelled {
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+.sale-tag {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: var(--r-full);
+}
+.sale-tag.is-todo {
+  color: var(--st-revoir);
+  background: color-mix(in srgb, var(--st-revoir) 12%, transparent);
+}
+.sale-tag.is-cancelled {
+  color: var(--danger);
+  background: var(--danger-weak);
+}
+
+.numbers-home-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.numbers-home-actions .btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* --- Cahier des ventes --- */
+.book-summary {
+  margin: 0 2px 10px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.book-filters {
+  margin-bottom: 14px;
+}
+.book-day {
+  margin-bottom: 10px;
+}
+
+/* --- Tableaux : chiffres clés en grille --- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 10px;
+}
+.kpi-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.kpi-value {
+  font-size: 17px;
+  font-weight: 650;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.kpi-grid.is-three .kpi-value {
+  font-size: 24px;
+}
+.kpi-label {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.kpi-foot {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* Tableau dense en lignes (pas de défilement horizontal sur mobile). */
+.ntable {
+  padding-bottom: 6px;
+}
+.ntable > .eyebrow {
+  margin-bottom: 8px;
+}
+.ntable-head,
+.ntable-row {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  column-gap: 10px;
+}
+.ntable-head.is-sellers,
+.ntable-row.is-sellers {
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+}
+.ntable-head {
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.ntable-row {
+  width: 100%;
+  padding: 10px 0;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  text-align: left;
+  color: var(--ink);
+}
+.ntable-row:last-child {
+  border-bottom: none;
+}
+button.ntable-row {
+  cursor: pointer;
+}
+.is-num,
+.ntable-num {
+  text-align: right;
+}
+.ntable-num {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ntable-num.is-muted {
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.ntable-date {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.ntable-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.ntable-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ntable-meta {
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ntable-seller {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ntable-empty {
+  padding: 12px 0 6px;
+  margin: 0;
+}
+
+/* --- Stats : CA par prestation (nuances d'encre, toiture en tête) --- */
+.prest-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+.prest-bar {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.prest-label {
+  font-size: 13px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prest-track {
+  height: 8px;
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.prest-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-full);
+  background: var(--ink-3);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.prest-bar.is-lead .prest-fill {
+  background: var(--ink);
+}
+.prest-bar.is-lead .prest-label {
+  color: var(--ink);
+  font-weight: 600;
+}
+.prest-value {
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 72px;
+  text-align: right;
+}
+
+/* --- Stats : comptant / financement --- */
+.pay-split {
+  display: flex;
+  height: 10px;
+  margin-top: 8px;
+  border-radius: var(--r-full);
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.pay-split-cash {
+  background: var(--ink);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.pay-split-fin {
+  background: var(--ink-3);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.pay-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.pay-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pay-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.pay-dot.is-cash {
+  background: var(--ink);
+}
+.pay-dot.is-fin {
+  background: var(--ink-3);
+}
+
+/* Ma ligne dans le classement : repère discret. */
+.rank.is-me .rank-name {
+  font-weight: 650;
+}
+
+/* --- Écran Équipe : réglages Numbers --- */
+.rate-input {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px;
+  width: 100%;
+}
+.rate-input .form-input {
+  text-align: right;
+}
+.rate-unit {
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.team-panel .form-section:first-child {
+  margin-top: 0;
+}

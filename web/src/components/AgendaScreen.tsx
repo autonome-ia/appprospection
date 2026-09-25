@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Sheet } from './ui/Sheet'
 import { toast } from 'sonner'
 import { celebrate } from '../lib/celebrate'
+import { openSaleFlow } from '../lib/sale-flow'
 import {
   Plus,
   Phone,
@@ -256,6 +257,10 @@ function AppointmentCard({
                       onChanged()
                       toast.success(outcomeToastMessage(o))
                       if (o === 'vendu') celebrate('Vendu')
+                      // Numbers : le formulaire de vente suit la célébration (sans
+                      // l'option, personne n'écoute : rien ne se passe).
+                      if (o === 'vendu' && appt.point_id)
+                        openSaleFlow({ kind: 'vendu', pointId: appt.point_id, appointmentId: appt.id })
                       if (!pointSynced) {
                         toast.error(
                           'La maison n’a pas pu être mise à jour sur la carte : rouvrez sa fiche pour corriger',

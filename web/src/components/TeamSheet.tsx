@@ -16,6 +16,7 @@ import {
 import { fetchInviteCode, fetchOrgName, regenInviteCode } from '../data/team'
 import { colorForCommercial, TEAM_PALETTE } from '../domain/colors'
 import { ROLE_LABELS, roleLabel, type Profile, type UserRole } from '../domain/types'
+import { NumbersTeamSection } from './numbers/NumbersTeamSection'
 
 /**
  * Écran « Équipe » (chantier Équipe, étape 3) — sheet vaul (gabarit commun).
@@ -487,6 +488,9 @@ export function TeamSheet({
           </div>
         )
       })}
+
+      {/* Numbers (option payante) : objectifs de CA, taux, droits. */}
+      <NumbersTeamSection profile={profile} members={members} onChanged={load} />
     </Sheet>
   )
 }

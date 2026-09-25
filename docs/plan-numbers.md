@@ -173,7 +173,7 @@ les annulées ne comptent nulle part) :
 
 Mêmes exclusions que les Stats de prospection : ventes d'un compte `is_support` hors agrégats
 de l'équipe ; manager masqué du classement sauf « M'afficher » (`isManagerHiddenFor`) ;
-objectif 0 = hors classement et hors objectif de l'agence.
+objectif de CA à 0 = pas de barre d'objectif, mais le vendeur reste au classement dès qu'il a du CA (l'objectif de CA est nouveau : à 0 par défaut pour tout le monde).
 
 Formats : euros entiers `12 450 €` (espace fine insécable), taux `13 %`, TRC `62 %`,
 tous en `Num`/`.tnum` (Geist Mono réservé aux chiffres, doctrine typo).

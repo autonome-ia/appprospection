@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Toaster } from 'sonner'
 import { MotionConfig } from 'motion/react'
 import { MapView, type MapFocus } from './components/MapView'
-import { BottomNav, type Tab } from './components/BottomNav'
+import { BottomNav, NUMBERS_TABS, PROSPECTION_TABS, type Tab } from './components/BottomNav'
 import { AuthScreen } from './components/AuthScreen'
 import { AccueilScreen } from './components/AccueilScreen'
 import { AgendaScreen } from './components/AgendaScreen'
@@ -14,6 +14,15 @@ import { SessionProvider, useSession } from './lib/session'
 import { useIsDark } from './lib/theme'
 import { isSupabaseConfigured } from './lib/supabase'
 import { isSecretaireRole } from './domain/types'
+import { useNumbersAccess } from './data/sales'
+import { readSpace, writeSpace, type Space } from './lib/space'
+import { SpaceSwitch } from './components/numbers/SpaceSwitch'
+import { NumbersProvider } from './components/numbers/NumbersData'
+import { NumbersHome } from './components/numbers/NumbersHome'
+import { SalesBook } from './components/numbers/SalesBook'
+import { SalesTables } from './components/numbers/SalesTables'
+import { NumbersStats } from './components/numbers/NumbersStats'
+import { SaleFlowHost } from './components/numbers/SaleFlowHost'
 import './App.css'
 import './styles/interactions.css'
 
@@ -66,6 +75,26 @@ function AppInner() {
     setMapWho(commercialId)
     setTab('carte')
   }
+
+  // Deux espaces, une app (chantier Numbers) : le switch de l'Accueil fait
+  // passer de la prospection à Numbers, la barre d'onglets suit. Sans
+  // l'option (ou pour la secrétaire), Numbers n'existe pas.
+  const numbersOn = useNumbersAccess(profile)
+  const [spacePref, setSpacePref] = useState<Space>(readSpace)
+  const space: Space = numbersOn ? spacePref : 'prospection'
+  const switchSpace = (next: Space) => {
+    setSpacePref(next)
+    writeSpace(next)
+    setTab(next === 'numbers' ? 'n-accueil' : 'accueil')
+  }
+  // Onglet incohérent avec l'espace (préférence Numbers retrouvée au
+  // lancement sur la carte, option retirée…) : on se recale sur son Accueil.
+  const numbersTab = NUMBERS_TABS.some((t) => t.tab === tab)
+  useEffect(() => {
+    if (space === 'numbers' && !numbersTab) setTab('n-accueil')
+    if (space === 'prospection' && numbersTab) setTab('accueil')
+  }, [space, numbersTab])
+  const spaceSwitch = numbersOn ? <SpaceSwitch value={space} onChange={switchSpace} /> : null
 
   if (loading) {
     return (
@@ -129,7 +158,7 @@ function AppInner() {
         </div>
         {tab === 'accueil' ? (
           <ScreenBoundary>
-            <AccueilScreen onShowOnMap={showOnMap} />
+            <AccueilScreen onShowOnMap={showOnMap} spaceSwitch={spaceSwitch} />
           </ScreenBoundary>
         ) : null}
         {tab === 'agenda' ? (
@@ -142,6 +171,17 @@ function AppInner() {
             <StatsScreen profile={profile} onShowCommercialOnMap={showCommercialOnMap} />
           </ScreenBoundary>
         ) : null}
+        {/* Espace Numbers : données chargées une fois pour les 4 onglets. */}
+        {space === 'numbers' && profile && (
+          <NumbersProvider profile={profile}>
+            <ScreenBoundary>
+              {tab === 'n-accueil' && <NumbersHome spaceSwitch={spaceSwitch} onGoTo={setTab} />}
+              {tab === 'ventes' && <SalesBook />}
+              {tab === 'tableaux' && <SalesTables />}
+              {tab === 'n-stats' && <NumbersStats />}
+            </ScreenBoundary>
+          </NumbersProvider>
+        )}
       </main>
 
       {!isSupabaseConfigured && <div className="mode-badge">Mode local (sans base)</div>}
@@ -154,7 +194,15 @@ function AppInner() {
         </ScreenBoundary>
       )}
 
-      <BottomNav active={tab} onChange={setTab} />
+      {/* Formulaire de vente (après « Vendu », « + Vente », à compléter) :
+          un seul hôte, dans les deux espaces. */}
+      {numbersOn && profile && (
+        <ScreenBoundary>
+          <SaleFlowHost profile={profile} />
+        </ScreenBoundary>
+      )}
+
+      <BottomNav items={space === 'numbers' ? NUMBERS_TABS : PROSPECTION_TABS} active={tab} onChange={setTab} />
     </div>
   )
 }

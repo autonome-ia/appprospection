@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { celebrate } from '../lib/celebrate'
+import { openSaleFlow } from '../lib/sale-flow'
 import { CalendarClock, CalendarPlus, Navigation, Pencil, Phone } from 'lucide-react'
 import { setAppointmentOutcome } from '../data/appointments'
 import {
@@ -189,6 +190,10 @@ export function RdvSection({ point, appts, profile, onChanged, onEdit, onPlan, s
                     onChanged?.()
                     toast.success(outcomeToastMessage(o))
                     if (o === 'vendu') celebrate('Vendu')
+                    // Numbers : le formulaire de vente suit la célébration (sans
+                    // l'option, personne n'écoute : rien ne se passe).
+                    if (o === 'vendu' && shownRdv.point_id)
+                      openSaleFlow({ kind: 'vendu', pointId: shownRdv.point_id, appointmentId: shownRdv.id })
                     if (!pointSynced) {
                       toast.error(
                         'La maison n’a pas pu être mise à jour sur la carte : rouvrez sa fiche pour corriger',
