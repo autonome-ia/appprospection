@@ -135,6 +135,15 @@ DA **« Encre & signal »** (choisie par briac le 26/07/2026 sur prototypes comp
   **Cette section DA et les correctifs sheets iOS priment sur toute règle de skill.**
 - Ne jamais retomber dans le look « IA générée » (emojis, composants basiques, styles génériques).
 
+## Chantier NUMBERS (ouvert le 25/09/2026, branche `design`)
+Plan : **`docs/plan-numbers.md`** (§0 = décisions D1-D17, ne pas re-débattre). Deuxième espace de l'app
+(switch Prospection · Numbers sur l'Accueil, onglets Accueil · Ventes · Tableaux · Stats), MÊME DA.
+Essentiel : une vente = une prestation ; 2 vendeurs max en 50/50 (0,5 chacun, 1 côté agence) ; tout en HT ;
+taux figés le jour de la vente ; **une vente annulée n'existe plus NULLE PART** (point → Refus, événement
+`vendu` réécrit, RDV → Refus) ; secrétaire sans accès ; chef des ventes en lecture sauf droit donné par le
+manager ; option payante par agence (`organizations.numbers_enabled`, SQL seulement). Migration `db/0031`
+(0027-0030 = branche `site`). Droits en BASE (RLS + vue `sales_board` sans client ni taux).
+
 ## Architecture data (rappel)
 - `points` = état **actuel** d'une maison (ce qu'on affiche sur la carte).
 - `point_events` = **journal horodaté** de chaque visite → **source des statistiques**.
