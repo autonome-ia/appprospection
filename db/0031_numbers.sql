@@ -11,9 +11,8 @@
 -- n'est pas activée sur l'agence (numbers_activate, SQL uniquement).
 -- Rejouable (if not exists / create or replace).
 --
--- À exécuter dans le SQL Editor, puis activer l'option sur l'agence de DÉMO
--- et sur l'agence du banc RLS (voir fin de fichier), puis :
---   node tools/rls-test/rls-test.mjs run
+-- À exécuter d'un bloc dans le SQL Editor : la fin du fichier (§12) active
+-- Numbers sur Brest pour le test β de briac, sans import des ventes passées.
 -- =============================================================================
 
 -- 1. OPTION PAR AGENCE ---------------------------------------------------------
@@ -571,11 +570,35 @@ begin
   end if;
 end $$;
 
+-- 12. ACTIVATION POUR LE TEST β DE BRIAC (25/09/2026) -------------------------
+-- Numbers sur Mister Toiture Brest, SANS import des ventes passées : seul le
+-- β a le code de Numbers (l'app des commerciaux, main, ne voit rien) et le
+-- compte de briac est fantôme (is_support). Rejouable.
+update public.organizations set numbers_enabled = true
+where name = 'Mister Toiture : Brest';
+
+insert into public.commission_rates (organization_id, prestation, rate)
+select o.id, v.p::public.sale_prestation, v.r
+from public.organizations o,
+  (values ('toiture', 0.13), ('facade', 0.13), ('isolation', 0.13),
+          ('traitement_bois', 0.13), ('gouttiere', 0.08), ('energie', 0.05)) as v(p, r)
+where o.name = 'Mister Toiture : Brest'
+on conflict do nothing;
+
+-- Contrôle : doit afficher true et 6 (0 ligne = nom d'agence différent).
+select o.name, o.numbers_enabled, count(c.*) as taux
+from public.organizations o
+left join public.commission_rates c on c.organization_id = o.id
+where o.name = 'Mister Toiture : Brest'
+group by o.name, o.numbers_enabled;
+
 -- =============================================================================
--- ACTIVATION (après la migration, dans le SQL Editor) :
---   select o.name, public.numbers_activate(o.id) as ventes_a_completer
---   from public.organizations o
---   where o.name in ('<agence de démo>', 'RLS Test — jetable');
--- Mister Toiture Brest : SEULEMENT à la mise en prod (étape N10, feu vert briac).
+-- MISE EN PROD (étape N10, feu vert briac) — à lancer À CE MOMENT-LÀ seulement :
+-- import des ventes passées en « à compléter » (D11) :
+--   select public.numbers_activate(id) from public.organizations
+--   where name = 'Mister Toiture : Brest';
+-- Banc RLS (facultatif) :
+--   select public.numbers_activate(id) from public.organizations
+--   where name = 'RLS Test — jetable';
 -- Désactiver : update public.organizations set numbers_enabled = false where id = '…';
 -- =============================================================================
