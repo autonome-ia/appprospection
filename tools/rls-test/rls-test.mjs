@@ -153,7 +153,7 @@ function verdict(ok, label, detail = '') {
 const refused = (r) => r.status >= 400 || !Array.isArray(r.data) || r.data.length === 0
 const okRows = (r) => r.status < 300 && Array.isArray(r.data) && r.data.length > 0
 
-async function run() {
+async function login() {
   const s = {} // sessions : { manager: {token, id, org}, ... }
   for (const [who, email] of Object.entries(ROLES)) {
     const r = await api('/auth/v1/token?grant_type=password', {
@@ -180,7 +180,11 @@ async function run() {
       console.error(`Le compte « ${w} » a le rôle ${s[w].role}, attendu ${want} — SQL de promotion exécuté ?`)
       process.exit(1)
     }
+  return s
+}
 
+async function run() {
+  const s = await login()
   const org = s.k.org
   const P = (who, created_by) => ({
     organization_id: org,
@@ -410,10 +414,218 @@ async function run() {
   process.exit(fail ? 1 : 0)
 }
 
+// --- Phase « numbers » (db/0031, chantier Numbers) ----------------------------
+// Prérequis : 0031 exécutée ET option activée sur l'agence de test :
+//   select public.numbers_activate(id) from public.organizations where name = 'RLS Test — jetable';
+
+async function runNumbers() {
+  const s = await login()
+  const org = s.k.org
+  const rpc = (who, fn, body) => api(`/rest/v1/rpc/${fn}`, { method: 'POST', token: s[who].token, body })
+  const SALE = (seller1_id, extra = {}) => ({
+    organization_id: org,
+    seller1_id,
+    sold_on: new Date().toISOString().slice(0, 10),
+    client_name: 'RLS TEST vente',
+    address: 'RLS TEST — jetable',
+    prestation: 'toiture',
+    amount_ht: 10000,
+    payment: 'comptant',
+    origin: 'prospection',
+    ...extra,
+  })
+  const cleanup = { sales: [], points: [], appointments: [] }
+
+  let r = await rest(s.k.token, 'GET', 'commission_rates?select=prestation,rate')
+  if (!(r.status < 300 && r.data?.length === 6)) {
+    console.error('Taux de l’agence de test absents : 0031 exécutée ? numbers_activate lancé sur « RLS Test — jetable » ?')
+    process.exit(1)
+  }
+
+  // ---- création ----
+  r = await rest(s.k.token, 'POST', 'sales', SALE(s.k.id))
+  verdict(okRows(r), 'commercial enregistre SA vente', JSON.stringify(r.data))
+  const v1 = r.data?.[0]
+  if (v1) cleanup.sales.push(v1.id)
+  verdict(Number(v1?.rate1) === 0.13, 'taux figé posé par la base (toiture 13 %)', `rate1=${v1?.rate1}`)
+  verdict(v1?.created_by === s.k.id && v1?.status === 'active', 'created_by et statut posés par la base')
+
+  r = await rest(s.k.token, 'POST', 'sales', SALE(s.k2.id))
+  verdict(refused(r), 'commercial NE crée PAS une vente au seul nom d’un collègue')
+
+  r = await rest(s.k.token, 'POST', 'sales', SALE(s.k.id, { seller2_id: s.k.id }))
+  verdict(refused(r), 'vente à deux avec deux fois le même vendeur refusée')
+
+  r = await rest(s.k.token, 'POST', 'sales', SALE(s.k.id, { seller2_id: crypto.randomUUID() }))
+  verdict(refused(r), '2e vendeur hors agence refusé')
+
+  r = await rest(s.k.token, 'POST', 'sales', SALE(s.k.id, { seller2_id: s.secretaire.id }))
+  verdict(refused(r), 'la secrétaire ne peut pas être vendeuse')
+
+  r = await rest(s.k.token, 'POST', 'sales', SALE(s.k.id, { payment: 'financement', financed_ht: 20000 }))
+  verdict(refused(r), 'montant financé > montant de la vente refusé')
+
+  r = await rest(s.secretaire.token, 'POST', 'sales', SALE(s.k.id))
+  verdict(refused(r), 'secrétaire NE crée PAS de vente')
+
+  // ---- lecture ----
+  r = await rest(s.k2.token, 'GET', `sales?id=eq.${v1?.id}&select=id`)
+  verdict(r.status < 300 && r.data?.length === 0, 'commercial NE lit PAS la vente complète d’un collègue (cahier)')
+
+  r = await rest(s.k2.token, 'GET', `sales_board?id=eq.${v1?.id}&select=id,amount_ht,seller1_id`)
+  verdict(okRows(r) && Number(r.data[0].amount_ht) === 10000, 'commercial lit le tableau de l’agence (montant, vendeur)')
+
+  r = await rest(s.k2.token, 'GET', `sales_board?select=client_name&limit=1`)
+  verdict(r.status >= 400, 'le tableau de l’agence N’expose PAS le client')
+
+  r = await rest(s.secretaire.token, 'GET', `sales_board?select=id`)
+  verdict(r.status < 300 && r.data?.length === 0, 'secrétaire NE lit PAS le tableau de l’agence')
+  r = await rest(s.secretaire.token, 'GET', `sales?select=id`)
+  verdict(r.status < 300 && r.data?.length === 0, 'secrétaire NE lit AUCUNE vente')
+  r = await rest(s.secretaire.token, 'GET', `commission_rates?select=rate`)
+  verdict(r.status < 300 && r.data?.length === 0, 'secrétaire NE lit PAS les taux')
+
+  r = await rest(s.chef.token, 'GET', `sales?id=eq.${v1?.id}&select=id,client_name`)
+  verdict(okRows(r), 'chef des ventes lit le cahier de l’agence')
+
+  // ---- modification ----
+  r = await rest(s.k.token, 'PATCH', `sales?id=eq.${v1?.id}`, { rate1: 0.5 })
+  verdict(okRows(r) && Number(r.data[0].rate1) === 0.13, 'commercial NE réécrit PAS son taux (reste 13 %)', JSON.stringify(r.data))
+
+  r = await rest(s.k.token, 'PATCH', `sales?id=eq.${v1?.id}`, { amount_ht: 12000, note: 'RLS TEST' })
+  verdict(okRows(r), 'commercial modifie SA vente')
+
+  r = await rest(s.k2.token, 'PATCH', `sales?id=eq.${v1?.id}`, { amount_ht: 1 })
+  verdict(refused(r), 'commercial NE modifie PAS la vente d’un collègue')
+
+  r = await rest(s.k.token, 'PATCH', `sales?id=eq.${v1?.id}`, { seller2_id: s.k2.id })
+  verdict(okRows(r) && Number(r.data[0].rate2) === 0.13, 'vente passée à deux : taux du 2e vendeur posé')
+
+  r = await rest(s.k2.token, 'PATCH', `sales?id=eq.${v1?.id}`, { note: 'RLS TEST k2' })
+  verdict(okRows(r), 'le 2e vendeur modifie la vente commune')
+
+  r = await rest(s.k.token, 'PATCH', `sales?id=eq.${v1?.id}`, { seller1_id: s.k2.id, seller2_id: null })
+  verdict(refused(r), 'un vendeur NE se retire PAS en donnant la vente à un autre')
+
+  r = await rest(s.k.token, 'PATCH', `sales?id=eq.${v1?.id}`, { organization_id: crypto.randomUUID() })
+  verdict(refused(r), 'agence d’une vente immuable')
+
+  r = await rest(s.chef.token, 'PATCH', `sales?id=eq.${v1?.id}`, { note: 'RLS TEST chef' })
+  verdict(refused(r), 'chef des ventes SANS le droit NE modifie PAS')
+
+  r = await rest(s.chef.token, 'PATCH', `profiles?id=eq.${s.chef.id}`, { can_edit_sales: true })
+  verdict(refused(r), 'chef des ventes NE se donne PAS le droit de modifier')
+
+  r = await rest(s.manager.token, 'PATCH', `profiles?id=eq.${s.chef.id}`, { can_edit_sales: true })
+  verdict(okRows(r), 'manager donne le droit de modifier au chef des ventes')
+  r = await rest(s.chef.token, 'PATCH', `sales?id=eq.${v1?.id}`, { note: 'RLS TEST chef' })
+  verdict(okRows(r), 'chef des ventes AVEC le droit modifie')
+  await rest(s.manager.token, 'PATCH', `profiles?id=eq.${s.chef.id}`, { can_edit_sales: false })
+
+  r = await rest(s.manager.token, 'PATCH', `sales?id=eq.${v1?.id}`, { amount_ht: 11000 })
+  verdict(okRows(r), 'manager modifie la vente d’un commercial')
+
+  // ---- objectifs et taux ----
+  r = await rest(s.k.token, 'PATCH', `profiles?id=eq.${s.k.id}`, { monthly_ca_target: 999999 })
+  verdict(refused(r), 'commercial NE fixe PAS son objectif de CA')
+  r = await rest(s.chef.token, 'PATCH', `profiles?id=eq.${s.k.id}`, { monthly_ca_target: 1 })
+  verdict(refused(r), 'chef des ventes NE fixe PAS l’objectif de CA')
+  r = await rest(s.manager.token, 'PATCH', `profiles?id=eq.${s.k.id}`, { monthly_ca_target: 40000 })
+  verdict(okRows(r), 'manager fixe l’objectif de CA mensuel')
+  await rest(s.manager.token, 'PATCH', `profiles?id=eq.${s.k.id}`, { monthly_ca_target: 0 })
+
+  r = await rest(s.k.token, 'PATCH', `commission_rates?prestation=eq.toiture`, { rate: 0.5 })
+  verdict(refused(r), 'commercial NE change PAS les taux de l’agence')
+  r = await rest(s.k.token, 'POST', 'profile_commission_rates', { profile_id: s.k.id, prestation: 'gouttiere', organization_id: org, rate: 0.5 })
+  verdict(refused(r), 'commercial NE se donne PAS un taux personnel')
+
+  r = await rest(s.manager.token, 'POST', 'profile_commission_rates', { profile_id: s.k.id, prestation: 'gouttiere', organization_id: org, rate: 0.1 })
+  verdict(okRows(r), 'manager surcharge le taux gouttière d’un commercial (10 %)')
+  r = await rest(s.k.token, 'POST', 'sales', SALE(s.k.id, { prestation: 'gouttiere', amount_ht: 2000 }))
+  verdict(okRows(r) && Number(r.data[0].rate1) === 0.1, 'nouvelle vente gouttière : taux personnel appliqué', JSON.stringify(r.data))
+  const v2 = r.data?.[0]
+  if (v2) cleanup.sales.push(v2.id)
+  r = await rest(s.k2.token, 'GET', `profile_commission_rates?profile_id=eq.${s.k.id}&select=rate`)
+  verdict(r.status < 300 && r.data?.length === 0, 'commercial NE lit PAS le taux personnel d’un collègue')
+  await rest(s.manager.token, 'DELETE', `profile_commission_rates?profile_id=eq.${s.k.id}`)
+  r = await rest(s.k.token, 'GET', `sales?id=eq.${v2?.id}&select=rate1`)
+  verdict(Number(r.data?.[0]?.rate1) === 0.1, 'taux figé : la vente passée garde 10 % après retour au défaut')
+
+  // ---- « Vendu » → vente, puis annulation (D16) ----
+  r = await rest(s.k.token, 'POST', 'points', { organization_id: org, created_by: s.k.id, status: 'vendu', lat: 48, lng: -4, address: 'RLS TEST — jetable', client_name: 'RLS TEST client' })
+  const pv = r.data?.[0]?.id
+  if (pv) cleanup.points.push(pv)
+  r = await rest(s.k.token, 'POST', 'point_events', { organization_id: org, point_id: pv, author_id: s.k.id, status: 'vendu' })
+  const ev = r.data?.[0]?.id
+  r = await rest(s.k.token, 'POST', 'appointments', { organization_id: org, created_by: s.k.id, commercial_id: s.k.id, point_id: pv, scheduled_at: new Date().toISOString(), client_name: 'RLS TEST client', status: 'vendu' })
+  const av = r.data?.[0]?.id
+  if (av) cleanup.appointments.push(av)
+  verdict(Boolean(pv && ev && av), 'décor : point, événement « vendu » et RDV « Vendu »')
+
+  r = await rpc('k2', 'ensure_vendu_sale', { p_point: pv, p_appointment: av })
+  verdict(r.status >= 400, 'ensure_vendu_sale : un collègue NE crée PAS la vente d’un autre')
+
+  r = await rpc('k', 'ensure_vendu_sale', { p_point: pv, p_appointment: av })
+  verdict(r.status === 200 && typeof r.data === 'string', 'ensure_vendu_sale crée la vente « à compléter »', JSON.stringify(r.data))
+  const v3 = r.data
+  if (typeof v3 === 'string') cleanup.sales.push(v3)
+  r = await rpc('k', 'ensure_vendu_sale', { p_point: pv, p_appointment: av })
+  verdict(r.data === v3, 'ensure_vendu_sale rappelé : même vente (pas de doublon)')
+  r = await rest(s.k.token, 'GET', `sales?id=eq.${v3}&select=event_id,appointment_id,seller1_id,amount_ht,client_name`)
+  const row = r.data?.[0]
+  verdict(
+    row?.event_id === ev && row?.appointment_id === av && row?.seller1_id === s.k.id && row?.amount_ht === null && row?.client_name === 'RLS TEST client',
+    'vente liée à l’événement et au RDV, vendeur = auteur, montant à compléter',
+    JSON.stringify(row),
+  )
+
+  r = await rest(s.k.token, 'PATCH', `sales?id=eq.${v3}`, { status: 'annulee' })
+  verdict(okRows(r) && Boolean(r.data[0].cancelled_at), 'le vendeur annule SA vente')
+  const [pp, ee, aa] = await Promise.all([
+    rest(s.manager.token, 'GET', `points?id=eq.${pv}&select=status`),
+    rest(s.manager.token, 'GET', `point_events?id=eq.${ev}&select=status`),
+    rest(s.manager.token, 'GET', `appointments?id=eq.${av}&select=status`),
+  ])
+  verdict(pp.data?.[0]?.status === 'impossible', 'annulation : le point passe « Refus »', JSON.stringify(pp.data))
+  verdict(ee.data?.[0]?.status === 'impossible', 'annulation : l’événement « vendu » est réécrit (plus de vente au tunnel)', JSON.stringify(ee.data))
+  verdict(aa.data?.[0]?.status === 'refus', 'annulation : le RDV « Vendu » passe « Refus »', JSON.stringify(aa.data))
+  r = await rest(s.manager.token, 'GET', `point_events?point_id=eq.${pv}&select=id`)
+  verdict(r.data?.length === 1, 'annulation : AUCUN nouvel événement (la porte ne compte pas deux fois)')
+
+  r = await rest(s.k.token, 'PATCH', `sales?id=eq.${v3}`, { status: 'active' })
+  verdict(refused(r), 'le commercial NE réactive PAS une vente annulée')
+  r = await rest(s.manager.token, 'PATCH', `sales?id=eq.${v3}`, { status: 'active' })
+  verdict(okRows(r) && r.data[0].cancelled_at === null, 'le manager réactive la vente')
+  const [pp2, ee2, aa2] = await Promise.all([
+    rest(s.manager.token, 'GET', `points?id=eq.${pv}&select=status`),
+    rest(s.manager.token, 'GET', `point_events?id=eq.${ev}&select=status`),
+    rest(s.manager.token, 'GET', `appointments?id=eq.${av}&select=status`),
+  ])
+  verdict(
+    pp2.data?.[0]?.status === 'vendu' && ee2.data?.[0]?.status === 'vendu' && aa2.data?.[0]?.status === 'vendu',
+    'réactivation : point, journal et RDV reviennent à « Vendu »',
+  )
+
+  // ---- suppression ----
+  r = await rest(s.k.token, 'DELETE', `sales?id=eq.${v1?.id}`)
+  verdict(refused(r), 'commercial NE supprime PAS de vente (il annule)')
+  r = await rest(s.manager.token, 'DELETE', `sales?id=eq.${v1?.id}`)
+  verdict(okRows(r), 'manager supprime une vente')
+
+  // ---- ménage ----
+  if (cleanup.sales.length) await rest(s.manager.token, 'DELETE', `sales?id=in.(${cleanup.sales.join(',')})`)
+  for (const id of cleanup.appointments) await rest(s.manager.token, 'DELETE', `appointments?id=eq.${id}`)
+  if (cleanup.points.length) await rest(s.manager.token, 'DELETE', `points?id=in.(${cleanup.points.join(',')})`)
+
+  console.log(`\n${pass} PASS, ${fail} ÉCHEC${fail > 1 ? 'S' : ''}.`)
+  process.exit(fail ? 1 : 0)
+}
+
 const [, , cmd, arg] = process.argv
 if (cmd === 'signup') await signup(arg)
 else if (cmd === 'run') await run()
+else if (cmd === 'numbers') await runNumbers()
 else {
-  console.log('Usage : node rls-test.mjs signup <CODE>   puis   node rls-test.mjs run')
+  console.log('Usage : node rls-test.mjs signup <CODE>   puis   node rls-test.mjs run | numbers')
   process.exit(1)
 }

@@ -18,6 +18,10 @@ export interface OrgProfile {
   /** Manager : coché = figure au classement des stats de l'équipe (db/0023).
       Sans effet pour les autres rôles. */
   stats_visible: boolean
+  /** Numbers (db/0031) : objectif de CA mensuel HT, fixé par le manager. */
+  monthly_ca_target: number
+  /** Numbers (db/0031) : chef des ventes autorisé à modifier les ventes. */
+  can_edit_sales: boolean
 }
 
 /** Tous les profils de l'organisation (RLS scope automatiquement). */
@@ -28,7 +32,7 @@ export async function fetchOrgProfiles(): Promise<OrgProfile[]> {
   // on la retire et on réessaie — repli neutre (personne n'est support,
   // aucun manager visible) plutôt que de casser tous les écrans qui chargent
   // les profils. L'ordre migration/déploiement est indifférent.
-  const optional = ['is_support', 'stats_visible']
+  const optional = ['is_support', 'stats_visible', 'monthly_ca_target', 'can_edit_sales']
   let data: Record<string, unknown>[] | null = null
   for (;;) {
     const cols = [BASE, ...optional].join(', ')
@@ -45,6 +49,8 @@ export async function fetchOrgProfiles(): Promise<OrgProfile[]> {
     ...r,
     is_support: (r.is_support as boolean | undefined) ?? false,
     stats_visible: (r.stats_visible as boolean | undefined) ?? false,
+    monthly_ca_target: Number(r.monthly_ca_target ?? 0),
+    can_edit_sales: (r.can_edit_sales as boolean | undefined) ?? false,
   })) as OrgProfile[]
   // Garde-fou couleurs : la table d'attribution se calcule sur TOUTE
   // l'agence (les appelants filtrent ensuite support/désactivés) — même
