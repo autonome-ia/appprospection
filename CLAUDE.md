@@ -129,7 +129,7 @@ DA **« Encre & signal »** (choisie par briac le 26/07/2026 sur prototypes comp
   #111113, jamais `var(--ink)`** ; marqueurs, clusters, halos MapView, rapport canvas : inchangés.
   Sondes des deux thèmes : `THEME=dark node check-accueil.mjs` / `check-stats.mjs`, `probe-theme.mjs`.
 - Prototypage DA : `tools/screenshots/da-shots.mjs` (injection de tokens + captures comparées).
-- **Chantier design « next level » (24/09/2026, `docs/plan-chantier-design.md`)** : la DA peut
+- **Chantier design « next level » (24/09/2026, `docs/plan-chantier-design.md`, EN PROD le 25/09)** : la DA peut
   ÉVOLUER, mais uniquement sur planches comparées validées par briac. Skills de design du projet
   dans `.claude/skills/` (Emil Kowalski, Jakub Krehel) ; `frontend-design` désactivé ici.
   **Cette section DA et les correctifs sheets iOS priment sur toute règle de skill.**

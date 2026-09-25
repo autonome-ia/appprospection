@@ -91,4 +91,7 @@ dont le parcours va changer serait du travail jeté).
   la progression RÉELLE devient un anneau d'encre autour de l'icône (façon téléchargement iOS),
   ligne de scan au centre au rythme du faisceau. Choix fait sur 4 pistes (anneau / rien /
   reflet sur le titre / remplissage du fond).
+- 25/09 : **FUSION EN PROD** (feu vert briac) : `main` avancé en avance rapide sur `design`
+  (53 commits : chantier design + chantier mesure des toitures). Migrations 0025 et 0026 déjà
+  jouées (vérifié). Bundle prod identique au build local, manifeste sans β.
 
