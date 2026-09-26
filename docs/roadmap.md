@@ -433,7 +433,7 @@ Concept validé par le directeur régional de Mister Toiture (présentation d'Al
   restent sur l'Accueil (« À relancer ») et dans la fiche. Sonde lecture seule
   `tools/screenshots/probe-filtre-aujourdhui.mjs`.
 
-## CHANTIER NUMBERS (ouvert le 25/09/2026 — plan : `docs/plan-numbers.md`, branche `design`)
+## CHANTIER NUMBERS ✅ CLOS le 26/09/2026 (en prod chez Brest ; retours de l'équipe attendus la semaine du 28/09) — ouvert le 25/09/2026 — plan : `docs/plan-numbers.md`, branche `design`)
 Deuxième espace de l'app (switch Prospection · Numbers sur l'Accueil) : ventes, CA, commissions,
 objectifs de CA. Besoin Alexis, cadrage briac (décisions D1-D17 du plan). Option payante par agence
 (`organizations.numbers_enabled`, SQL seulement) ; activée sur la DÉMO seulement pendant la conception.
@@ -455,6 +455,7 @@ objectifs de CA. Besoin Alexis, cadrage briac (décisions D1-D17 du plan). Optio
 - [ ] ⬜ Import des ventes passées de Brest en « à compléter » : `select public.numbers_activate(id) from organizations where name = 'Mister Toiture : Brest';` (au choix de briac).
 - [x] **Temps réel pour toute l'agence (26/09)** : `db/0032` (signal sans donnée sur canal privé `numbers:<agence>` à chaque écriture sur les ventes, exécutée), test `tools/rls-test/realtime-test.mjs` (collègue reçoit, secrétaire refusée), banc numbers 52/52. Mises à jour PWA automatiques et silencieuses (en prod).
 - [x] **Stats de prospection = parts Numbers (26/09, en prod)** : une vente à deux compte 0,5 à chaque vendeur (cas Abdoul + Alexandre), origine Prospection seulement ; les Vendu du journal sans vente liée (historique) comptent 1 ; `db/0033` (origine + event_id dans sales_board, exécutée) ; sonde `tools/screenshots/probe-ventes-parts.mjs`.
+- **Reste ouvert (à reprendre avec les retours de Brest)** : `numbers_activate` sur Brest (import des ventes passées, au choix de briac) ; taux d'Abdoul à 0 % (réglage manager) ; objectifs de CA des commerciaux ; D20 commissions acquises / en attente (avis d'Alexis) ; RDV sans point sans formulaire de vente (cas rare) ; captures chef des ventes / secrétaire ; fusion future avec la branche `site` (TeamSheet, Accueil, App.tsx, StatsScreen, migrations 0027-0030).
 - [ ] ⬜ Retours de l'équipe de Brest ; taux à confirmer par Alexis ; D20 (commissions acquises / en attente) après son avis ; captures chef des ventes et secrétaire.
 
 ## Idées / plus tard (hors MVP)
