@@ -1078,3 +1078,96 @@ button.ntable-row {
 .ntable.is-pay .ntable-meta {
   white-space: normal;
 }
+
+/* --- Tableau général (retour briac 26/09) : vrai tableau façon tableur,
+   défilement horizontal, 1re colonne figée, ligne de total. --- */
+.gt-card {
+  padding-left: 0;
+  padding-right: 0;
+  overflow: hidden;
+}
+.gt-card > .eyebrow {
+  margin: 0 16px 10px;
+}
+.gt-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.gt {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 100%;
+  font-size: 13px;
+  color: var(--ink);
+}
+.gt th,
+.gt td {
+  padding: 11px 12px;
+  white-space: nowrap;
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+}
+.gt thead th {
+  padding-top: 0;
+  padding-bottom: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  border-bottom-color: var(--line-strong);
+}
+/* 1re colonne : figée, alignée à gauche, fond de carte pour masquer le défilé. */
+.gt th:first-child,
+.gt td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left;
+  padding-left: 16px;
+  background: var(--surface);
+  box-shadow: 1px 0 0 var(--line);
+}
+.gt tbody th {
+  font-weight: 500;
+}
+.gt td:last-child,
+.gt th:last-child {
+  padding-right: 16px;
+}
+.gt tbody tr.is-clickable {
+  cursor: pointer;
+}
+.gt tbody tr.is-clickable:active td,
+.gt tbody tr.is-clickable:active th {
+  background: var(--surface-2);
+}
+.gt tfoot th,
+.gt tfoot td {
+  font-weight: 650;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: none;
+}
+.gt-seller {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.gt .is-warn {
+  color: var(--st-revoir);
+  font-weight: 600;
+}
+.gt-empty {
+  text-align: left !important;
+  color: var(--ink-3);
+}
+.gt-foot {
+  margin: 10px 16px 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.gt th.is-text,
+.gt td.is-text {
+  text-align: left;
+}

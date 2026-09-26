@@ -67,7 +67,7 @@ async function shoot(role, email) {
   } else {
     await tab('Commissions')
     await snap('3-commissions')
-    await page.locator('.seg').first().getByRole('button', { name: 'Agence' }).click()
+    await page.locator('.seg').first().getByRole('button', { name: 'Tableau général' }).click()
     await snap('3b-commissions-agence')
   }
 
