@@ -339,7 +339,9 @@ async function run() {
   r = await rest(s.secretaire.token, 'PATCH', `appointments?id=eq.${a2}`, { status: 'vendu' })
   verdict(refused(r), 'secrétaire NE marque PAS « Vendu », même sur son RDV')
 
-  r = await rest(s.k2.token, 'PATCH', `appointments?id=eq.${a1}`, { status: 'annule' })
+  // a2 (titulaire k) : a1 a été réattribué à k2 plus haut (matrice v2), il
+  // en est devenu titulaire — le test visait le mauvais RDV.
+  r = await rest(s.k2.token, 'PATCH', `appointments?id=eq.${a2}`, { status: 'annule' })
   verdict(refused(r), 'commercial NE touche PAS au RDV d’un collègue')
 
   r = await rest(s.chef.token, 'PATCH', `appointments?id=eq.${a1}`, { status: 'effectue' })
