@@ -451,7 +451,9 @@ objectifs de CA. Besoin Alexis, cadrage briac (décisions D1-D17 du plan). Optio
 - [x] **Tour UI/UX (26/09)** : 3 audits en sous-agents sur 38 captures (décor `tools/screenshots/numbers-seed.mjs`, captures `numbers-shots.mjs`), décisions D18-D21 ; comparaison à date, rythme et projection, Accueil manager (agence + Qui décroche) et commercial (commission + rang), onglet Équipe / Commissions, CA cumulé face à l'objectif, répartitions en encre, formulaire revu (commission sous le montant, euros entiers, montant aberrant confirmé), composant `<Money>` (chiffres en mono, unités en Geist).
 - [x] **Accueil Numbers refondu (26/09, sous-agent expert + choix briac, sans les RDV en attente)** : commercial = commission + objectif fusionnés, À faire, rang, dernières ventes avec commission ; manager = agence + objectif (écart à date en gris), À surveiller, À traiter (cahier pré-filtré), dernières ventes de l'agence, Mes ventes ; pas de repère de rythme du 1er au 3.
 - [ ] ⬜ Tests briac sur le β (démo), retours, passe DA, sondes Playwright clair + sombre (N9).
-- [ ] ⬜ **N10** Mise en prod sur feu vert briac : fusion `design` → `main`, `numbers_activate` sur Mister Toiture.
+- [x] **N10 — EN PROD le 26/09/2026** (feu vert briac) : avance rapide de `main` sur `design` (73e544d), build façon prod vérifié, 70 tests verts. Numbers activé sur Brest (drapeau + taux depuis le 25/09) : toute l'équipe de Brest le voit. L'équipe teste et remonte ses retours.
+- [ ] ⬜ Import des ventes passées de Brest en « à compléter » : `select public.numbers_activate(id) from organizations where name = 'Mister Toiture : Brest';` (au choix de briac).
+- [ ] ⬜ Retours de l'équipe de Brest ; taux à confirmer par Alexis ; D20 (commissions acquises / en attente) après son avis ; captures chef des ventes et secrétaire.
 
 ## Idées / plus tard (hors MVP)
 - Vue liste des points (filtres)
