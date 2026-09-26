@@ -2,7 +2,15 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { SaleSheet, type SaleSheetMode } from './SaleSheet'
 import { fetchOrgProfiles, type OrgProfile } from '../../data/profiles'
-import { ensureVenduSale, fetchAgencyRates, fetchProfileRates, fetchSale, type RateTable } from '../../data/sales'
+import {
+  ensureVenduSale,
+  fetchAgencyRates,
+  fetchProfileRates,
+  fetchSale,
+  fetchSales,
+  type RateTable,
+} from '../../data/sales'
+import { openSaleFlow } from '../../lib/sale-flow'
 import { SALE_FLOW_EVENT, type SaleFlowRequest } from '../../lib/sale-flow'
 import type { Sale } from '../../domain/sales'
 import type { Profile } from '../../domain/types'
@@ -23,6 +31,7 @@ export function SaleFlowHost({ profile }: { profile: Profile }) {
   const [team, setTeam] = useState<OrgProfile[]>([])
   const [agencyRates, setAgencyRates] = useState<RateTable>({})
   const [profileRates, setProfileRates] = useState<Record<string, RateTable>>({})
+  const [existing, setExisting] = useState<Sale[]>([])
 
   useEffect(() => {
     let alive = true
@@ -39,8 +48,10 @@ export function SaleFlowHost({ profile }: { profile: Profile }) {
     const handle = async (req: SaleFlowRequest) => {
       try {
         if (req.kind === 'new') {
-          await context()
+          // Les ventes lisibles servent à repérer un doublon (manque 3).
+          const [, list] = await Promise.all([context(), fetchSales().catch(() => [] as Sale[])])
           if (!alive) return
+          setExisting(list)
           setSale(null)
           setMode('new')
           setOpen(true)
@@ -104,6 +115,8 @@ export function SaleFlowHost({ profile }: { profile: Profile }) {
       canEditAll={canEditAll}
       agencyRates={agencyRates}
       profileRates={profileRates}
+      existing={mode === 'new' ? existing : undefined}
+      onOpenExisting={(id) => openSaleFlow({ kind: 'open', saleId: id })}
     />
   )
 }

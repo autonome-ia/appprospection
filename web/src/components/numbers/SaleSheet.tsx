@@ -21,12 +21,14 @@ import {
   formatEuros,
   formatRate,
   missingFields,
+  prestationLabel,
   type Prestation,
   type Sale,
   type SaleOrigin,
   type SalePayment,
 } from '../../domain/sales'
 import type { Profile } from '../../domain/types'
+import { shortDay } from './SaleRow'
 
 /** Montant saisi à la française (« 12 450,50 ») → nombre, null si vide. */
 function parseAmount(raw: string): number | null {
@@ -35,6 +37,15 @@ function parseAmount(raw: string): number | null {
   const n = Number(t)
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null
 }
+/** Clé de comparaison : minuscules, sans accents ni ponctuation. */
+const normKey = (v: string | null | undefined) =>
+  (v ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+
 const showAmount = (n: number | null | undefined) => (n == null ? '' : String(n).replace('.', ','))
 
 export type SaleSheetMode = 'vendu' | 'edit' | 'new'
@@ -59,6 +70,8 @@ export function SaleSheet({
   agencyRates,
   profileRates,
   onSaved,
+  existing,
+  onOpenExisting,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -71,6 +84,10 @@ export function SaleSheet({
   agencyRates: RateTable
   profileRates: Record<string, RateTable>
   onSaved?: (sale: Sale | null) => void
+  /** « + Vente » : ventes déjà lisibles, pour repérer un doublon (une maison
+      vendue depuis la carte a déjà sa vente, « à compléter »). */
+  existing?: Sale[]
+  onOpenExisting?: (id: string) => void
 }) {
   const [amount, setAmount] = useState('')
   const [prestation, setPrestation] = useState<Prestation | null>(null)
@@ -127,6 +144,21 @@ export function SaleSheet({
 
   const financedN = parseAmount(financed)
   const financedTooBig = payment === 'financement' && financedN != null && amountN != null && financedN > amountN
+
+  // Doublon (manque 3) : même adresse, ou même client, qu'une vente active.
+  const duplicate = useMemo(() => {
+    if (mode !== 'new' || !existing?.length) return null
+    const a = normKey(address)
+    const c = normKey(client)
+    if (a.length < 6 && c.length < 4) return null
+    return (
+      existing.find(
+        (s) =>
+          s.status === 'active' &&
+          ((a.length >= 6 && normKey(s.address) === a) || (c.length >= 4 && normKey(s.client_name) === c)),
+      ) ?? null
+    )
+  }, [mode, existing, address, client])
 
   function input(): SaleInput {
     return {
@@ -355,6 +387,21 @@ export function SaleSheet({
             />
           </FormRow>
         </FormGroup>
+
+        {duplicate && (
+          <div className="sale-dup" role="status">
+            <p>
+              Une vente existe déjà pour {normKey(duplicate.address) === normKey(address) ? 'cette adresse' : 'ce client'} :{' '}
+              {[prestationLabel(duplicate.prestation), shortDay(duplicate.sold_on), missingFields(duplicate).length ? 'à compléter' : null]
+                .filter(Boolean)
+                .join(' · ')}
+              .
+            </p>
+            <button type="button" className="text-btn" onClick={() => onOpenExisting?.(duplicate.id)}>
+              Ouvrir cette vente
+            </button>
+          </div>
+        )}
 
         <FormGroup title="Note">
           <textarea

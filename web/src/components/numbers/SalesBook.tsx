@@ -1,11 +1,24 @@
 import { useMemo, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { ChevronDown, Plus } from 'lucide-react'
 import { Segmented } from '../ui/Segmented'
 import { useNumbers } from './NumbersData'
 import { PeriodBar, usePeriod } from './PeriodBar'
 import { SaleRow } from './SaleRow'
 import { openSaleFlow } from '../../lib/sale-flow'
-import { formatCount, formatEuros, inPeriod, isComplete, isSellerOf, summarize } from '../../domain/sales'
+import {
+  ORIGINS,
+  PRESTATIONS,
+  formatCount,
+  formatEuros,
+  inPeriod,
+  isComplete,
+  isSellerOf,
+  originLabel,
+  prestationLabel,
+  summarize,
+  type Prestation,
+  type SaleOrigin,
+} from '../../domain/sales'
 
 type Scope = 'miennes' | 'agence'
 type Filter = 'toutes' | 'a_completer' | 'annulees'
@@ -30,10 +43,21 @@ export function SalesBook() {
   const p = usePeriod('mois')
   const [scope, setScope] = useState<Scope>('miennes')
   const [filter, setFilter] = useState<Filter>('toutes')
+  // Filtres prestation / origine (manque 2) : ils s'appliquent AUSSI au
+  // résumé chiffré du haut (« mes toitures du mois », « mes leads »…).
+  const [prest, setPrest] = useState<Prestation | ''>('')
+  const [orig, setOrig] = useState<SaleOrigin | ''>('')
 
   const inScope = useMemo(
-    () => sales.filter((s) => inPeriod(s, p.bounds) && (scope === 'agence' || isSellerOf(s, me.id))),
-    [sales, p.bounds, scope, me.id],
+    () =>
+      sales.filter(
+        (s) =>
+          inPeriod(s, p.bounds) &&
+          (scope === 'agence' || isSellerOf(s, me.id)) &&
+          (!prest || s.prestation === prest) &&
+          (!orig || s.origin === orig),
+      ),
+    [sales, p.bounds, scope, me.id, prest, orig],
   )
   const shown = inScope.filter((s) =>
     filter === 'toutes'
@@ -120,6 +144,44 @@ export function SalesBook() {
             {label}
           </button>
         ))}
+      </div>
+      <div className="book-selects">
+        <label className={`chip chip-sm chip-select ${prest ? 'is-active' : ''}`}>
+          <span>{prest ? prestationLabel(prest) : 'Prestation'}</span>
+          <ChevronDown size={13} strokeWidth={2} aria-hidden="true" />
+          <select value={prest} onChange={(e) => setPrest(e.target.value as Prestation | '')} aria-label="Filtrer par prestation">
+            <option value="">Toutes les prestations</option>
+            {PRESTATIONS.map((x) => (
+              <option key={x.value} value={x.value}>
+                {x.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={`chip chip-sm chip-select ${orig ? 'is-active' : ''}`}>
+          <span>{orig ? originLabel(orig) : 'Origine'}</span>
+          <ChevronDown size={13} strokeWidth={2} aria-hidden="true" />
+          <select value={orig} onChange={(e) => setOrig(e.target.value as SaleOrigin | '')} aria-label="Filtrer par origine">
+            <option value="">Toutes les origines</option>
+            {ORIGINS.map((x) => (
+              <option key={x.value} value={x.value}>
+                {x.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {(prest || orig) && (
+          <button
+            type="button"
+            className="text-btn book-clear"
+            onClick={() => {
+              setPrest('')
+              setOrig('')
+            }}
+          >
+            Effacer
+          </button>
+        )}
       </div>
 
       {loading ? (

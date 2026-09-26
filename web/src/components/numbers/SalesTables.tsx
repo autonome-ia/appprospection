@@ -76,6 +76,8 @@ export function SalesTables() {
   const partnerOf = (s: { seller1_id: string; seller2_id: string | null }) =>
     nameOf(s.seller1_id === me.id ? s.seller2_id : s.seller1_id).split(/\s/)[0]
 
+  const fullPeriod = useMemo(() => sales.filter((s) => inPeriod(s, p.bounds) && isCounted(s)), [sales, p.bounds])
+
   const perSeller = rankable
     .map((prof) => ({ prof, s: summarize(agency, prof.id) }))
     .filter((x) => x.s.ventes > 0)
@@ -160,7 +162,16 @@ export function SalesTables() {
               <div key={prof.id} className="ntable-row is-sellers">
                 <span className="ntable-seller">
                   <Avatar id={prof.id} name={prof.full_name} color={prof.color} size={22} />
-                  <span className="ntable-title">{prof.full_name ?? 'Commercial'}</span>
+                  <span className="ntable-main">
+                    <span className="ntable-title">{prof.full_name ?? 'Commercial'}</span>
+                    {/* Commission de chacun : lisible des superviseurs seuls
+                        (lignes complètes, RLS). */}
+                    {isSupervisor && (
+                      <span className="ntable-meta">
+                        commission <span className="tnum">{formatEuros(commissionSum(fullPeriod, prof.id))}</span>
+                      </span>
+                    )}
+                  </span>
                 </span>
                 <span className="ntable-num tnum">{formatCount(s.ventes)}</span>
                 <span className="ntable-num tnum">{formatEuros(s.ca)}</span>

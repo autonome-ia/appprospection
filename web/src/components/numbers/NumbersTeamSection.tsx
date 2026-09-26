@@ -114,7 +114,11 @@ export function NumbersTeamSection({
     }
   }
 
-  const sellers = members.filter((m) => !m.disabled_at && m.role !== 'secretaire' && !m.is_support)
+  // Le manager se règle AUSSI lui-même (son objectif, ses taux) : il est dans
+  // la liste, en tête, même s'il est compte support (il teste).
+  const sellers = members
+    .filter((m) => !m.disabled_at && m.role !== 'secretaire' && (!m.is_support || m.id === profile.id))
+    .sort((a, b) => Number(b.id === profile.id) - Number(a.id === profile.id))
 
   return (
     <>
@@ -143,7 +147,10 @@ export function NumbersTeamSection({
             <button type="button" className="team-row" onClick={() => setOpenId(expanded ? null : m.id)}>
               <Avatar id={m.id} name={m.full_name} color={m.color} size={34} className="team-avatar" />
               <span className="team-texts">
-                <span className="team-name">{m.full_name ?? 'Sans nom'}</span>
+                <span className="team-name">
+                  {m.full_name ?? 'Sans nom'}
+                  {m.id === profile.id && <span className="team-me"> (toi)</span>}
+                </span>
                 <span className="team-role">
                   {roleLabel(m.role)} · objectif{' '}
                   <span className="tnum">{m.monthly_ca_target > 0 ? formatEuros(m.monthly_ca_target) : 'aucun'}</span>
