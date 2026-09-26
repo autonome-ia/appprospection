@@ -1,11 +1,10 @@
-import { ArrowDown, ArrowUp, ChevronRight } from 'lucide-react'
+import { ArrowDown, ArrowUp } from 'lucide-react'
 import { Avatar } from '../ui/Avatar'
 import type { OrgProfile } from '../../data/profiles'
 import {
   formatEuros,
   isComplete,
   originLabel,
-  paymentLabel,
   prestationLabel,
   type BoardSale,
   type Sale,
@@ -35,9 +34,10 @@ export const sellersLabel = (sale: BoardSale, nameOf: (id: string) => string) =>
     .join(' et ')
 
 /**
- * Une vente en ligne (cahier, accueil) : prestation et client à gauche,
- * montant à droite, le reste en méta. « À compléter » et « Annulée » se
- * disent en toutes lettres (pas seulement en couleur).
+ * Une vente en carte (cahier, accueil — refonte 26/09, « cahier pas assez
+ * lisible ») : le client et le montant en tête, la prestation et le
+ * paiement en dessous, puis l'adresse et l'origine, les vendeurs en pied,
+ * la note à part. « À compléter » et « Annulée » en toutes lettres.
  */
 export function SaleRow({
   sale,
@@ -54,40 +54,47 @@ export function SaleRow({
   const cancelled = sale.status === 'annulee'
   const todo = !cancelled && !isComplete(sale)
   const title = full?.client_name || full?.address || prestationLabel(sale.prestation) || 'Vente'
-  // 2e ligne du cahier : l'adresse (si le client est en titre) et l'origine.
-  const meta2 = full
-    ? [full.client_name ? full.address : null, originLabel(full.origin)].filter(Boolean).join(' · ')
-    : ''
+  const place = full ? [full.client_name ? full.address : null, originLabel(full.origin)].filter(Boolean).join(' · ') : ''
+  const pay =
+    sale.payment === 'financement'
+      ? `Financé${sale.financed_ht != null ? ` ${formatEuros(sale.financed_ht)}` : ''}`
+      : sale.payment === 'comptant'
+        ? 'Comptant'
+        : null
   const body = (
     <>
-      <Sellers sale={sale} profiles={profiles} />
-      <span className="sale-row-main">
-        <span className="sale-row-title">
-          {title}
-          {todo && <span className="sale-tag is-todo">À compléter</span>}
-          {cancelled && <span className="sale-tag is-cancelled">Annulée</span>}
+      <span className="sale-card-top">
+        <span className="sale-card-title">{title}</span>
+        <span className={`sale-card-amount tnum ${cancelled ? 'is-cancelled' : ''}`}>
+          {sale.amount_ht == null ? 'Sans montant' : formatEuros(sale.amount_ht)}
         </span>
-        <span className="sale-row-meta">
-          <span className="tnum">{shortDay(sale.sold_on)}</span>
-          {full && sale.prestation ? ` · ${prestationLabel(sale.prestation)}` : ''}
-          {sale.payment ? ` · ${paymentLabel(sale.payment)}` : ''}
-          {` · ${sellersLabel(sale, nameOf)}`}
-        </span>
-        {meta2 && <span className="sale-row-meta">{meta2}</span>}
-        {full?.note && <span className="sale-row-note">{full.note}</span>}
       </span>
-      <span className={`sale-row-amount tnum ${cancelled ? 'is-cancelled' : ''}`}>
-        {sale.amount_ht == null ? '…' : formatEuros(sale.amount_ht)}
+      <span className="sale-card-line">
+        {sale.prestation && (
+          <span className="sale-prest">
+            <i className="legend-dot" style={{ background: `var(--pr-${sale.prestation})` }} />
+            {prestationLabel(sale.prestation)}
+          </span>
+        )}
+        {pay && <span className="sale-card-pay">{pay}</span>}
+        {todo && <span className="sale-tag is-todo">À compléter</span>}
+        {cancelled && <span className="sale-tag is-cancelled">Annulée</span>}
       </span>
-      {onOpen && <ChevronRight size={15} strokeWidth={1.9} className="rank-chevron" />}
+      {place && <span className="sale-card-place">{place}</span>}
+      {full?.note && <span className="sale-card-note">{full.note}</span>}
+      <span className="sale-card-foot">
+        <Sellers sale={sale} profiles={profiles} />
+        <span className="sale-card-sellers">{sellersLabel(sale, nameOf)}</span>
+        <span className="sale-card-date tnum">{shortDay(sale.sold_on)}</span>
+      </span>
     </>
   )
   return onOpen ? (
-    <button type="button" className="sale-row is-clickable" onClick={onOpen}>
+    <button type="button" className="sale-card is-clickable" onClick={onOpen}>
       {body}
     </button>
   ) : (
-    <div className="sale-row">{body}</div>
+    <div className="sale-card">{body}</div>
   )
 }
 

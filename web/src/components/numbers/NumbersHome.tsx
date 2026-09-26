@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { CircleAlert, Plus, ReceiptText, Settings } from 'lucide-react'
 import { Avatar, OrgLogo } from '../ui/Avatar'
-import { Num } from '../ui/Num'
+import { MoneyHero } from './MoneyHero'
 import { ProfileSheet } from '../ProfileSheet'
 import { useNumbers } from './NumbersData'
 import { EuroDelta, SaleRow } from './SaleRow'
@@ -105,70 +105,41 @@ export function NumbersHome({ spaceSwitch, onGoTo }: { spaceSwitch: ReactNode; o
         </div>
       ) : (
         <>
-          <section className="card stats-hero">
-            <div className="hero-top">
-              <div className="hero-main">
-                <p className="eyebrow">Mon CA · {monthName}</p>
-                <div className="hero-line">
-                  <span className="hero-value tnum">
-                    <Num value={Math.round(cur.ca)} />
-                  </span>
-                  <span className="hero-unit">€ HT</span>
-                </div>
-                <EuroDelta value={cur.ca - prev.ca} label="vs mois dernier" />
-              </div>
-              <div className="hero-mark">
-                <Avatar id={me.id} name={me.full_name} color={color} size={72} />
-              </div>
-            </div>
-            <div className="hero-ribbon">
-              <div className="ribbon-stat">
-                <span className="ribbon-value tnum">{formatEuros(commission)}</span>
-                <span className="ribbon-label">commission</span>
-              </div>
-              <div className="ribbon-stat">
-                <span className="ribbon-value tnum">{formatCount(cur.ventes)}</span>
-                <span className="ribbon-label">vente{cur.ventes > 1 ? 's' : ''}</span>
-              </div>
-              <div className="ribbon-stat">
-                <span className="ribbon-value tnum">{formatCount(cur.toitures)}</span>
-                <span className="ribbon-label">toiture{cur.toitures > 1 ? 's' : ''}</span>
-              </div>
-            </div>
-          </section>
+          <MoneyHero
+            eyebrow={`Mon CA · ${monthName}`}
+            value={cur.ca}
+            delta={<EuroDelta value={cur.ca - prev.ca} label="vs mois dernier" />}
+            ribbon={[
+              { value: formatEuros(commission), label: 'ma commission' },
+              { value: formatCount(cur.ventes), label: `vente${cur.ventes > 1 ? 's' : ''}` },
+              { value: formatCount(cur.toitures), label: `toiture${cur.toitures > 1 ? 's' : ''}` },
+            ]}
+          />
 
           {myObjective != null && <Objective title="Mon objectif du mois" done={cur.ca} target={myObjective} />}
 
+          {/* L'agence en une carte compacte (retour briac 26/09 : pas un
+              deuxième gros chiffre). */}
           {isSupervisor && (
-            <section className="card stats-hero">
-              <div className="hero-top">
-                <div className="hero-main">
-                  <p className="eyebrow">Agence · {monthName}</p>
-                  <div className="hero-line">
-                    <span className="hero-value tnum">
-                      <Num value={Math.round(agency.ca)} />
-                    </span>
-                    <span className="hero-unit">€ HT</span>
-                  </div>
-                </div>
-                <div className="hero-mark">
-                  <OrgLogo size={72} />
-                </div>
+            <section className="card agency-card">
+              <div className="agency-card-head">
+                <OrgLogo size={28} />
+                <p className="eyebrow">Agence · {monthName}</p>
               </div>
-              <div className="hero-ribbon">
-                <div className="ribbon-stat">
-                  <span className="ribbon-value tnum">{formatCount(agency.ventes)}</span>
-                  <span className="ribbon-label">ventes</span>
+              <div className="kpi-grid">
+                <div className="kpi-cell">
+                  <span className="kpi-value tnum">{formatEuros(agency.ca)}</span>
+                  <span className="kpi-label">CA HT</span>
                 </div>
-                <div className="ribbon-stat">
-                  <span className="ribbon-value tnum">{formatCount(agency.toitures)}</span>
-                  <span className="ribbon-label">toitures</span>
+                <div className="kpi-cell">
+                  <span className="kpi-value tnum">{formatCount(agency.ventes)}</span>
+                  <span className="kpi-label">ventes</span>
                 </div>
-                <div className="ribbon-stat">
-                  <span className="ribbon-value tnum">
+                <div className="kpi-cell">
+                  <span className="kpi-value tnum">
                     {agencyTarget > 0 ? `${Math.round((agency.ca / agencyTarget) * 100)} %` : '…'}
                   </span>
-                  <span className="ribbon-label">de l’objectif</span>
+                  <span className="kpi-label">de l’objectif</span>
                 </div>
               </div>
             </section>

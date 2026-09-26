@@ -16,6 +16,10 @@ const dayTitle = (d: string) => {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
+/** Total HT du jour (ventes actives chiffrées, montant entier). */
+const dayTotal = (list: { status: string; amount_ht: number | null }[]) =>
+  list.reduce((sum, s) => sum + (s.status === 'active' ? (s.amount_ht ?? 0) : 0), 0)
+
 /**
  * Cahier des ventes (plan §4.3) : la liste des ventes, par jour. Le
  * commercial voit les siennes ; manager et chef des ventes basculent sur le
@@ -80,16 +84,22 @@ export function SalesBook() {
       )}
 
       {!loading && (
-        <p className="book-summary">
-          <span className="tnum">{formatCount(sum.ventes)}</span> vente{sum.ventes > 1 ? 's' : ''} ·{' '}
-          <span className="tnum">{formatEuros(sum.ca)}</span> HT
-          {sum.aCompleter > 0 && (
-            <>
-              {' · '}
-              <span className="tnum">{sum.aCompleter}</span> à compléter
-            </>
-          )}
-        </p>
+        <section className="card book-summary">
+          <div className="kpi-grid">
+            <div className="kpi-cell">
+              <span className="kpi-value tnum">{formatEuros(sum.ca)}</span>
+              <span className="kpi-label">CA HT</span>
+            </div>
+            <div className="kpi-cell">
+              <span className="kpi-value tnum">{formatCount(sum.ventes)}</span>
+              <span className="kpi-label">vente{sum.ventes > 1 ? 's' : ''}</span>
+            </div>
+            <div className="kpi-cell">
+              <span className={`kpi-value tnum ${sum.aCompleter > 0 ? 'is-warn' : ''}`}>{sum.aCompleter}</span>
+              <span className="kpi-label">à compléter</span>
+            </div>
+          </div>
+        </section>
       )}
 
       <div className="chip-row book-filters">
@@ -125,7 +135,10 @@ export function SalesBook() {
       ) : (
         days.map(({ day, list }) => (
           <section key={day} className="home-section book-day">
-            <p className="eyebrow section-title">{dayTitle(day)}</p>
+            <div className="book-day-head">
+              <p className="eyebrow">{dayTitle(day)}</p>
+              <span className="book-day-total tnum">{formatEuros(dayTotal(list))}</span>
+            </div>
             {list.map((s) => (
               <SaleRow
                 key={s.id}

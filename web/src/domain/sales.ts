@@ -138,6 +138,9 @@ export interface NumbersSummary {
   partToiture: number | null
   panierMoyen: number | null
   caParPrestation: Record<Prestation, number>
+  /** Répartition du CA : la part FINANCÉE (montant financé) et le reste,
+      payé comptant — une vente de 20 000 € dont 10 000 € financés met
+      10 000 € de chaque côté (retour briac 26/09). */
   caComptant: number
   caFinancement: number
   /** Ventes « à compléter » (hors calculs) de la sélection. */
@@ -184,13 +187,10 @@ export function summarize(sales: (Partial<Sale> & BoardSale)[], forProfile?: str
     out.ventes += part
     out.caParPrestation[s.prestation!] += ca
     if (s.prestation === 'toiture') out.toitures += part
-    if (s.payment === 'financement') {
-      out.caFinancement += ca
-      out.finance += (s.financed_ht ?? 0) * part
-    } else {
-      out.caComptant += ca
-    }
+    if (s.payment === 'financement') out.finance += (s.financed_ht ?? 0) * part
   }
+  out.caFinancement = out.finance
+  out.caComptant = out.ca - out.finance
   if (out.ca > 0) {
     out.trc = out.finance / out.ca
     out.partToiture = out.caParPrestation.toiture / out.ca
@@ -320,3 +320,63 @@ export const formatEuros = (n: number) => EUR.format(Math.round(n))
 export const formatRate = (r: number) => (Math.round(r * 1000) % 10 === 0 ? PCT : PCT1).format(r)
 /** « 0,5 » / « 2 » : compteur de ventes à parts. */
 export const formatCount = (n: number) => n.toLocaleString('fr-FR', { maximumFractionDigits: 1 })
+
+// ---------------------------------------------------------------------------
+// Graphiques des Stats (retour briac 26/09)
+// ---------------------------------------------------------------------------
+
+/** CA par origine (lignes complètes seulement : l'origine n'est pas dans le
+    tableau de l'agence). */
+export function caByOrigin(sales: Sale[], forProfile?: string): Record<SaleOrigin, number> {
+  const out: Record<SaleOrigin, number> = { prospection: 0, lead_entrant: 0, ancien_client: 0 }
+  for (const s of sales) {
+    const part = forProfile ? shareOf(s, forProfile) : 1
+    if (part === 0 || !isCounted(s) || !s.origin) continue
+    out[s.origin] += (s.amount_ht ?? 0) * part
+  }
+  return out
+}
+
+export interface Bucket {
+  /** Libellé sous la barre (vide = pas de libellé). */
+  label: string
+  /** Libellé complet (lecture au doigt). */
+  title: string
+  start: string
+  end: string
+}
+
+const DAY_INITIALS = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
+const MONTH_INITIALS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
+
+/** Découpage d'une période pour l'évolution du CA : jours (semaine, mois),
+    mois (trimestre, année). */
+export function periodBuckets(period: NumbersPeriod, b: { start: string; end: string }): Bucket[] {
+  const out: Bucket[] = []
+  const [y, m, d] = b.start.split('-').map(Number)
+  const cur = new Date(y, m - 1, d)
+  const endKey = b.end
+  const byMonth = period === 'trimestre' || period === 'annee'
+  while (dayKey(cur) < endKey) {
+    const start = dayKey(cur)
+    const next = byMonth ? new Date(cur.getFullYear(), cur.getMonth() + 1, 1) : new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 1)
+    let label: string
+    let title: string
+    if (byMonth) {
+      label = period === 'annee' ? MONTH_INITIALS[cur.getMonth()] : MONTHS[cur.getMonth()].slice(0, 4)
+      title = `${MONTHS[cur.getMonth()][0].toUpperCase()}${MONTHS[cur.getMonth()].slice(1)}`
+    } else {
+      const dom = cur.getDate()
+      label = period === 'semaine' ? DAY_INITIALS[cur.getDay()] : dom % 7 === 1 ? String(dom) : ''
+      title = `${dom === 1 ? '1er' : dom} ${MONTHS[cur.getMonth()]}`
+    }
+    out.push({ label, title, start, end: dayKey(next) })
+    cur.setTime(next.getTime())
+  }
+  return out
+}
+
+/** CA de chaque tranche (même règle de part que summarize). */
+export function caByBucket(rows: BoardSale[], buckets: Bucket[], forProfile?: string): number[] {
+  return buckets.map((bk) => summarize(rows.filter((s) => inPeriod(s, bk)), forProfile).ca)
+}

@@ -5,6 +5,48 @@
    vert = vendu / objectif atteint, ambre = à compléter, danger = annulée ;
    couleur = commercial (pastilles). Tailles dans l'échelle fermée. */
 
+/* Palette des PRESTATIONS (retour briac 26/09 : des camemberts lisibles).
+   Palette catégorielle du skill dataviz, orange retiré (réservé à l'accent),
+   ordre fixe validé (validate_palette.js : clair et sombre PASS, contraste
+   relevé par la légende chiffrée). Aucune couleur de statut réutilisée. */
+:root {
+  --pr-toiture: #2a78d6;
+  --pr-facade: #1baf7a;
+  --pr-isolation: #eda100;
+  --pr-traitement_bois: #e87ba4;
+  --pr-gouttiere: #008300;
+  --pr-energie: #4a3aa7;
+}
+[data-theme='dark'] {
+  --pr-toiture: #3987e5;
+  --pr-facade: #199e70;
+  --pr-isolation: #c98500;
+  --pr-traitement_bois: #d55181;
+  --pr-gouttiere: #008300;
+  --pr-energie: #9085e9;
+}
+
+/* Héros de Numbers : l'argent en ENCRE (le vert = vendu / atteint). */
+.money-hero .hero-value {
+  color: var(--ink);
+}
+.money-hero .hero-unit {
+  color: var(--ink-3);
+  font-size: 15px;
+}
+.agency-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.agency-card-head .eyebrow {
+  margin: 0;
+}
+.kpi-value.is-warn {
+  color: var(--st-revoir);
+}
+
 /* --- Switch d'espace (Accueil des deux espaces) --- */
 .space-switch {
   margin: 0;
@@ -136,99 +178,6 @@
   color: var(--danger);
 }
 
-/* --- Une vente en ligne (cahier, accueil) : même gabarit que .home-row --- */
-.sale-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  width: 100%;
-  text-align: left;
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  background: var(--surface);
-  padding: 10px 12px;
-  margin-bottom: 8px;
-  color: var(--ink);
-}
-.sale-row.is-clickable {
-  cursor: pointer;
-  transition: transform var(--dur-press) var(--ease-out);
-}
-.sale-row.is-clickable:active {
-  transform: scale(var(--press-scale-lg));
-}
-.sale-row .rank-chevron {
-  margin-top: 3px;
-}
-.sale-sellers {
-  display: inline-flex;
-  flex: 0 0 auto;
-  margin-top: 1px;
-}
-.sale-sellers > * + * {
-  margin-left: -7px;
-  box-shadow: 0 0 0 2px var(--surface);
-  border-radius: var(--r-full);
-}
-.sale-row-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.sale-row-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 15px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.sale-row-meta {
-  font-size: 12px;
-  color: var(--ink-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.sale-row-note {
-  font-size: 12px;
-  color: var(--ink-2);
-  font-style: italic;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-.sale-row-amount {
-  flex: 0 0 auto;
-  font-size: 15px;
-  font-weight: 600;
-}
-.sale-row-amount.is-cancelled {
-  color: var(--ink-3);
-  text-decoration: line-through;
-}
-.sale-tag {
-  flex: 0 0 auto;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 1px 7px;
-  border-radius: var(--r-full);
-}
-.sale-tag.is-todo {
-  color: var(--st-revoir);
-  background: color-mix(in srgb, var(--st-revoir) 12%, transparent);
-}
-.sale-tag.is-cancelled {
-  color: var(--danger);
-  background: var(--danger-weak);
-}
-
 .numbers-home-actions {
   display: flex;
   gap: 8px;
@@ -243,11 +192,6 @@
 }
 
 /* --- Cahier des ventes --- */
-.book-summary {
-  margin: 0 2px 10px;
-  font-size: 13px;
-  color: var(--ink-2);
-}
 .book-filters {
   margin-bottom: 14px;
 }
@@ -379,53 +323,6 @@ button.ntable-row {
   margin: 0;
 }
 
-/* --- Stats : CA par prestation (nuances d'encre, toiture en tête) --- */
-.prest-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 6px;
-}
-.prest-bar {
-  display: grid;
-  grid-template-columns: 104px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-}
-.prest-label {
-  font-size: 13px;
-  color: var(--ink-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.prest-track {
-  height: 8px;
-  border-radius: var(--r-full);
-  background: var(--surface-2);
-  overflow: hidden;
-}
-.prest-fill {
-  display: block;
-  height: 100%;
-  border-radius: var(--r-full);
-  background: var(--ink-3);
-  transition: width var(--dur-slow) var(--ease-out);
-}
-.prest-bar.is-lead .prest-fill {
-  background: var(--ink);
-}
-.prest-bar.is-lead .prest-label {
-  color: var(--ink);
-  font-weight: 600;
-}
-.prest-value {
-  font-size: 13px;
-  font-weight: 600;
-  min-width: 72px;
-  text-align: right;
-}
-
 /* --- Stats : comptant / financement --- */
 .pay-split {
   display: flex;
@@ -490,4 +387,362 @@ button.ntable-row {
 }
 .team-panel .form-section:first-child {
   margin-top: 0;
+}
+
+/* --- Une vente en carte (cahier, accueil — refonte 26/09) --- */
+.sale-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  padding: 13px 14px 12px;
+  margin-bottom: 10px;
+  color: var(--ink);
+}
+.sale-card.is-clickable {
+  cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.sale-card.is-clickable:active {
+  transform: scale(var(--press-scale-lg));
+}
+.sale-card-top {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.sale-card-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sale-card-amount {
+  flex: 0 0 auto;
+  font-size: 17px;
+  font-weight: 650;
+}
+.sale-card-amount.is-cancelled {
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+.sale-card-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.sale-prest {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.sale-card-place {
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sale-card-note {
+  font-size: 13px;
+  color: var(--ink-2);
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.sale-card-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.sale-card-sellers {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sale-card-date {
+  flex: 0 0 auto;
+}
+.sale-sellers {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+.sale-sellers > * + * {
+  margin-left: -7px;
+  box-shadow: 0 0 0 2px var(--surface);
+  border-radius: var(--r-full);
+}
+.sale-tag {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+}
+.sale-tag.is-todo {
+  color: var(--st-revoir);
+  background: color-mix(in srgb, var(--st-revoir) 12%, transparent);
+}
+.sale-tag.is-cancelled {
+  color: var(--danger);
+  background: var(--danger-weak);
+}
+
+/* Cahier : résumé en chiffres, en-tête de jour avec son total. */
+.book-summary {
+  margin-bottom: 12px;
+}
+.book-day-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 6px 2px 8px;
+}
+.book-day-head .eyebrow {
+  margin: 0;
+}
+.book-day-total {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+/* --- Anneau (parts d'un tout) + légende chiffrée --- */
+.donut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-top: 8px;
+}
+.donut-figure {
+  position: relative;
+  width: 184px;
+  height: 184px;
+}
+.donut-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.donut-track {
+  fill: none;
+  stroke: var(--surface-2);
+  stroke-width: 16;
+}
+.donut-seg {
+  fill: none;
+  stroke-width: 16;
+  cursor: pointer;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.donut-seg.is-dim {
+  opacity: 0.25;
+}
+.donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 34px;
+  pointer-events: none;
+  text-align: center;
+}
+.donut-center-value {
+  font-size: 17px;
+  font-weight: 650;
+  color: var(--ink);
+}
+.donut-center-label {
+  font-size: 12px;
+  line-height: 1.25;
+  color: var(--ink-3);
+}
+.donut-legend {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.legend-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto 44px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 4px;
+  border: none;
+  border-top: 1px solid var(--line);
+  background: none;
+  text-align: left;
+  font-size: 13px;
+  color: var(--ink);
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.legend-row:first-child {
+  border-top: none;
+}
+.legend-row.is-zero,
+.donut-legend:has(.is-active) .legend-row:not(.is-active) {
+  opacity: 0.45;
+}
+.legend-dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.legend-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.legend-value {
+  font-weight: 600;
+}
+.legend-pct {
+  text-align: right;
+  color: var(--ink-3);
+}
+
+/* --- Évolution du CA : colonnes en encre --- */
+.evo-bar {
+  background: var(--ink);
+  opacity: 0.85;
+  border-radius: 4px 4px 0 0;
+}
+.evo-bar.is-zero {
+  opacity: 0.2;
+}
+.chart-bars.is-scrubbing .evo-bar:not(.is-active) {
+  opacity: 0.3;
+}
+
+/* --- CA par vendeur : barres à la couleur du commercial --- */
+.seller-bars {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+}
+.seller-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 0;
+  border: none;
+  border-top: 1px solid var(--line);
+  background: none;
+  text-align: left;
+  color: var(--ink);
+}
+.seller-row:first-child {
+  border-top: none;
+}
+.seller-row.is-clickable {
+  cursor: pointer;
+}
+.seller-rank {
+  width: 16px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--ink-3);
+}
+.seller-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.seller-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.seller-name {
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.seller-name.is-me {
+  font-weight: 650;
+}
+.seller-value {
+  font-size: 15px;
+  font-weight: 650;
+}
+.seller-track {
+  height: 8px;
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.seller-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-full);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.seller-meta {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* --- Comptant / financement : les deux montants, puis la barre --- */
+.pay-figures {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0 10px;
+}
+.pay-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pay-figure.is-right {
+  align-items: flex-end;
+}
+.pay-figure-value {
+  font-size: 24px;
+  font-weight: 650;
+}
+.pay-figure-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-3);
 }

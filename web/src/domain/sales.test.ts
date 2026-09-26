@@ -108,8 +108,9 @@ describe('summarize (plan §3)', () => {
     expect(s.toitures).toBe(2)
     expect(s.trc).toBeCloseTo(15000 / 34000)
     expect(s.partToiture).toBeCloseTo(30000 / 34000)
-    expect(s.caFinancement).toBe(20000)
-    expect(s.caComptant).toBe(14000)
+    // 20 000 € dont 15 000 € financés : 15 000 financés, le reste comptant.
+    expect(s.caFinancement).toBe(15000)
+    expect(s.caComptant).toBe(19000)
     expect(s.aCompleter).toBe(1)
   })
 
@@ -184,5 +185,22 @@ describe('classement et formats', () => {
     expect(formatEuros(12450.4).replace(/\s/g, ' ')).toBe('12 450 €')
     expect(formatRate(0.13).replace(/\s/g, ' ')).toBe('13 %')
     expect(formatRate(0.125).replace(/\s/g, ' ')).toBe('12,5 %')
+  })
+})
+
+describe('graphiques', () => {
+  it('découpe l’année en 12 mois et le mois en jours', async () => {
+    const { periodBuckets, caByOrigin } = await import('./sales')
+    const now = new Date(2026, 8, 25)
+    expect(periodBuckets('annee', periodBounds('annee', now))).toHaveLength(12)
+    expect(periodBuckets('mois', periodBounds('mois', now))).toHaveLength(30)
+    expect(periodBuckets('trimestre', periodBounds('trimestre', now)).map((b) => b.start)).toEqual([
+      '2026-07-01',
+      '2026-08-01',
+      '2026-09-01',
+    ])
+    const o = caByOrigin([sale({ amount_ht: 1000 }), sale({ amount_ht: 500, origin: 'lead_entrant', seller2_id: B })], A)
+    expect(o.prospection).toBe(1000)
+    expect(o.lead_entrant).toBe(250)
   })
 })
