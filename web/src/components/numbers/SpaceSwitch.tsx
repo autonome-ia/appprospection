@@ -3,7 +3,7 @@ import type { Space } from '../../lib/space'
 
 const OPTIONS = [
   { value: 'prospection', label: 'Prospection' },
-  { value: 'numbers', label: 'Numbers' },
+  { value: 'numbers', label: 'Ventes' },
 ] as const
 
 /** Le switch d'espace (chantier Numbers) : sur l'Accueil des DEUX espaces,

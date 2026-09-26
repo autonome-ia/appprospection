@@ -1242,6 +1242,8 @@ button.ntable-row {
   margin-top: 8px;
 }
 .home-goal-cta {
+  /* Sur sa propre ligne, sous l'écart au mois dernier (retour briac). */
+  display: block;
   margin-top: 12px;
   padding: 0;
   font-size: 13px;
