@@ -255,30 +255,24 @@ export function NumbersStats() {
             </section>
           )}
 
-          <section className="card">
-            <div className="kpi-grid">
-              <div className="kpi-cell">
-                <span className="kpi-value tnum">{formatCount(cur.toitures)}</span>
-                <span className="kpi-label">toiture{cur.toitures > 1 ? 's' : ''}</span>
-              </div>
-              <div className="kpi-cell">
-                <span className="kpi-value">{cur.trc == null ? '…' : <Pct value={cur.trc} />}</span>
-                <span className="kpi-label">{isSupervisor ? 'TRC' : 'part financée'}</span>
-              </div>
-              <div className="kpi-cell">
-                <span className="kpi-value">{cur.partToiture == null ? '…' : <Pct value={cur.partToiture} />}</span>
-                <span className="kpi-label">part toiture</span>
-              </div>
-            </div>
-            {isSupervisor && <p className="kpi-foot">TRC : montant financé ÷ CA.</p>}
-          </section>
-
+          {/* Plus de carte toitures / part financée / part toiture (retour
+              briac 26/09 : doublon). La part toiture est le % de la ligne
+              Toiture, le TRC le % du financement ; le NOMBRE de toitures
+              (indicateur d'Alexis) vit dans le libellé de la ligne Toiture. */}
           <section className="card">
             <p className="eyebrow">Prestations</p>
             <MixBar
               slices={PRESTATIONS.map((x) => ({
                 key: x.value,
-                label: x.label,
+                label:
+                  x.value === 'toiture' && cur.toitures > 0
+                    ? (
+                        <>
+                          Toiture · <span className="tnum">{formatCount(cur.toitures)}</span> vente
+                          {cur.toitures > 1 ? 's' : ''}
+                        </>
+                      )
+                    : x.label,
                 value: cur.caParPrestation[x.value],
                 color: x.value === 'toiture' ? 'var(--ink)' : 'var(--ink-3)',
               })).sort((a, b) => b.value - a.value)}
@@ -322,6 +316,7 @@ export function NumbersStats() {
             <p className="kpi-foot">
               {cur.ca > 0 ? (
                 <>
+                  {isSupervisor ? 'TRC : ' : ''}
                   <Pct value={financePct} /> du CA est financé.
                 </>
               ) : (

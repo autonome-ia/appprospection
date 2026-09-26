@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { Avatar } from '../ui/Avatar'
 import { Money, Pct } from './Money'
@@ -245,7 +245,7 @@ export function Evolution({ buckets, values, goal }: { buckets: Bucket[]; values
 
 export interface Slice {
   key: string
-  label: string
+  label: ReactNode
   value: number
   /** Couleur CSS : encre pour la part mise en avant, gris sinon. */
   color: string
