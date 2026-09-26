@@ -454,6 +454,7 @@ objectifs de CA. Besoin Alexis, cadrage briac (décisions D1-D17 du plan). Optio
 - [x] **N10 — EN PROD le 26/09/2026** (feu vert briac) : avance rapide de `main` sur `design` (73e544d), build façon prod vérifié, 70 tests verts. Numbers activé sur Brest (drapeau + taux depuis le 25/09) : toute l'équipe de Brest le voit. L'équipe teste et remonte ses retours.
 - [ ] ⬜ Import des ventes passées de Brest en « à compléter » : `select public.numbers_activate(id) from organizations where name = 'Mister Toiture : Brest';` (au choix de briac).
 - [x] **Temps réel pour toute l'agence (26/09)** : `db/0032` (signal sans donnée sur canal privé `numbers:<agence>` à chaque écriture sur les ventes, exécutée), test `tools/rls-test/realtime-test.mjs` (collègue reçoit, secrétaire refusée), banc numbers 52/52. Mises à jour PWA automatiques et silencieuses (en prod).
+- [x] **Stats de prospection = parts Numbers (26/09, en prod)** : une vente à deux compte 0,5 à chaque vendeur (cas Abdoul + Alexandre), origine Prospection seulement ; les Vendu du journal sans vente liée (historique) comptent 1 ; `db/0033` (origine + event_id dans sales_board, exécutée) ; sonde `tools/screenshots/probe-ventes-parts.mjs`.
 - [ ] ⬜ Retours de l'équipe de Brest ; taux à confirmer par Alexis ; D20 (commissions acquises / en attente) après son avis ; captures chef des ventes et secrétaire.
 
 ## Idées / plus tard (hors MVP)
