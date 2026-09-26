@@ -45,6 +45,11 @@ interface NumbersState {
   /** Ouvre Stats sur le détail d'un commercial. */
   openSeller: (id: string) => void
   goTo: (tab: Tab) => void
+  /** Ouvre le cahier sur « À compléter » (vue agence pour un superviseur). */
+  openBookTodo: () => void
+  /** Préréglage consommé par le cahier à son ouverture. */
+  bookPreset: 'a_completer' | null
+  clearBookPreset: () => void
 }
 
 const Ctx = createContext<NumbersState | null>(null)
@@ -65,6 +70,7 @@ export function NumbersProvider({
   children: ReactNode
 }) {
   const [drillId, setDrillId] = useState<string | null>(null)
+  const [bookPreset, setBookPreset] = useState<'a_completer' | null>(null)
   const [profiles, setProfiles] = useState<OrgProfile[]>([])
   const [sales, setSales] = useState<Sale[]>([])
   const [board, setBoard] = useState<BoardSale[]>([])
@@ -167,8 +173,14 @@ export function NumbersProvider({
         onGoTo('n-stats')
       },
       goTo: onGoTo,
+      openBookTodo: () => {
+        setBookPreset('a_completer')
+        onGoTo('ventes')
+      },
+      bookPreset,
+      clearBookPreset: () => setBookPreset(null),
     }
-  }, [profile, profiles, sales, board, agencyRates, profileRates, loading, error, load, drillId, onGoTo])
+  }, [profile, profiles, sales, board, agencyRates, profileRates, loading, error, load, drillId, onGoTo, bookPreset])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown, Plus } from 'lucide-react'
 import { Segmented } from '../ui/Segmented'
 import { useNumbers } from './NumbersData'
@@ -39,10 +39,16 @@ const dayTotal = (list: { status: string; amount_ht: number | null }[]) =>
  * cahier de l'agence (client, adresse, note : la RLS ne les donne qu'à eux).
  */
 export function SalesBook() {
-  const { me, isSupervisor, profiles, sales, loading, error, reload, nameOf } = useNumbers()
+  const { me, isSupervisor, profiles, sales, loading, error, reload, nameOf, bookPreset, clearBookPreset } = useNumbers()
   const p = usePeriod('mois')
-  const [scope, setScope] = useState<Scope>('miennes')
-  const [filter, setFilter] = useState<Filter>('toutes')
+  // Ouvert depuis « À traiter » de l'Accueil : déjà filtré (et en vue
+  // agence pour un superviseur).
+  const [scope, setScope] = useState<Scope>(bookPreset && isSupervisor ? 'agence' : 'miennes')
+  const [filter, setFilter] = useState<Filter>(bookPreset ?? 'toutes')
+  useEffect(() => {
+    if (bookPreset) clearBookPreset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   // Filtres prestation / origine (manque 2) : ils s'appliquent AUSSI au
   // résumé chiffré du haut (« mes toitures du mois », « mes leads »…).
   const [prest, setPrest] = useState<Prestation | ''>('')

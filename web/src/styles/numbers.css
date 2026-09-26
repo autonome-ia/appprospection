@@ -1171,3 +1171,163 @@ button.ntable-row {
 .gt td.is-text {
   text-align: left;
 }
+
+/* =============================================================================
+   Accueil Numbers : refonte du 26/09 (sous-agent expert + choix briac)
+   ============================================================================= */
+.hero-delta.is-neutral {
+  color: var(--ink-3);
+}
+/* Héros cliquable (→ Stats) : une zone de tap sous le contenu, pour ne pas
+   imbriquer de boutons. */
+.home-hero {
+  position: relative;
+}
+.home-hero-hit {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: none;
+  border-radius: inherit;
+  cursor: pointer;
+}
+.home-hero > :not(.home-hero-hit) {
+  position: relative;
+  pointer-events: none;
+}
+.home-hero .home-goal-cta {
+  pointer-events: auto;
+}
+.home-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.home-hero-top .eyebrow {
+  margin: 0;
+}
+.home-hero .hero-value {
+  color: var(--ink);
+}
+.home-hero .hero-unit {
+  color: var(--ink-3);
+  font-size: 15px;
+}
+.home-hero-sub {
+  margin: 6px 0 2px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.home-goal {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.home-goal-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.home-goal-row .goal-bar {
+  flex: 1;
+  margin: 0;
+}
+.home-goal-pct {
+  font-size: 15px;
+  font-weight: 650;
+}
+.home-goal .goal-line,
+.home-goal .goal-status {
+  margin-top: 8px;
+}
+.home-goal-cta {
+  margin-top: 12px;
+  padding: 0;
+  font-size: 13px;
+}
+
+/* Sections : titre + lien « voir tout ». */
+.home-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.home-section-head .section-title {
+  margin: 0;
+}
+.home-section-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 32px;
+  font-size: 13px;
+}
+
+/* Rangées de l'Accueil Numbers : même gabarit que l'Accueil prospection. */
+.numbers-home .home-row {
+  align-items: center;
+  color: var(--ink);
+}
+.numbers-home .home-row .rank-chevron {
+  flex: 0 0 auto;
+  color: var(--ink-3);
+}
+.home-row-value {
+  flex: 0 0 auto;
+  font-size: 15px;
+  font-weight: 650;
+}
+.home-row-warn {
+  flex: 0 0 auto;
+  color: var(--st-revoir);
+}
+.home-row-figures {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+.home-row-gain {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--st-vendu);
+}
+
+/* Rang du commercial. */
+.home-rank {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+.home-rank-pos {
+  font-size: 24px;
+  font-weight: 650;
+}
+.home-rank-texts {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.home-rank-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+.home-rank-sub {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.mine-line {
+  width: 100%;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}

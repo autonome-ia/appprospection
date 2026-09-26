@@ -122,12 +122,14 @@ export function SaleRow({
 
 /** Écart en euros avec la période précédente, même code visuel que les
     deltas des Stats de prospection. */
-export function EuroDelta({ value, label }: { value: number; label: string }) {
+export function EuroDelta({ value, label, neutral = false }: { value: number; label: string; neutral?: boolean }) {
   const v = Math.round(value)
   if (v === 0) return <span className="hero-delta flat">Stable {label}</span>
   const up = v > 0
+  // `neutral` (Accueil, 26/09) : l'écart en gris, l'Accueil ne « crie » pas ;
+  // il reste en couleur dans Stats.
   return (
-    <span className={`hero-delta ${up ? 'up' : 'down'}`}>
+    <span className={`hero-delta ${neutral ? 'is-neutral' : up ? 'up' : 'down'}`}>
       {up ? <ArrowUp size={13} strokeWidth={2.4} /> : <ArrowDown size={13} strokeWidth={2.4} />}
       <span className="money-signed">
         <span className="tnum">{up ? '+' : '−'}</span>
