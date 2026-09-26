@@ -254,7 +254,6 @@ export interface Slice {
 export function MixBar({ slices, onPick }: { slices: Slice[]; onPick?: (key: string) => void }) {
   const total = slices.reduce((s, x) => s + x.value, 0)
   const shown = slices.filter((s) => s.value > 0)
-  const empty = slices.filter((s) => s.value <= 0)
   if (total <= 0) return <p className="screen-empty">Aucune vente sur cette période.</p>
   return (
     <div className="mix">
@@ -284,7 +283,6 @@ export function MixBar({ slices, onPick }: { slices: Slice[]; onPick?: (key: str
           )
         })}
       </div>
-      {empty.length > 0 && <p className="mix-empty">Sans vente : {empty.map((s) => s.label).join(', ')}.</p>}
     </div>
   )
 }

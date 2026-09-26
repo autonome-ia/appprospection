@@ -164,9 +164,7 @@ export function GeneralTable({
             </tfoot>
           </table>
         </div>
-        <p className="gt-foot">
-          Une vente à deux compte pour moitié à chaque vendeur, et une fois pour l’agence. TRC : financé ÷ CA.
-        </p>
+        <p className="gt-foot">Faites glisser le tableau pour voir toutes les colonnes.</p>
       </section>
 
       <section className="card gt-card">
