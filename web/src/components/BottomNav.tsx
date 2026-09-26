@@ -4,7 +4,8 @@ import {
   CalendarDays,
   BarChart3,
   NotebookText,
-  Table2,
+  Users,
+  HandCoins,
   ChartPie,
   type LucideIcon,
 } from 'lucide-react'
@@ -29,9 +30,19 @@ export const PROSPECTION_TABS: NavItem[] = [
 export const NUMBERS_TABS: NavItem[] = [
   { tab: 'n-accueil', label: 'Accueil', Icon: Home },
   { tab: 'ventes', label: 'Ventes', Icon: NotebookText },
-  { tab: 'tableaux', label: 'Tableaux', Icon: Table2 },
+  { tab: 'tableaux', label: 'Équipe', Icon: Users },
   { tab: 'n-stats', label: 'Stats', Icon: ChartPie },
 ]
+
+/** Onglets Numbers selon le rôle (tour UI/UX 26/09) : le 3e onglet est
+    « Équipe » (tableau par vendeur, vue paie) pour manager et chef des
+    ventes, « Commissions » (mes ventes, ma part, ma commission + le tableau
+    de l'agence) pour un commercial. */
+export function numbersTabs(supervisor: boolean): NavItem[] {
+  return NUMBERS_TABS.map((t) =>
+    t.tab === 'tableaux' && !supervisor ? { ...t, label: 'Commissions', Icon: HandCoins } : t,
+  )
+}
 
 interface Props {
   items?: NavItem[]

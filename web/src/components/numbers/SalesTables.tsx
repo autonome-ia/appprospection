@@ -1,100 +1,178 @@
 import { useMemo, useState } from 'react'
+import { ChevronRight } from 'lucide-react'
 import { Segmented } from '../ui/Segmented'
 import { Avatar } from '../ui/Avatar'
 import { useNumbers } from './NumbersData'
 import { PeriodBar, usePeriod } from './PeriodBar'
-import { Sellers, sellersLabel, shortDay } from './SaleRow'
+import { Money, Pct } from './Money'
 import { openSaleFlow } from '../../lib/sale-flow'
+import type { OrgProfile } from '../../data/profiles'
 import {
   commissionOf,
   commissionSum,
   commissionTotal,
   formatCount,
-  formatEuros,
-  formatRate,
+  formatDayNum,
   inPeriod,
+  isComplete,
   isCounted,
   isSellerOf,
-  paymentLabel,
+  objectiveFor,
   prestationLabel,
+  shareOf,
   summarize,
-  type NumbersSummary,
+  type BoardSale,
+  type Sale,
 } from '../../domain/sales'
 
-type Scope = 'moi' | 'agence'
+/**
+ * 3e onglet de Numbers — tour UI/UX du 26/09 (choix briac : « Tableaux
+ * devient Équipe ») :
+ *  - manager / chef des ventes : « Équipe », UN tableau par vendeur (la vue
+ *    paie et suivi) — CA, % de l'objectif, commission, à compléter ; tap =
+ *    détail du commercial dans Stats ;
+ *  - commercial : « Commissions », ses ventes ligne à ligne (sa part, sa
+ *    commission), et le tableau de l'agence (vendeurs, ventes, CA : le
+ *    « tableau général » du brief, sans objectifs ni commissions des autres).
+ * « Toutes les ventes » a disparu : c'est le cahier.
+ */
+export function SalesTables() {
+  const { isSupervisor } = useNumbers()
+  return isSupervisor ? <TeamTable /> : <MyCommissions />
+}
 
-/** Les totaux d'un tableau, en grille de chiffres. */
-function Totals({ s, extra }: { s: NumbersSummary; extra?: { label: string; value: string }[] }) {
-  const cells = [
-    { label: 'CA HT', value: formatEuros(s.ca) },
-    { label: 'Ventes', value: formatCount(s.ventes) },
-    { label: 'Toitures', value: formatCount(s.toitures) },
-    { label: 'Financé', value: formatEuros(s.finance) },
-    { label: 'TRC', value: s.trc == null ? '…' : formatRate(s.trc) },
-    { label: 'Part toiture', value: s.partToiture == null ? '…' : formatRate(s.partToiture) },
-    ...(extra ?? []),
-  ]
+/** « Thomas K. » : le tableau tient sur 390 px sans tronquer les noms. */
+const shortName = (full: string | null) => {
+  const parts = (full ?? 'Commercial').trim().split(/\s+/)
+  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0]
+}
+
+/** Tableau par vendeur, trié par CA ; ligne « Agence » en pied. */
+function SellersTable({
+  rows,
+  agency,
+  withPay,
+  onOpen,
+}: {
+  rows: { prof: OrgProfile; ca: number; ventes: number; trc: number | null; obj: number | null; com: number; todo: number }[]
+  agency: { ca: number; ventes: number; obj: number | null; com: number }
+  withPay: boolean
+  onOpen?: (id: string) => void
+}) {
   return (
-    <section className="card">
-      <div className="kpi-grid">
-        {cells.map((c) => (
-          <div key={c.label} className="kpi-cell">
-            <span className="kpi-value tnum">{c.value}</span>
-            <span className="kpi-label">{c.label}</span>
+    <section className={`card ntable ${withPay ? 'is-pay' : 'is-light'}`}>
+      <div className="ntable-head">
+        <span>Vendeur</span>
+        <span className="is-num">CA HT</span>
+        {withPay ? (
+          <>
+            <span className="is-num">Obj.</span>
+            <span className="is-num">Com.</span>
+          </>
+        ) : (
+          <span className="is-num">Ventes</span>
+        )}
+      </div>
+      {rows.length === 0 && <p className="screen-empty ntable-empty">Aucune vente sur cette période.</p>}
+      {rows.map((r) => {
+        const cells = (
+          <>
+            <span className="ntable-seller">
+              <Avatar id={r.prof.id} name={r.prof.full_name} color={r.prof.color} size={24} />
+              <span className="ntable-main">
+                <span className="ntable-title">{shortName(r.prof.full_name)}</span>
+                {withPay && (
+                  <span className="ntable-meta">
+                    <span className="tnum">{formatCount(r.ventes)}</span> vente{r.ventes > 1 ? 's' : ''}
+                    {r.todo > 0 && (
+                      <span className="ntable-warn">
+                        {' · '}
+                        <span className="tnum">{r.todo}</span> à compléter
+                      </span>
+                    )}
+                  </span>
+                )}
+              </span>
+            </span>
+            <Money value={r.ca} className="ntable-num" />
+            {withPay ? (
+              <>
+                <span className="ntable-num">{r.obj == null ? <span className="is-muted">-</span> : <Pct value={r.obj} whole />}</span>
+                <Money value={r.com} className="ntable-num" />
+              </>
+            ) : (
+              <span className="ntable-num tnum">{formatCount(r.ventes)}</span>
+            )}
+          </>
+        )
+        return onOpen ? (
+          <button key={r.prof.id} type="button" className="ntable-row" onClick={() => onOpen(r.prof.id)}>
+            {cells}
+            <ChevronRight size={14} strokeWidth={1.9} className="ntable-chevron" />
+          </button>
+        ) : (
+          <div key={r.prof.id} className="ntable-row">
+            {cells}
           </div>
-        ))}
+        )
+      })}
+      <div className="ntable-row is-total">
+        <span className="ntable-title">Agence</span>
+        <Money value={agency.ca} className="ntable-num" />
+        {withPay ? (
+          <>
+            <span className="ntable-num">{agency.obj == null ? <span className="is-muted">-</span> : <Pct value={agency.obj} whole />}</span>
+            <Money value={agency.com} className="ntable-num" />
+          </>
+        ) : (
+          <span className="ntable-num tnum">{formatCount(agency.ventes)}</span>
+        )}
       </div>
     </section>
   )
 }
 
-/**
- * Tableaux (plan §4.3) : MON tableau (mes ventes, mes parts, ma commission)
- * et le tableau de l'AGENCE (toutes les ventes, sans client : vue
- * `sales_board`). Le tableau de l'agence n'est que la somme des ventes : il
- * se met à jour seul, personne ne l'édite en tant que tel (D8).
- */
-export function SalesTables() {
-  const { me, isSupervisor, profiles, sales, board, rankable, loading, error, reload, nameOf } = useNumbers()
-  const p = usePeriod('mois')
-  const [scope, setScope] = useState<Scope>('moi')
-
-  const mine = useMemo(
-    () => sales.filter((s) => isSellerOf(s, me.id) && inPeriod(s, p.bounds) && isCounted(s)),
-    [sales, me.id, p.bounds],
+/** Ventes de la période : tableau de l'agence (comptées) et lignes
+    complètes lisibles (commissions, à compléter). */
+function usePeriodRows(board: BoardSale[], sales: Sale[], bounds: { start: string; end: string }) {
+  return useMemo(
+    () => ({
+      rows: board.filter((s) => inPeriod(s, bounds) && isCounted(s)),
+      full: sales.filter((s) => inPeriod(s, bounds)),
+    }),
+    [board, sales, bounds],
   )
-  const agency = useMemo(() => board.filter((s) => inPeriod(s, p.bounds) && isCounted(s)), [board, p.bounds])
+}
 
-  const mySum = summarize(mine, me.id)
-  const agencySum = summarize(agency)
-  const myCommission = commissionSum(mine, me.id)
-  // Commissions à verser : le superviseur lit toutes les lignes complètes.
-  const payout = isSupervisor
-    ? sales.filter((s) => inPeriod(s, p.bounds) && isCounted(s)).reduce((sum, s) => sum + commissionTotal(s), 0)
-    : null
+/** Manager / chef des ventes : la vue équipe (paie et suivi). */
+function TeamTable() {
+  const { board, rankable, sales, loading, error, reload, openSeller } = useNumbers()
+  const p = usePeriod('mois')
+  const { rows, full } = usePeriodRows(board, sales, p.bounds)
 
-  const partnerOf = (s: { seller1_id: string; seller2_id: string | null }) =>
-    nameOf(s.seller1_id === me.id ? s.seller2_id : s.seller1_id).split(/\s/)[0]
-
-  const fullPeriod = useMemo(() => sales.filter((s) => inPeriod(s, p.bounds) && isCounted(s)), [sales, p.bounds])
-
-  const perSeller = rankable
-    .map((prof) => ({ prof, s: summarize(agency, prof.id) }))
-    .filter((x) => x.s.ventes > 0)
-    .sort((a, b) => b.s.ca - a.s.ca)
+  const months = p.period === 'semaine' ? 0 : p.period === 'mois' ? 1 : p.period === 'trimestre' ? 3 : 12
+  const table = rankable
+    .map((prof) => {
+      const s = summarize(rows, prof.id)
+      const target = objectiveFor(prof.monthly_ca_target, p.period)
+      return {
+        prof,
+        ca: s.ca,
+        ventes: s.ventes,
+        trc: s.trc,
+        obj: target ? s.ca / target : null,
+        com: commissionSum(full, prof.id),
+        todo: full.filter((x) => x.status === 'active' && !isComplete(x) && isSellerOf(x, prof.id)).length,
+      }
+    })
+    .filter((r) => r.ventes > 0 || r.todo > 0 || r.obj != null)
+    .sort((a, b) => b.ca - a.ca)
+  const agencySum = summarize(rows)
+  const agencyTarget = months ? rankable.reduce((s, x) => s + (x.monthly_ca_target || 0), 0) * months : 0
 
   return (
     <div className="screen numbers-screen">
-      <Segmented
-        options={[
-          { value: 'moi', label: 'Mon tableau' },
-          { value: 'agence', label: 'Agence' },
-        ]}
-        value={scope}
-        onChange={setScope}
-      />
       <PeriodBar p={p} />
-
       {error && (
         <div className="load-error">
           <span>Impossible de charger les ventes : vérifiez le réseau.</span>
@@ -103,111 +181,138 @@ export function SalesTables() {
           </button>
         </div>
       )}
-
       {loading ? (
         <div className="stats-skeleton" aria-hidden="true">
-          <span className="sk sk-block" />
+          <span className="sk sk-block sk-block-tall" />
+        </div>
+      ) : (
+        <>
+          <SellersTable
+            withPay
+            rows={table}
+            onOpen={openSeller}
+            agency={{
+              ca: agencySum.ca,
+              ventes: agencySum.ventes,
+              obj: agencyTarget > 0 ? agencySum.ca / agencyTarget : null,
+              com: full.reduce((sum, s) => sum + commissionTotal(s), 0),
+            }}
+          />
+          <p className="ntable-foot">
+            Obj. : part de l’objectif de CA atteinte. Com. : commissions des ventes complètes. Touchez un vendeur
+            pour son détail.
+          </p>
+        </>
+      )}
+    </div>
+  )
+}
+
+type Scope = 'moi' | 'agence'
+
+/** Commercial : mes commissions ligne à ligne, et le tableau de l'agence. */
+function MyCommissions() {
+  const { me, board, rankable, sales, loading, error, reload, nameOf } = useNumbers()
+  const p = usePeriod('mois')
+  const [scope, setScope] = useState<Scope>('moi')
+  const { rows } = usePeriodRows(board, sales, p.bounds)
+
+  const mine = sales.filter((s) => isSellerOf(s, me.id) && inPeriod(s, p.bounds) && isCounted(s))
+  const my = summarize(mine, me.id)
+  const total = commissionSum(mine, me.id)
+  const agencySum = summarize(rows)
+  const table = rankable
+    .map((prof) => {
+      const s = summarize(rows, prof.id)
+      return { prof, ca: s.ca, ventes: s.ventes, trc: null, obj: null, com: 0, todo: 0 }
+    })
+    .filter((r) => r.ventes > 0)
+    .sort((a, b) => b.ca - a.ca)
+
+  return (
+    <div className="screen numbers-screen">
+      <Segmented
+        options={[
+          { value: 'moi', label: 'Mes commissions' },
+          { value: 'agence', label: 'Agence' },
+        ]}
+        value={scope}
+        onChange={setScope}
+      />
+      <PeriodBar p={p} />
+      {error && (
+        <div className="load-error">
+          <span>Impossible de charger les ventes : vérifiez le réseau.</span>
+          <button type="button" className="text-btn" onClick={reload}>
+            Réessayer
+          </button>
+        </div>
+      )}
+      {loading ? (
+        <div className="stats-skeleton" aria-hidden="true">
           <span className="sk sk-block sk-block-tall" />
         </div>
       ) : scope === 'moi' ? (
         <>
-          <Totals s={mySum} extra={[{ label: 'Commission', value: formatEuros(myCommission) }]} />
-          <section className="card ntable">
+          <section className="card pay-total">
+            <span className="eyebrow">Ma commission · {p.label}</span>
+            <Money value={total} className="pay-total-value" />
+            <span className="pay-total-meta">
+              sur <Money value={my.ca} /> de CA HT · <span className="tnum">{formatCount(my.ventes)}</span> vente
+              {my.ventes > 1 ? 's' : ''}
+            </span>
+          </section>
+          <section className="card ntable is-mine">
             <div className="ntable-head">
               <span>Date</span>
               <span>Vente</span>
-              <span className="is-num">Montant</span>
-              <span className="is-num">Commission</span>
+              <span className="is-num">Ma part</span>
+              <span className="is-num">Com.</span>
             </div>
             {mine.length === 0 && <p className="screen-empty ntable-empty">Aucune vente sur cette période.</p>}
-            {mine.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                className="ntable-row is-mine"
-                onClick={() => openSaleFlow({ kind: 'open', saleId: s.id })}
-              >
-                <span className="ntable-date tnum">{shortDay(s.sold_on)}</span>
-                <span className="ntable-main">
-                  <span className="ntable-title">{prestationLabel(s.prestation)}</span>
-                  <span className="ntable-meta">
-                    {[s.client_name, paymentLabel(s.payment), s.seller2_id ? `à deux avec ${partnerOf(s)}` : null]
-                      .filter(Boolean)
-                      .join(' · ')}
+            {mine.map((s) => {
+              const share = shareOf(s, me.id)
+              const partner = s.seller2_id ? (s.seller1_id === me.id ? s.seller2_id : s.seller1_id) : null
+              return (
+                <button key={s.id} type="button" className="ntable-row" onClick={() => openSaleFlow({ kind: 'open', saleId: s.id })}>
+                  <span className="ntable-date tnum">{formatDayNum(s.sold_on)}</span>
+                  <span className="ntable-main">
+                    <span className="ntable-title">{s.client_name || prestationLabel(s.prestation)}</span>
+                    <span className="ntable-meta">
+                      {prestationLabel(s.prestation)}
+                      {partner ? ` · avec ${nameOf(partner).split(/\s/)[0]}` : ''}
+                    </span>
                   </span>
-                </span>
-                <span className="ntable-num tnum">{formatEuros(s.amount_ht ?? 0)}</span>
-                <span className="ntable-num tnum">{formatEuros(commissionOf(s, me.id))}</span>
-              </button>
-            ))}
+                  <Money value={(s.amount_ht ?? 0) * share} compact className="ntable-num" />
+                  <Money value={commissionOf(s, me.id)} className="ntable-num is-strong" />
+                </button>
+              )
+            })}
           </section>
         </>
       ) : (
         <>
-          <Totals
-            s={agencySum}
-            extra={payout != null ? [{ label: 'Commissions', value: formatEuros(payout) }] : undefined}
+          <section className="card">
+            <div className="kpi-grid">
+              <div className="kpi-cell">
+                <Money value={agencySum.ca} compact className="kpi-value" />
+                <span className="kpi-label">CA HT agence</span>
+              </div>
+              <div className="kpi-cell">
+                <span className="kpi-value tnum">{formatCount(agencySum.ventes)}</span>
+                <span className="kpi-label">ventes</span>
+              </div>
+              <div className="kpi-cell">
+                <span className="kpi-value tnum">{formatCount(agencySum.toitures)}</span>
+                <span className="kpi-label">toitures</span>
+              </div>
+            </div>
+          </section>
+          <SellersTable
+            withPay={false}
+            rows={table}
+            agency={{ ca: agencySum.ca, ventes: agencySum.ventes, obj: null, com: 0 }}
           />
-
-          <section className="card ntable">
-            <p className="eyebrow">Par vendeur</p>
-            <div className="ntable-head is-sellers">
-              <span>Vendeur</span>
-              <span className="is-num">Ventes</span>
-              <span className="is-num">CA HT</span>
-              <span className="is-num">TRC</span>
-            </div>
-            {perSeller.length === 0 && <p className="screen-empty ntable-empty">Aucune vente sur cette période.</p>}
-            {perSeller.map(({ prof, s }) => (
-              <div key={prof.id} className="ntable-row is-sellers">
-                <span className="ntable-seller">
-                  <Avatar id={prof.id} name={prof.full_name} color={prof.color} size={22} />
-                  <span className="ntable-main">
-                    <span className="ntable-title">{prof.full_name ?? 'Commercial'}</span>
-                    {/* Commission de chacun : lisible des superviseurs seuls
-                        (lignes complètes, RLS). */}
-                    {isSupervisor && (
-                      <span className="ntable-meta">
-                        commission <span className="tnum">{formatEuros(commissionSum(fullPeriod, prof.id))}</span>
-                      </span>
-                    )}
-                  </span>
-                </span>
-                <span className="ntable-num tnum">{formatCount(s.ventes)}</span>
-                <span className="ntable-num tnum">{formatEuros(s.ca)}</span>
-                <span className="ntable-num tnum">{s.trc == null ? '…' : formatRate(s.trc)}</span>
-              </div>
-            ))}
-          </section>
-
-          <section className="card ntable">
-            <p className="eyebrow">Toutes les ventes</p>
-            <div className="ntable-head">
-              <span>Date</span>
-              <span>Vente</span>
-              <span className="is-num">Montant</span>
-              <span className="is-num">Financé</span>
-            </div>
-            {agency.length === 0 && <p className="screen-empty ntable-empty">Aucune vente sur cette période.</p>}
-            {agency.map((s) => (
-              <div key={s.id} className="ntable-row">
-                <span className="ntable-date tnum">{shortDay(s.sold_on)}</span>
-                <span className="ntable-main">
-                  <span className="ntable-title">
-                    <Sellers sale={s} profiles={profiles} />
-                    {prestationLabel(s.prestation)}
-                  </span>
-                  <span className="ntable-meta">
-                    {sellersLabel(s, nameOf)} · {paymentLabel(s.payment)}
-                  </span>
-                </span>
-                <span className="ntable-num tnum">{formatEuros(s.amount_ht ?? 0)}</span>
-                <span className="ntable-num tnum is-muted">
-                  {s.payment === 'financement' ? formatEuros(s.financed_ht ?? 0) : '·'}
-                </span>
-              </div>
-            ))}
-          </section>
         </>
       )}
     </div>

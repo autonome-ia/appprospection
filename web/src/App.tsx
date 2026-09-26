@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Toaster } from 'sonner'
 import { MotionConfig } from 'motion/react'
 import { MapView, type MapFocus } from './components/MapView'
-import { BottomNav, NUMBERS_TABS, PROSPECTION_TABS, type Tab } from './components/BottomNav'
+import { BottomNav, NUMBERS_TABS, PROSPECTION_TABS, numbersTabs, type Tab } from './components/BottomNav'
 import { AuthScreen } from './components/AuthScreen'
 import { AccueilScreen } from './components/AccueilScreen'
 import { AgendaScreen } from './components/AgendaScreen'
@@ -13,7 +13,7 @@ import { Celebration } from './components/ui/Celebration'
 import { SessionProvider, useSession } from './lib/session'
 import { useIsDark } from './lib/theme'
 import { isSupabaseConfigured } from './lib/supabase'
-import { isSecretaireRole } from './domain/types'
+import { isSecretaireRole, isSupervisorRole } from './domain/types'
 import { useNumbersAccess } from './data/sales'
 import { readSpace, writeSpace, type Space } from './lib/space'
 import { SpaceSwitch } from './components/numbers/SpaceSwitch'
@@ -173,9 +173,9 @@ function AppInner() {
         ) : null}
         {/* Espace Numbers : données chargées une fois pour les 4 onglets. */}
         {space === 'numbers' && profile && (
-          <NumbersProvider profile={profile}>
+          <NumbersProvider profile={profile} onGoTo={setTab}>
             <ScreenBoundary>
-              {tab === 'n-accueil' && <NumbersHome spaceSwitch={spaceSwitch} onGoTo={setTab} />}
+              {tab === 'n-accueil' && <NumbersHome spaceSwitch={spaceSwitch} />}
               {tab === 'ventes' && <SalesBook />}
               {tab === 'tableaux' && <SalesTables />}
               {tab === 'n-stats' && <NumbersStats />}
@@ -202,7 +202,7 @@ function AppInner() {
         </ScreenBoundary>
       )}
 
-      <BottomNav items={space === 'numbers' ? NUMBERS_TABS : PROSPECTION_TABS} active={tab} onChange={setTab} />
+      <BottomNav items={space === 'numbers' ? numbersTabs(isSupervisorRole(profile?.role)) : PROSPECTION_TABS} active={tab} onChange={setTab} />
     </div>
   )
 }

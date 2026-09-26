@@ -18,8 +18,8 @@ import {
   PAYMENTS,
   PRESTATIONS,
   dayKey,
+  commissionOf,
   formatEuros,
-  formatRate,
   missingFields,
   prestationLabel,
   type Prestation,
@@ -29,14 +29,22 @@ import {
 } from '../../domain/sales'
 import type { Profile } from '../../domain/types'
 import { shortDay } from './SaleRow'
+import { Money, Pct } from './Money'
 
-/** Montant saisi à la française (« 12 450,50 ») → nombre, null si vide. */
+/** Montant en euros ENTIERS (audit 26/09 : « 7,200 » était lu 7,20 €) :
+    seuls les chiffres comptent — pas de centimes sur un devis de toiture. */
 function parseAmount(raw: string): number | null {
-  const t = raw.replace(/[\s  €]/g, '').replace(',', '.')
-  if (!t) return null
-  const n = Number(t)
-  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null
+  const t = raw.replace(/\D/g, '')
+  return t ? Number(t) : null
 }
+/** Affichage pendant la frappe : « 18 450 » (espaces fines de fr-FR). */
+const typing = (raw: string) => {
+  const n = parseAmount(raw)
+  return n == null ? '' : n.toLocaleString('fr-FR')
+}
+/** Montant hors des ordres de grandeur d'un chantier : on fait confirmer. */
+const isOdd = (n: number | null) => n != null && n > 0 && (n < 300 || n > 200000)
+
 /** Clé de comparaison : minuscules, sans accents ni ponctuation. */
 const normKey = (v: string | null | undefined) =>
   (v ?? '')
@@ -46,7 +54,7 @@ const normKey = (v: string | null | undefined) =>
     .replace(/[^a-z0-9]+/g, ' ')
     .trim()
 
-const showAmount = (n: number | null | undefined) => (n == null ? '' : String(n).replace('.', ','))
+const showAmount = (n: number | null | undefined) => (n == null ? '' : Math.round(n).toLocaleString('fr-FR'))
 
 export type SaleSheetMode = 'vendu' | 'edit' | 'new'
 
@@ -103,6 +111,7 @@ export function SaleSheet({
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
   const [confirm, setConfirm] = useState<'cancel' | 'delete' | null>(null)
+  const [oddOk, setOddOk] = useState(false)
 
   // Remise à zéro à chaque ouverture (ou changement de vente).
   useEffect(() => {
@@ -120,6 +129,7 @@ export function SaleSheet({
     setAddress(sale?.address ?? '')
     setNote(sale?.note ?? '')
     setConfirm(null)
+    setOddOk(false)
   }, [open, sale, me.id])
 
   const isSeller = !!sale && (sale.seller1_id === me.id || sale.seller2_id === me.id)
@@ -160,6 +170,15 @@ export function SaleSheet({
     )
   }, [mode, existing, address, client])
 
+  // Ce qui manquera encore si on enregistre maintenant (libellé du bouton).
+  const missingNow = [
+    amountN == null && 'montant',
+    !prestation && 'prestation',
+    !payment && 'paiement',
+    payment === 'financement' && financedN == null && 'montant financé',
+    !origin && 'origine',
+  ].filter((x): x is string => Boolean(x))
+
   function input(): SaleInput {
     return {
       sold_on: soldOn,
@@ -177,11 +196,17 @@ export function SaleSheet({
   }
 
   async function save() {
+    if (isOdd(amountN) && !oddOk) {
+      setOddOk(true) // 1er tap : le bouton demande confirmation du montant
+      return
+    }
     setSaving(true)
     try {
       const saved = sale ? await updateSale(sale.id, input()) : await createSale(me.organization_id, input())
       const missing = missingFields(saved)
+      const gain = commissionOf(saved, me.id)
       if (missing.length) toast(`Vente enregistrée, à compléter : ${missing.join(', ')}`)
+      else if (gain > 0) toast.success(`Vente enregistrée : +${formatEuros(gain)} de commission`)
       else toast.success('Vente enregistrée')
       onSaved?.(saved)
       onOpenChange(false)
@@ -257,15 +282,41 @@ export function SaleSheet({
           <span className="sale-amount-field">
             <input
               className="sale-amount-input tnum"
-              inputMode="decimal"
+              inputMode="numeric"
+              enterKeyHint="done"
               placeholder="0"
+              autoFocus={mode !== 'edit'}
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => {
+                setAmount(typing(e.target.value))
+                setOddOk(false)
+              }}
               aria-label="Montant HT en euros"
             />
             <span className="sale-amount-unit">€ HT</span>
           </span>
         </label>
+
+        {/* Ce que la vente rapporte à celui qui saisit, en direct, SOUS le
+            montant (audit commercial : c'était sous le pli). */}
+        {!cancelled && myShare > 0 && (
+          <div className="sale-commission">
+            <span>Ma commission</span>
+            {myRate != null && amountN != null && amountN > 0 ? (
+              <>
+                <Money value={amountN * myShare * myRate} className="sale-commission-value" />
+                <span className="sale-commission-meta">
+                  <Pct value={myRate} />
+                  {myShare < 1 ? ' sur ma moitié du montant' : ' du montant HT'}
+                </span>
+              </>
+            ) : (
+              <span className="sale-commission-meta is-hint">
+                {amountN ? 'Choisissez la prestation pour la calculer.' : 'Saisissez le montant pour la calculer.'}
+              </span>
+            )}
+          </div>
+        )}
 
         <p className="eyebrow form-section-title form-section-title-solo">Prestation</p>
         <div className="sale-choice-grid">
@@ -277,7 +328,7 @@ export function SaleSheet({
               aria-pressed={prestation === p.value}
               onClick={() => setPrestation(p.value)}
             >
-              {p.label}
+              {p.value === 'traitement_bois' ? 'Traitement bois' : p.label}
             </button>
           ))}
         </div>
@@ -322,47 +373,33 @@ export function SaleSheet({
         )}
 
         <p className="eyebrow form-section-title form-section-title-solo">Paiement</p>
-        <div className="sale-choice-row">
-          {PAYMENTS.map((p) => (
-            <button
-              key={p.value}
-              type="button"
-              className={`chip ${payment === p.value ? 'is-active' : ''}`}
-              aria-pressed={payment === p.value}
-              onClick={() => setPayment(p.value)}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+        <Segmented options={PAYMENTS} value={payment ?? ('' as SalePayment)} onChange={setPayment} />
         {payment === 'financement' && (
-          <FormGroup hint={financedTooBig ? 'Le montant financé dépasse le montant de la vente.' : undefined}>
+          <FormGroup
+            hint={
+              financedTooBig ? (
+                <span className="field-error">Le montant financé dépasse le montant de la vente.</span>
+              ) : amountN ? (
+                <button type="button" className="text-btn" onClick={() => setFinanced(showAmount(amountN))}>
+                  Tout financé
+                </button>
+              ) : undefined
+            }
+          >
             <FormRow label="Montant financé">
               <input
                 className="form-input tnum"
-                inputMode="decimal"
+                inputMode="numeric"
                 placeholder="€ HT"
                 value={financed}
-                onChange={(e) => setFinanced(e.target.value)}
+                onChange={(e) => setFinanced(typing(e.target.value))}
               />
             </FormRow>
           </FormGroup>
         )}
 
         <p className="eyebrow form-section-title form-section-title-solo">Origine</p>
-        <div className="sale-choice-row">
-          {ORIGINS.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              className={`chip ${origin === o.value ? 'is-active' : ''}`}
-              aria-pressed={origin === o.value}
-              onClick={() => setOrigin(o.value)}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
+        <Segmented options={ORIGINS} value={origin ?? ('' as SaleOrigin)} onChange={setOrigin} />
 
         <FormGroup title="Client">
           <FormRow label="Date">
@@ -414,32 +451,30 @@ export function SaleSheet({
         </FormGroup>
       </fieldset>
 
-      {/* Ce que la vente rapporte au vendeur qui saisit : en direct. */}
-      {!cancelled && myRate != null && amountN != null && amountN > 0 && (
-        <div className="sale-commission">
-          <span>Ta commission</span>
-          <span className="sale-commission-value tnum">{formatEuros(amountN * myShare * myRate)}</span>
-          <span className="sale-commission-meta">
-            <span className="tnum">{formatRate(myRate)}</span>
-            {myShare < 1 ? ' sur ta moitié' : ''}
-          </span>
+      {sale && (canEdit || me.role === 'manager') && (
+        <div className="sale-manage">
+          {canEdit && !cancelled && (
+            <button type="button" className="text-btn is-danger" disabled={saving} onClick={() => void cancelOrDelete('cancel')}>
+              {confirm === 'cancel' ? 'Confirmer : la maison repasse en « Refus »' : 'Annuler la vente'}
+            </button>
+          )}
+          {cancelled && me.role === 'manager' && (
+            <button type="button" className="text-btn" disabled={saving} onClick={() => void reactivate()}>
+              Réactiver la vente
+            </button>
+          )}
+          {me.role === 'manager' && (
+            <button type="button" className="text-btn is-danger" disabled={saving} onClick={() => void cancelOrDelete('delete')}>
+              {confirm === 'delete' ? 'Confirmer la suppression définitive' : 'Supprimer la vente'}
+            </button>
+          )}
         </div>
       )}
 
-      {sale && canEdit && !cancelled && (
-        <button type="button" className="btn btn-danger sale-cancel" disabled={saving} onClick={() => void cancelOrDelete('cancel')}>
-          {confirm === 'cancel' ? 'Confirmer : la maison repasse en « Refus »' : 'Annuler la vente'}
-        </button>
-      )}
-      {sale && cancelled && me.role === 'manager' && (
-        <button type="button" className="btn btn-ghost sale-cancel" disabled={saving} onClick={() => void reactivate()}>
-          Réactiver la vente
-        </button>
-      )}
-      {sale && me.role === 'manager' && (
-        <button type="button" className="text-btn sale-delete" disabled={saving} onClick={() => void cancelOrDelete('delete')}>
-          {confirm === 'delete' ? 'Confirmer la suppression définitive' : 'Supprimer la vente'}
-        </button>
+      {!readOnly && missingNow.length > 0 && (
+        <p className="sale-missing">
+          Il manque : {missingNow.join(', ')}. Vous pouvez enregistrer et compléter plus tard.
+        </p>
       )}
 
       {!readOnly && (
@@ -453,7 +488,11 @@ export function SaleSheet({
             disabled={saving || financedTooBig || (duo === 'deux' && !seller2) || !soldOn}
             onClick={() => void save()}
           >
-            {saving ? 'Enregistrement…' : 'Enregistrer'}
+            {saving
+              ? 'Enregistrement…'
+              : isOdd(amountN) && oddOk
+                ? `Confirmer ${showAmount(amountN)} € HT`
+                : 'Enregistrer'}
           </button>
         </div>
       )}

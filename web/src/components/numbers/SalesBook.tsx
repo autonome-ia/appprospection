@@ -4,12 +4,12 @@ import { Segmented } from '../ui/Segmented'
 import { useNumbers } from './NumbersData'
 import { PeriodBar, usePeriod } from './PeriodBar'
 import { SaleRow } from './SaleRow'
+import { Money } from './Money'
 import { openSaleFlow } from '../../lib/sale-flow'
 import {
   ORIGINS,
   PRESTATIONS,
   formatCount,
-  formatEuros,
   inPeriod,
   isComplete,
   isSellerOf,
@@ -111,7 +111,7 @@ export function SalesBook() {
         <section className="card book-summary">
           <div className="kpi-grid">
             <div className="kpi-cell">
-              <span className="kpi-value tnum">{formatEuros(sum.ca)}</span>
+              <Money value={sum.ca} compact className="kpi-value" />
               <span className="kpi-label">CA HT</span>
             </div>
             <div className="kpi-cell">
@@ -199,7 +199,7 @@ export function SalesBook() {
           <section key={day} className="home-section book-day">
             <div className="book-day-head">
               <p className="eyebrow">{dayTitle(day)}</p>
-              <span className="book-day-total tnum">{formatEuros(dayTotal(list))}</span>
+              <Money value={dayTotal(list)} className="book-day-total" />
             </div>
             {list.map((s) => (
               <SaleRow
@@ -207,6 +207,7 @@ export function SalesBook() {
                 sale={s}
                 profiles={profiles}
                 nameOf={nameOf}
+                forProfile={scope === 'miennes' ? me.id : undefined}
                 onOpen={() => openSaleFlow({ kind: 'open', saleId: s.id })}
               />
             ))}

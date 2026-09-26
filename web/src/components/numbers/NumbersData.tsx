@@ -9,6 +9,7 @@ import {
   type RateTable,
 } from '../../data/sales'
 import type { BoardSale, Sale } from '../../domain/sales'
+import type { Tab } from '../BottomNav'
 import { isManagerHiddenFor, isSupervisorRole, type Profile } from '../../domain/types'
 
 /**
@@ -37,6 +38,13 @@ interface NumbersState {
   nameOf: (id: string | null | undefined) => string
   /** Vendeurs affichables au classement (mêmes règles que les Stats). */
   rankable: OrgProfile[]
+  /** Détail d'un commercial dans Stats (null = agence), partagé : « Qui
+      décroche » (Accueil) et le tableau Équipe y mènent directement. */
+  drillId: string | null
+  setDrillId: (id: string | null) => void
+  /** Ouvre Stats sur le détail d'un commercial. */
+  openSeller: (id: string) => void
+  goTo: (tab: Tab) => void
 }
 
 const Ctx = createContext<NumbersState | null>(null)
@@ -47,7 +55,16 @@ export function useNumbers(): NumbersState {
   return v
 }
 
-export function NumbersProvider({ profile, children }: { profile: Profile; children: ReactNode }) {
+export function NumbersProvider({
+  profile,
+  onGoTo,
+  children,
+}: {
+  profile: Profile
+  onGoTo: (tab: Tab) => void
+  children: ReactNode
+}) {
+  const [drillId, setDrillId] = useState<string | null>(null)
   const [profiles, setProfiles] = useState<OrgProfile[]>([])
   const [sales, setSales] = useState<Sale[]>([])
   const [board, setBoard] = useState<BoardSale[]>([])
@@ -143,8 +160,15 @@ export function NumbersProvider({ profile, children }: { profile: Profile; child
       reload: () => void load(),
       nameOf,
       rankable,
+      drillId,
+      setDrillId,
+      openSeller: (id: string) => {
+        setDrillId(id)
+        onGoTo('n-stats')
+      },
+      goTo: onGoTo,
     }
-  }, [profile, profiles, sales, board, agencyRates, profileRates, loading, error, load])
+  }, [profile, profiles, sales, board, agencyRates, profileRates, loading, error, load, drillId, onGoTo])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

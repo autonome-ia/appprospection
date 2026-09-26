@@ -60,10 +60,16 @@ async function shoot(role, email) {
     await snap('2b-cahier-agence')
   }
 
-  await tab('Tableaux')
-  await snap('3-tableau-moi')
-  await page.locator('.seg').first().getByRole('button', { name: 'Agence' }).click()
-  await snap('3b-tableau-agence')
+  // 3e onglet : « Équipe » (manager) ou « Commissions » (commercial).
+  if (role === 'manager') {
+    await tab('Équipe')
+    await snap('3-equipe')
+  } else {
+    await tab('Commissions')
+    await snap('3-commissions')
+    await page.locator('.seg').first().getByRole('button', { name: 'Agence' }).click()
+    await snap('3b-commissions-agence')
+  }
 
   await tab('Stats')
   await snap('4-stats-mois')

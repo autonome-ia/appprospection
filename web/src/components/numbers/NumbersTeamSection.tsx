@@ -13,7 +13,8 @@ import {
   useNumbersAccess,
   type RateTable,
 } from '../../data/sales'
-import { PRESTATIONS, formatEuros, type Prestation } from '../../domain/sales'
+import { PRESTATIONS, type Prestation } from '../../domain/sales'
+import { Money } from './Money'
 import { roleLabel, type Profile } from '../../domain/types'
 
 /** « 13 » ou « 12,5 » (en %) → 0.13 ; null si vide ou invalide. */
@@ -152,8 +153,14 @@ export function NumbersTeamSection({
                   {m.id === profile.id && <span className="team-me"> (toi)</span>}
                 </span>
                 <span className="team-role">
-                  {roleLabel(m.role)} · objectif{' '}
-                  <span className="tnum">{m.monthly_ca_target > 0 ? formatEuros(m.monthly_ca_target) : 'aucun'}</span>
+                  {roleLabel(m.role)} ·{' '}
+                  {m.monthly_ca_target > 0 ? (
+                    <>
+                      objectif <Money value={m.monthly_ca_target} />
+                    </>
+                  ) : (
+                    'sans objectif'
+                  )}
                   {custom > 0 && ` · ${custom} taux propre${custom > 1 ? 's' : ''}`}
                 </span>
               </span>

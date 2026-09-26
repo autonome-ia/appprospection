@@ -39,6 +39,14 @@
 - **D17 : objectif de CA mensuel fixe** par commercial (le même chaque mois), comme l'objectif
   hebdo de RDV.
 
+### Tour UI/UX du 26/09 (3 audits : pilotage manager, commercial terrain, DA)
+
+- **D18 : prestations en ENCRE** : toiture en encre pleine, les autres en gris ; barre de répartition + liste chiffrée à la place des anneaux (les couleurs rappelaient les statuts de la carte).
+- **D19 : le 3e onglet devient « Équipe »** (manager, chef des ventes : un tableau par vendeur, vue paie) **ou « Commissions »** (commercial : ses ventes, sa part, sa commission + le tableau de l'agence). « Toutes les ventes » disparaît : c'est le cahier.
+- **D20 : commissions « acquises / en attente »** (rétractation, financement accepté) : PLUS TARD, après avis d'Alexis.
+- **D21 : un commercial ne voit pas l'objectif de ses collègues** (ni %, ni retard) : leur CA et le rang seulement.
+- Pilotage : comparaison **à date** (« vs 26 août »), rythme (repère « attendu à ce jour », reste, projection), Accueil manager centré agence + « Qui décroche », Accueil commercial centré commission + rang. UI en **vouvoiement**, libellés à la 1re personne (« Ma commission »), comme le reste de l'app.
+
 ## 1. Modèle de données (migration `db/0031_numbers.sql`)
 
 > Numérotation : la branche `site` a déjà écrit `0027` à `0030` (non exécutées).
@@ -244,7 +252,7 @@ du manager se voit **immédiatement** dans le tableau du vendeur (exigence Alexi
   pleine, le reste en gris dégressifs), pas d'arc-en-ciel.
 - Styles dans `web/src/styles/numbers.css`, importé par `App.css` avant `theme-dark.css` ;
   vérification systématique du **mode sombre** (le clair ne bouge d'aucun pixel ailleurs).
-- Chaînes visibles : **tutoiement**, comme dans le reste de l'app ; pas de tiret long.
+- Chaînes visibles : **vouvoiement** comme le reste de l'app, libellés à la 1re personne (« Ma commission ») ; pas de tiret long.
 
 ## 6. Découpage en étapes
 

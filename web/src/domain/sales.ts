@@ -380,3 +380,118 @@ export function periodBuckets(period: NumbersPeriod, b: { start: string; end: st
 export function caByBucket(rows: BoardSale[], buckets: Bucket[], forProfile?: string): number[] {
   return buckets.map((bk) => summarize(rows.filter((s) => inPeriod(s, bk)), forProfile).ca)
 }
+
+// ---------------------------------------------------------------------------
+// Pilotage (tour UI/UX du 26/09) : comparer À DATE, rythme, projection
+// ---------------------------------------------------------------------------
+
+const parseDay = (k: string) => {
+  const [y, m, d] = k.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+const daysBetween = (a: string, b: string) => Math.round((parseDay(b).getTime() - parseDay(a).getTime()) / 86400e3)
+const addDays = (k: string, n: number) => {
+  const d = parseDay(k)
+  d.setDate(d.getDate() + n)
+  return dayKey(d)
+}
+
+/** La période affichée est-elle EN COURS (aujourd'hui dedans) ? */
+export const isCurrentPeriod = (b: { start: string; end: string }, today = new Date()) =>
+  dayKey(today) >= b.start && dayKey(today) < b.end
+
+/**
+ * Bornes de comparaison JUSTES : une période en cours se compare à la même
+ * durée écoulée de la période précédente (1-26 août face au 1-26 septembre),
+ * jamais à la période précédente entière — sinon chaque début de mois est
+ * rouge. Période close : comparaison entière.
+ */
+export function comparisonBounds(
+  cur: { start: string; end: string },
+  prev: { start: string; end: string },
+  today = new Date(),
+): { start: string; end: string; toDate: boolean } {
+  if (!isCurrentPeriod(cur, today)) return { ...prev, toDate: false }
+  const elapsed = daysBetween(cur.start, dayKey(today)) + 1
+  const end = addDays(prev.start, elapsed)
+  return { start: prev.start, end: end < prev.end ? end : prev.end, toDate: true }
+}
+
+/** « vs 26 août » : la date de fin (incluse) de la comparaison à date. */
+export function toDateLabel(b: { end: string }): string {
+  const d = parseDay(addDays(b.end, -1))
+  return `vs ${d.getDate() === 1 ? '1er' : d.getDate()} ${MONTHS[d.getMonth()]}`
+}
+
+export interface Pace {
+  /** Part de la période écoulée (0..1), aujourd'hui compris. */
+  elapsed: number
+  /** CA attendu à ce jour pour tenir l'objectif (objectif × écoulé). */
+  expected: number
+  /** CA de fin de période au rythme actuel. */
+  projection: number
+  /** Reste à faire pour atteindre l'objectif (≥ 0). */
+  reste: number
+  /** Jours ouvrés restants (lundi-vendredi, après aujourd'hui). */
+  joursOuvres: number
+  /** Écart à l'attendu (> 0 = en avance). */
+  ecart: number
+}
+
+/** Rythme vers l'objectif. Période close : écoulé = 1, projection = réalisé. */
+export function paceOf(ca: number, target: number, b: { start: string; end: string }, today = new Date()): Pace {
+  const total = daysBetween(b.start, b.end)
+  const current = isCurrentPeriod(b, today)
+  const done = current ? daysBetween(b.start, dayKey(today)) + 1 : total
+  const elapsed = total > 0 ? Math.min(1, done / total) : 1
+  let joursOuvres = 0
+  if (current) {
+    const d = parseDay(dayKey(today))
+    d.setDate(d.getDate() + 1)
+    while (dayKey(d) < b.end) {
+      const wd = d.getDay()
+      if (wd !== 0 && wd !== 6) joursOuvres++
+      d.setDate(d.getDate() + 1)
+    }
+  }
+  const expected = target * elapsed
+  return {
+    elapsed,
+    expected,
+    projection: elapsed > 0 ? ca / elapsed : ca,
+    reste: Math.max(0, target - ca),
+    joursOuvres,
+    ecart: ca - expected,
+  }
+}
+
+/** CA CUMULÉ jour par jour sur la période (null après aujourd'hui). */
+export function cumulativeByDay(
+  rows: BoardSale[],
+  b: { start: string; end: string },
+  forProfile?: string,
+  today = new Date(),
+): { days: string[]; values: (number | null)[] } {
+  const days: string[] = []
+  for (let k = b.start; k < b.end; k = addDays(k, 1)) days.push(k)
+  const perDay = new Map<string, number>()
+  for (const s of rows) {
+    if (s.sold_on < b.start || s.sold_on >= b.end) continue
+    const ca = summarize([s], forProfile).ca
+    if (ca) perDay.set(s.sold_on, (perDay.get(s.sold_on) ?? 0) + ca)
+  }
+  const todayKey = dayKey(today)
+  let run = 0
+  const values = days.map((d) => {
+    run += perDay.get(d) ?? 0
+    return d > todayKey ? null : run
+  })
+  return { days, values }
+}
+
+/** « 36,5 k » : étiquettes courtes des graphiques, à la française. */
+const COMPACT = new Intl.NumberFormat('fr-FR', { notation: 'compact', maximumFractionDigits: 1 })
+export const formatCompact = (n: number) => COMPACT.format(Math.round(n))
+
+/** Date courte de tableau : « 26/09 ». */
+export const formatDayNum = (k: string) => `${k.slice(8, 10)}/${k.slice(5, 7)}`

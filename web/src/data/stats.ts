@@ -132,7 +132,9 @@ async function fetchSupportIds(): Promise<Set<string>> {
   return ids
 }
 
-async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
+/** Stats de prospection sur une plage libre (Numbers : le lien portes · RDV
+    · ventes du détail d'un commercial, périodes trimestre et année). */
+export async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
   const result: StatsResult = { byCommercial: {}, team: emptyStats('team'), activityByDay: {}, activityByDayBy: {} }
   if (!supabase) return result
 

@@ -5,27 +5,6 @@
    vert = vendu / objectif atteint, ambre = à compléter, danger = annulée ;
    couleur = commercial (pastilles). Tailles dans l'échelle fermée. */
 
-/* Palette des PRESTATIONS (retour briac 26/09 : des camemberts lisibles).
-   Palette catégorielle du skill dataviz, orange retiré (réservé à l'accent),
-   ordre fixe validé (validate_palette.js : clair et sombre PASS, contraste
-   relevé par la légende chiffrée). Aucune couleur de statut réutilisée. */
-:root {
-  --pr-toiture: #2a78d6;
-  --pr-facade: #1baf7a;
-  --pr-isolation: #eda100;
-  --pr-traitement_bois: #e87ba4;
-  --pr-gouttiere: #008300;
-  --pr-energie: #4a3aa7;
-}
-[data-theme='dark'] {
-  --pr-toiture: #3987e5;
-  --pr-facade: #199e70;
-  --pr-isolation: #c98500;
-  --pr-traitement_bois: #d55181;
-  --pr-gouttiere: #008300;
-  --pr-energie: #9085e9;
-}
-
 /* Héros de Numbers : l'argent en ENCRE (le vert = vendu / atteint). */
 .money-hero .hero-value {
   color: var(--ink);
@@ -234,17 +213,6 @@
 .ntable > .eyebrow {
   margin-bottom: 8px;
 }
-.ntable-head,
-.ntable-row {
-  display: grid;
-  grid-template-columns: 50px minmax(0, 1fr) auto auto;
-  align-items: baseline;
-  column-gap: 10px;
-}
-.ntable-head.is-sellers,
-.ntable-row.is-sellers {
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
-}
 .ntable-head {
   padding: 0 0 8px;
   border-bottom: 1px solid var(--line);
@@ -336,19 +304,6 @@ button.ntable-row {
 .pay-split-fin {
   background: var(--ink-3);
   transition: width var(--dur-slow) var(--ease-out);
-}
-.pay-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 18px;
-  margin-top: 10px;
-  font-size: 13px;
-  color: var(--ink-2);
-}
-.pay-legend > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
 }
 .pay-dot {
   width: 9px;
@@ -529,65 +484,6 @@ button.ntable-row {
   color: var(--ink-2);
 }
 
-/* --- Anneau (parts d'un tout) + légende chiffrée --- */
-.donut {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  margin-top: 8px;
-}
-.donut-figure {
-  position: relative;
-  width: 184px;
-  height: 184px;
-}
-.donut-svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-.donut-track {
-  fill: none;
-  stroke: var(--surface-2);
-  stroke-width: 16;
-}
-.donut-seg {
-  fill: none;
-  stroke-width: 16;
-  cursor: pointer;
-  transition: opacity var(--dur-base) var(--ease-out);
-}
-.donut-seg.is-dim {
-  opacity: 0.25;
-}
-.donut-center {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 0 34px;
-  pointer-events: none;
-  text-align: center;
-}
-.donut-center-value {
-  font-size: 17px;
-  font-weight: 650;
-  color: var(--ink);
-}
-.donut-center-label {
-  font-size: 12px;
-  line-height: 1.25;
-  color: var(--ink-3);
-}
-.donut-legend {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-}
 .legend-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto 44px;
@@ -605,10 +501,6 @@ button.ntable-row {
 }
 .legend-row:first-child {
   border-top: none;
-}
-.legend-row.is-zero,
-.donut-legend:has(.is-active) .legend-row:not(.is-active) {
-  opacity: 0.45;
 }
 .legend-dot {
   display: inline-block;
@@ -782,4 +674,407 @@ button.ntable-row {
 }
 .sale-dup p {
   margin: 0 0 4px;
+}
+
+/* =============================================================================
+   Tour UI/UX du 26/09 (3 audits + choix briac)
+   ============================================================================= */
+
+/* Montants : chiffres en Geist Mono, unités et espace fine en Geist
+   (composant <Money>). */
+.money {
+  white-space: nowrap;
+}
+.money .g,
+.money .u {
+  font-family: var(--font-sans);
+}
+.money .u {
+  margin-left: 0.2em;
+  font-weight: 500;
+}
+/* L'espace fine de fr-FR est quasi nulle en Geist : largeur imposée. */
+.money .g {
+  display: inline-block;
+  width: 0.25em;
+  overflow: hidden;
+  vertical-align: baseline;
+}
+.money-signed {
+  white-space: nowrap;
+}
+
+/* Ruban du héros : 17 px (24 débordait dans 3 colonnes de 105 px). */
+.money-hero .ribbon-value {
+  font-size: 17px;
+}
+
+/* En-tête de l'Accueil Numbers : « + Vente » à portée de pouce. */
+.numbers-add {
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: var(--r-full);
+  background: var(--ink);
+  color: #ffffff;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.numbers-add:active {
+  transform: scale(var(--press-scale));
+}
+[data-theme='dark'] .numbers-add {
+  background: #ffffff;
+  color: #111113;
+}
+.accueil-head .numbers-settings {
+  margin-left: 0;
+}
+
+/* --- Objectif : réalisé, repère « attendu à ce jour », reste, projection --- */
+.goal-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.goal-head .eyebrow {
+  margin: 0;
+}
+.goal-pct {
+  font-size: 24px;
+  font-weight: 650;
+}
+.goal-bar {
+  position: relative;
+  height: 8px;
+  margin: 12px 0 10px;
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+}
+.goal-fill {
+  height: 100%;
+  border-radius: var(--r-full);
+  background: var(--ink);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.goal-fill.is-done {
+  background: var(--st-vendu);
+}
+/* Repère « attendu à ce jour » : si la barre ne l'atteint pas, on est en retard. */
+.goal-mark {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--ink-3);
+}
+.goal-line {
+  margin: 0 0 2px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.goal-line .is-strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+.goal-status {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.goal-status.is-ahead {
+  color: var(--st-vendu);
+}
+.goal-status.is-behind {
+  color: var(--st-revoir);
+}
+.rank-hint {
+  margin: -12px 4px 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* --- CA cumulé face à la droite d'objectif --- */
+.cumul {
+  height: 150px;
+  margin-top: 10px;
+  touch-action: pan-y;
+}
+.cumul-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.cumul-svg polyline,
+.cumul-svg line {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+.cumul-cur {
+  stroke: var(--ink);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.cumul-prev {
+  stroke: var(--line-strong);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.cumul-goal {
+  stroke: var(--ink-3);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+.cumul-cursor {
+  stroke: var(--ink-3);
+  stroke-width: 1;
+}
+.cumul-dot {
+  fill: var(--ink);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+.cumul-axis {
+  display: flex;
+  margin-top: 6px;
+}
+.cumul-axis span {
+  flex: 1;
+  font-size: 10px;
+  text-align: center;
+  color: var(--ink-3);
+}
+.cumul-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.cumul-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.leg-line {
+  display: inline-block;
+  width: 16px;
+  height: 0;
+  border-top: 2px solid var(--ink);
+}
+.leg-line.is-prev {
+  border-top-color: var(--line-strong);
+}
+.leg-line.is-goal {
+  border-top: 2px dashed var(--ink-3);
+}
+.chart-none {
+  font-size: 13px;
+  color: var(--ink-3);
+}
+/* Barres mensuelles : repère d'objectif mensuel, vert une fois atteint. */
+.evo-goal {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  border-top: 2px dashed var(--ink-3);
+  z-index: 1;
+  pointer-events: none;
+}
+.evo-bar.is-done {
+  background: var(--st-vendu);
+}
+
+/* --- Répartition : barre + liste chiffrée --- */
+.mix {
+  margin-top: 8px;
+}
+.mix-bar {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  border-radius: var(--r-full);
+  overflow: hidden;
+}
+.mix-bar > span {
+  display: block;
+  height: 100%;
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.mix-list {
+  margin-top: 8px;
+}
+.legend-row {
+  padding: 12px 2px;
+}
+.legend-row.is-clickable {
+  cursor: pointer;
+}
+.mix-empty {
+  margin: 6px 2px 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* CA par vendeur : retard sur le rythme en ambre (à surveiller). */
+.seller-late {
+  color: var(--st-revoir);
+}
+.card-flush {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.mine-line {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mine-label {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.mine-figures {
+  font-size: 15px;
+  font-weight: 600;
+}
+.mine-sep {
+  color: var(--ink-3);
+  font-weight: 400;
+}
+
+/* --- Tableaux à colonnes FIXES (alignées d'une ligne à l'autre) --- */
+.ntable-head,
+.ntable-row {
+  position: relative;
+  display: grid;
+  align-items: center;
+  column-gap: 10px;
+}
+.ntable.is-pay .ntable-head,
+.ntable.is-pay .ntable-row {
+  grid-template-columns: minmax(0, 1fr) 70px 40px 58px;
+  padding-right: 18px;
+}
+.ntable.is-light .ntable-head,
+.ntable.is-light .ntable-row {
+  grid-template-columns: minmax(0, 1fr) 76px 52px;
+}
+.ntable.is-mine .ntable-head,
+.ntable.is-mine .ntable-row {
+  grid-template-columns: 40px minmax(0, 1fr) 62px 62px;
+}
+.ntable-chevron {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  margin-top: -7px;
+  color: var(--ink-3);
+}
+.ntable-row.is-total {
+  border-top: 1px solid var(--line-strong);
+  border-bottom: none;
+  font-weight: 650;
+}
+.ntable-row.is-total .ntable-title {
+  font-size: 13px;
+}
+.ntable-num.is-strong {
+  font-weight: 650;
+}
+.ntable-warn {
+  color: var(--st-revoir);
+}
+.is-muted {
+  color: var(--ink-3);
+}
+.ntable-foot {
+  margin: -4px 4px 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.pay-total {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pay-total-value {
+  font-size: 42px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.pay-total-meta {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* --- Carte de vente : montant manquant en toutes lettres (pas en mono) --- */
+.sale-card-amount.is-missing {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--st-revoir);
+}
+
+/* --- Formulaire --- */
+.sale-choice-grid .chip {
+  --chip: var(--ink);
+  min-height: 44px;
+}
+[data-theme='dark'] .sale-choice-grid .chip.is-active {
+  color: #111113;
+}
+.sale-fieldset .sale-commission {
+  margin: 10px 0 2px;
+}
+.sale-commission-meta.is-hint {
+  grid-column: 1 / -1;
+}
+.sale-missing {
+  margin: 16px 2px 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.field-error {
+  color: var(--danger);
+}
+.sale-manage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 28px;
+}
+.sale-manage .text-btn {
+  min-height: 44px;
+  font-size: 13px;
+}
+.text-btn.is-danger {
+  color: var(--danger);
+}
+
+/* --- Cibles tactiles ≥ 44 px (audit DA) --- */
+.numbers-screen .range-nav {
+  min-width: 44px;
+  min-height: 44px;
+}
+.book-filters .chip,
+.book-selects .chip {
+  min-height: 44px;
+  padding-left: 13px;
+  padding-right: 13px;
+}
+
+/* Tableau Equipe : la ligne ventes / a completer passe a la ligne plutot que de se couper. */
+.ntable.is-pay .ntable-meta {
+  white-space: normal;
 }

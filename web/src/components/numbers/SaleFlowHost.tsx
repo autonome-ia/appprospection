@@ -86,9 +86,9 @@ export function SaleFlowHost({ profile }: { profile: Profile }) {
       } catch (e) {
         console.error('Formulaire de vente :', e)
         if (req.kind === 'vendu') {
-          toast.error('Vente non enregistrée dans Numbers : ajoute-la avec « + Vente »')
+          toast.error('Vente non enregistrée dans Numbers : ajoutez-la avec « + Vente »')
         } else {
-          toast.error('Vente impossible à ouvrir : vérifie le réseau')
+          toast.error('Vente impossible à ouvrir : vérifiez le réseau')
         }
       }
     }

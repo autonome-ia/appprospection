@@ -12,12 +12,15 @@ export function MoneyHero({
   delta,
   mark,
   ribbon,
+  unit = '€ HT',
 }: {
   eyebrow: string
   value: number
   delta?: ReactNode
   mark?: ReactNode
   ribbon: { value: ReactNode; label: string }[]
+  /** « € HT » (CA), « € » (commission). */
+  unit?: string
 }) {
   return (
     <section className="card stats-hero money-hero">
@@ -28,7 +31,7 @@ export function MoneyHero({
             <span className="hero-value tnum">
               <Num value={Math.round(value)} />
             </span>
-            <span className="hero-unit">€ HT</span>
+            <span className="hero-unit">{unit}</span>
           </div>
           {delta}
         </div>

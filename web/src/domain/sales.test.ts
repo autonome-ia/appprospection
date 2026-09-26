@@ -204,3 +204,43 @@ describe('graphiques', () => {
     expect(o.lead_entrant).toBe(250)
   })
 })
+
+describe('pilotage (26/09)', () => {
+  const now = new Date(2026, 8, 26) // samedi 26 septembre 2026
+
+  it('compare une période en cours à la même durée de la précédente', async () => {
+    const { comparisonBounds, toDateLabel } = await import('./sales')
+    const c = comparisonBounds(periodBounds('mois', now), periodBounds('mois', shiftPeriod('mois', -1, now)), now)
+    expect(c).toEqual({ start: '2026-08-01', end: '2026-08-27', toDate: true })
+    expect(toDateLabel(c)).toBe('vs 26 août')
+    // Période close : comparaison entière.
+    const past = comparisonBounds(periodBounds('mois', new Date(2026, 7, 5)), periodBounds('mois', new Date(2026, 6, 5)), now)
+    expect(past).toEqual({ start: '2026-07-01', end: '2026-08-01', toDate: false })
+  })
+
+  it('rythme : attendu, projection, reste, jours ouvrés', async () => {
+    const { paceOf } = await import('./sales')
+    const p = paceOf(26000, 60000, periodBounds('mois', now), now)
+    expect(p.elapsed).toBeCloseTo(26 / 30)
+    expect(p.expected).toBeCloseTo(52000)
+    expect(p.projection).toBeCloseTo(30000)
+    expect(p.reste).toBe(34000)
+    expect(p.joursOuvres).toBe(3) // lun 28, mar 29, mer 30
+    expect(p.ecart).toBeCloseTo(-26000)
+  })
+
+  it('CA cumulé jour par jour, vide après aujourd’hui', async () => {
+    const { cumulativeByDay } = await import('./sales')
+    const r = cumulativeByDay(
+      [sale({ sold_on: '2026-09-02', amount_ht: 1000 }), sale({ sold_on: '2026-09-10', amount_ht: 500 })],
+      periodBounds('mois', now),
+      undefined,
+      now,
+    )
+    expect(r.days).toHaveLength(30)
+    expect(r.values[0]).toBe(0)
+    expect(r.values[1]).toBe(1000)
+    expect(r.values[25]).toBe(1500)
+    expect(r.values[26]).toBeNull()
+  })
+})

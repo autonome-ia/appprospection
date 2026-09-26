@@ -448,6 +448,7 @@ objectifs de CA. Besoin Alexis, cadrage briac (décisions D1-D17 du plan). Optio
   stats (CA, TRC, part toiture, prestations, comptant/financement, classement, drill-down).
 - [x] **N8 (premier jet)** Écran Équipe : taux de l'agence, objectif de CA mensuel, taux propres, droit du chef des ventes.
 - [x] **Retours briac 26/09** : comptant/financement au montant financé, héros en encre, cahier en cartes (total du jour, filtres prestation/origine), Stats en anneaux + évolution du CA + CA par vendeur, palette des prestations (à valider), manager réglable lui-même, doublon signalé dans « + Vente », commission par vendeur (tableau agence).
+- [x] **Tour UI/UX (26/09)** : 3 audits en sous-agents sur 38 captures (décor `tools/screenshots/numbers-seed.mjs`, captures `numbers-shots.mjs`), décisions D18-D21 ; comparaison à date, rythme et projection, Accueil manager (agence + Qui décroche) et commercial (commission + rang), onglet Équipe / Commissions, CA cumulé face à l'objectif, répartitions en encre, formulaire revu (commission sous le montant, euros entiers, montant aberrant confirmé), composant `<Money>` (chiffres en mono, unités en Geist).
 - [ ] ⬜ Tests briac sur le β (démo), retours, passe DA, sondes Playwright clair + sombre (N9).
 - [ ] ⬜ **N10** Mise en prod sur feu vert briac : fusion `design` → `main`, `numbers_activate` sur Mister Toiture.
 

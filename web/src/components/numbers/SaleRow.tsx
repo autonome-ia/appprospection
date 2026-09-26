@@ -1,9 +1,10 @@
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { Avatar } from '../ui/Avatar'
+import { Money } from './Money'
 import type { OrgProfile } from '../../data/profiles'
 import {
-  formatEuros,
   isComplete,
+  shareOf,
   originLabel,
   prestationLabel,
   type BoardSale,
@@ -44,8 +45,11 @@ export function SaleRow({
   profiles,
   nameOf,
   onOpen,
+  forProfile,
 }: {
   sale: Sale | BoardSale
+  /** Vue d'un vendeur : une vente à deux affiche aussi « ma part ». */
+  forProfile?: string
   profiles: OrgProfile[]
   nameOf: (id: string) => string
   onOpen?: () => void
@@ -53,11 +57,12 @@ export function SaleRow({
   const full = 'client_name' in sale ? sale : null
   const cancelled = sale.status === 'annulee'
   const todo = !cancelled && !isComplete(sale)
+  const share = forProfile ? shareOf(sale, forProfile) : 0
   const title = full?.client_name || full?.address || prestationLabel(sale.prestation) || 'Vente'
   const place = full ? [full.client_name ? full.address : null, originLabel(full.origin)].filter(Boolean).join(' · ') : ''
   const pay =
     sale.payment === 'financement'
-      ? `Financé${sale.financed_ht != null ? ` ${formatEuros(sale.financed_ht)}` : ''}`
+      ? 'Financé'
       : sale.payment === 'comptant'
         ? 'Comptant'
         : null
@@ -65,18 +70,35 @@ export function SaleRow({
     <>
       <span className="sale-card-top">
         <span className="sale-card-title">{title}</span>
-        <span className={`sale-card-amount tnum ${cancelled ? 'is-cancelled' : ''}`}>
-          {sale.amount_ht == null ? 'Sans montant' : formatEuros(sale.amount_ht)}
-        </span>
+        {sale.amount_ht == null ? (
+          <span className="sale-card-amount is-missing">Sans montant</span>
+        ) : (
+          <Money value={sale.amount_ht} className={`sale-card-amount ${cancelled ? 'is-cancelled' : ''}`} />
+        )}
       </span>
       <span className="sale-card-line">
         {sale.prestation && (
           <span className="sale-prest">
-            <i className="legend-dot" style={{ background: `var(--pr-${sale.prestation})` }} />
+            <i className="legend-dot" style={{ background: sale.prestation === 'toiture' ? 'var(--ink)' : 'var(--ink-3)' }} />
             {prestationLabel(sale.prestation)}
           </span>
         )}
-        {pay && <span className="sale-card-pay">{pay}</span>}
+        {pay && (
+          <span className="sale-card-pay">
+            {pay}
+            {sale.payment === 'financement' && sale.financed_ht != null && (
+              <>
+                {' '}
+                <Money value={sale.financed_ht} />
+              </>
+            )}
+          </span>
+        )}
+        {share === 0.5 && sale.amount_ht != null && (
+          <span className="sale-card-pay">
+            ma part <Money value={sale.amount_ht / 2} />
+          </span>
+        )}
         {todo && <span className="sale-tag is-todo">À compléter</span>}
         {cancelled && <span className="sale-tag is-cancelled">Annulée</span>}
       </span>
@@ -107,9 +129,9 @@ export function EuroDelta({ value, label }: { value: number; label: string }) {
   return (
     <span className={`hero-delta ${up ? 'up' : 'down'}`}>
       {up ? <ArrowUp size={13} strokeWidth={2.4} /> : <ArrowDown size={13} strokeWidth={2.4} />}
-      <span className="tnum">
-        {up ? '+' : '−'}
-        {formatEuros(Math.abs(v))}
+      <span className="money-signed">
+        <span className="tnum">{up ? '+' : '−'}</span>
+        <Money value={Math.abs(v)} />
       </span>{' '}
       {label}
     </span>
