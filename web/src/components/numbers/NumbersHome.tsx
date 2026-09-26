@@ -3,6 +3,7 @@ import { ChevronRight, CircleAlert, ListChecks, Plus, ReceiptText, Settings, Tre
 import { Avatar, OrgLogo } from '../ui/Avatar'
 import { Num } from '../ui/Num'
 import { ProfileSheet } from '../ProfileSheet'
+import { TeamSheet } from '../TeamSheet'
 import { useNumbers } from './NumbersData'
 import { EuroDelta, shortDay } from './SaleRow'
 import { Money, Pct } from './Money'
@@ -150,6 +151,7 @@ export function NumbersHome({ spaceSwitch }: { spaceSwitch: ReactNode }) {
   const { me, isSupervisor, isManager, canEditAll, profiles, sales, board, rankable, loading, error, reload, nameOf, openSeller, goTo, openBookTodo } =
     useNumbers()
   const [profileOpen, setProfileOpen] = useState(false)
+  const [teamOpen, setTeamOpen] = useState(false)
 
   const month = periodBounds('mois')
   const cmp = comparisonBounds(month, periodBounds('mois', shiftPeriod('mois', -1)))
@@ -243,8 +245,8 @@ export function NumbersHome({ spaceSwitch }: { spaceSwitch: ReactNode }) {
             showExpected
             noGoal={
               isManager ? (
-                <button type="button" className="text-btn home-goal-cta" onClick={() => setProfileOpen(true)}>
-                  Fixer les objectifs de CA (Réglages, Équipe)
+                <button type="button" className="text-btn home-goal-cta" onClick={() => setTeamOpen(true)}>
+                  Fixer les objectifs de CA
                 </button>
               ) : (
                 <p className="goal-line">Objectifs de CA non fixés.</p>
@@ -431,6 +433,9 @@ export function NumbersHome({ spaceSwitch }: { spaceSwitch: ReactNode }) {
       )}
 
       <ProfileSheet open={profileOpen} onOpenChange={setProfileOpen} />
+      {/* « Fixer les objectifs de CA » : l'écran Équipe, ouvert directement
+          sur sa section Ventes. */}
+      <TeamSheet open={teamOpen} onOpenChange={setTeamOpen} profile={me} focusSales />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Avatar } from '../ui/Avatar'
 import { FormGroup, FormRow } from '../ui/Form'
@@ -76,11 +76,15 @@ export function NumbersTeamSection({
   profile,
   members,
   onChanged,
+  focus = false,
 }: {
   profile: Profile
   members: OrgProfile[]
   onChanged: () => void
+  /** Faire défiler la sheet jusqu'à cette section (lien de l'Accueil). */
+  focus?: boolean
 }) {
+  const anchor = useRef<HTMLParagraphElement>(null)
   const on = useNumbersAccess(profile)
   const [agency, setAgency] = useState<RateTable>({})
   const [perProfile, setPerProfile] = useState<Record<string, RateTable>>({})
@@ -98,6 +102,22 @@ export function NumbersTeamSection({
   useEffect(() => {
     if (on) void loadRates()
   }, [on])
+
+  // Ouverture ciblée : on attend la fin de l'animation de la sheet, puis on
+  // amène la section en haut du corps défilant.
+  useEffect(() => {
+    if (!focus || !on) return
+    // Défilement du SEUL corps de la sheet : scrollIntoView faisait aussi
+    // glisser la sheet (en-tête et croix de fermeture hors de l'écran).
+    const t = window.setTimeout(() => {
+      const el = anchor.current
+      const body = el?.closest('.drawer-body')
+      if (!el || !body) return
+      const top = el.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop - 12
+      body.scrollTo({ top, behavior: 'smooth' })
+    }, 420)
+    return () => window.clearTimeout(t)
+  }, [focus, on])
 
   if (!on || profile.role !== 'manager') return null
 
@@ -123,7 +143,9 @@ export function NumbersTeamSection({
 
   return (
     <>
-      <p className="eyebrow section-title">Numbers</p>
+      <p ref={anchor} className="eyebrow section-title team-sales-anchor">
+        Ventes
+      </p>
       <FormGroup title="Taux de commission de l’agence" hint="S’applique aux nouvelles ventes : une vente garde le taux du jour où elle est faite.">
         {PRESTATIONS.map((x) => (
           <FormRow key={x.value} label={x.label}>

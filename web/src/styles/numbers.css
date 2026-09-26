@@ -1331,3 +1331,9 @@ button.ntable-row {
   color: var(--ink);
   cursor: pointer;
 }
+
+/* Ancre de la section Ventes de l ecran Equipe : un peu d air sous l en-tete
+   de la sheet quand on y arrive depuis l Accueil. */
+.team-sales-anchor {
+  scroll-margin-top: 12px;
+}

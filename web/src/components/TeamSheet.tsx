@@ -34,10 +34,13 @@ export function TeamSheet({
   open,
   onOpenChange,
   profile,
+  focusSales = false,
 }: {
   open: boolean
   onOpenChange: (o: boolean) => void
   profile: Profile
+  /** Ouvre directement sur la section Ventes (objectifs, taux). */
+  focusSales?: boolean
 }) {
   const isManager = profile.role === 'manager'
   const media = useMedia()
@@ -490,7 +493,7 @@ export function TeamSheet({
       })}
 
       {/* Numbers (option payante) : objectifs de CA, taux, droits. */}
-      <NumbersTeamSection profile={profile} members={members} onChanged={load} />
+      <NumbersTeamSection profile={profile} members={members} onChanged={load} focus={open && focusSales && !loading} />
     </Sheet>
   )
 }
