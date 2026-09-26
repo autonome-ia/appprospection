@@ -8,19 +8,33 @@ import './lib/theme' // écoute « Auto » (prefers-color-scheme) dès le boot
 import App from './App.tsx'
 import { registerSW } from 'virtual:pwa-register'
 
-// Mises à jour de l'app (26/09 : un manager restait sur l'ancienne version,
-// même après s'être reconnecté). Une PWA iOS rouverte depuis l'arrière-plan
-// ne vérifie RIEN : il fallait deux fermetures complètes. Désormais :
-//  - on demande au service worker de chercher une nouvelle version à chaque
-//    retour au premier plan (et toutes les 30 min app ouverte) ;
-//  - quand elle est prête, un toast propose « Mettre à jour » (jamais de
-//    rechargement imposé : un commercial peut être en pleine saisie).
+// Mises à jour de l'app, AUTOMATIQUES et SILENCIEUSES (26/09, choix briac :
+// « se mettre à jour tout seul, sans message », mises en ligne fréquentes).
+// Une PWA iOS rouverte depuis l'arrière-plan ne vérifiait rien : il fallait
+// deux fermetures complètes (un manager de Brest restait sur l'ancienne
+// version). Désormais :
+//  - le service worker cherche une nouvelle version à l'ouverture, à chaque
+//    retour au premier plan et toutes les 30 min ;
+//  - la version prête est APPLIQUÉE (rechargement d'environ 1 s) seulement au
+//    moment où l'utilisateur REVIENT dans l'app — l'instant où une relance
+//    passe inaperçue — et jamais si une fiche, un formulaire ou une saisie
+//    est en cours : on attend alors le retour suivant.
+let updateReady = false
+let lastVisibleAt = Date.now()
+
+/** Rien en cours : aucune sheet ouverte, aucun champ en saisie. */
+function safeToReload(): boolean {
+  if (document.querySelector('.drawer-content')) return false
+  const el = document.activeElement
+  return !(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement)
+}
+
 const updateSW = registerSW({
   onNeedRefresh() {
-    toast('Nouvelle version de l’app disponible', {
-      duration: Infinity,
-      action: { label: 'Mettre à jour', onClick: () => void updateSW(true) },
-    })
+    updateReady = true
+    // Trouvée juste après un retour dans l'app (ou à l'ouverture) : on
+    // applique tout de suite, c'est encore « le moment du retour ».
+    if (Date.now() - lastVisibleAt < 8000 && safeToReload()) void updateSW(true)
   },
   onRegisteredSW(_url, registration) {
     if (!registration) return
@@ -28,7 +42,10 @@ const updateSW = registerSW({
       if (navigator.onLine) void registration.update().catch(() => {})
     }
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') check()
+      if (document.visibilityState !== 'visible') return
+      lastVisibleAt = Date.now()
+      if (updateReady && safeToReload()) void updateSW(true)
+      else check()
     })
     window.setInterval(check, 30 * 60_000)
   },
