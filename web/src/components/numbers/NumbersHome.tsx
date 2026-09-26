@@ -337,7 +337,16 @@ export function NumbersHome({ spaceSwitch }: { spaceSwitch: ReactNode }) {
             <button type="button" className="card mine-line" onClick={() => openSeller(me.id)}>
               <span className="mine-label">Mes ventes · {monthName}</span>
               <span className="mine-figures">
-                <Money value={cur.ca} /> <span className="mine-sep">·</span> commission <Money value={commission} />
+                <Money value={cur.ca} /> HT
+                {/* Le manager (directeur d'agence) n'a pas de commission
+                    (briac, 26/09) : le montant de ses ventes seulement. Le
+                    chef des ventes, lui, garde la sienne. */}
+                {!isManager && (
+                  <>
+                    {' '}
+                    <span className="mine-sep">·</span> commission <Money value={commission} />
+                  </>
+                )}
               </span>
             </button>
           )}
