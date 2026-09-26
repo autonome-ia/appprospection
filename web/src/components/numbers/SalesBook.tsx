@@ -122,7 +122,7 @@ export function SalesBook() {
             </div>
             <div className="kpi-cell">
               <span className="kpi-value tnum">{formatCount(sum.ventes)}</span>
-              <span className="kpi-label">vente{sum.ventes > 1 ? 's' : ''}</span>
+              <span className="kpi-label">vente{sum.ventes >= 2 ? 's' : ''}</span>
             </div>
             <div className="kpi-cell">
               <span className={`kpi-value tnum ${sum.aCompleter > 0 ? 'is-warn' : ''}`}>{sum.aCompleter}</span>

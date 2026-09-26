@@ -148,7 +148,7 @@ export function NumbersStats() {
               )
             }
             ribbon={[
-              { value: formatCount(cur.ventes), label: `vente${cur.ventes > 1 ? 's' : ''}` },
+              { value: formatCount(cur.ventes), label: `vente${cur.ventes >= 2 ? 's' : ''}` },
               {
                 value: cur.panierMoyen == null ? '…' : <Money value={cur.panierMoyen} compact />,
                 label: 'panier moyen',
@@ -269,7 +269,7 @@ export function NumbersStats() {
                     ? (
                         <>
                           Toiture · <span className="tnum">{formatCount(cur.toitures)}</span> vente
-                          {cur.toitures > 1 ? 's' : ''}
+                          {cur.toitures >= 2 ? 's' : ''}
                         </>
                       )
                     : x.label,

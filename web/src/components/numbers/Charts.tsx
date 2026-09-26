@@ -324,7 +324,7 @@ export function SellerBars({ rows, meId, onOpen }: { rows: SellerBar[]; meId: st
               </span>
               <span className="seller-meta">
                 <span className="tnum">{r.ventes.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}</span> vente
-                {r.ventes > 1 ? 's' : ''}
+                {r.ventes >= 2 ? 's' : ''}
                 {r.avancement != null && (
                   <>
                     {' · '}

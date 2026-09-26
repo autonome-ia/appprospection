@@ -235,8 +235,8 @@ export function NumbersHome({ spaceSwitch }: { spaceSwitch: ReactNode }) {
             unit="€ HT"
             sub={
               <>
-                <span className="tnum">{formatCount(agency.ventes)}</span> vente{agency.ventes > 1 ? 's' : ''} ·{' '}
-                <span className="tnum">{formatCount(agency.toitures)}</span> toiture{agency.toitures > 1 ? 's' : ''}
+                <span className="tnum">{formatCount(agency.ventes)}</span> vente{agency.ventes >= 2 ? 's' : ''} ·{' '}
+                <span className="tnum">{formatCount(agency.toitures)}</span> toiture{agency.toitures >= 2 ? 's' : ''}
               </>
             }
             delta={<EuroDelta value={agency.ca - agencyPrev.ca} label={cmp.toDate ? toDateLabel(cmp) : 'vs mois dernier'} neutral />}
@@ -360,7 +360,7 @@ export function NumbersHome({ spaceSwitch }: { spaceSwitch: ReactNode }) {
             sub={
               <>
                 sur <Money value={cur.ca} /> HT · <span className="tnum">{formatCount(cur.ventes)}</span> vente
-                {cur.ventes > 1 ? 's' : ''}
+                {cur.ventes >= 2 ? 's' : ''}
               </>
             }
             goal={myTarget != null ? { ca: cur.ca, target: myTarget, bounds: month } : null}

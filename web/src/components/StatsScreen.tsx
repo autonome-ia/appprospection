@@ -577,7 +577,7 @@ export function StatsScreen({
                 <span className="hero-value tnum">
                   <Num value={cur.ventes} fromZero={!heroPlayed} />
                 </span>
-                <span className="hero-unit">vente{cur.ventes > 1 ? 's' : ''}</span>
+                <span className="hero-unit">vente{cur.ventes >= 2 ? 's' : ''}</span>
               </div>
               <HeroDelta value={cur.ventes - prev.ventes} period={period} />
             </div>
@@ -621,7 +621,7 @@ export function StatsScreen({
             <p className="hero-pos">
               {above.full_name ?? 'Le suivant'} est devant (+
               {fmtN((data?.current.byCommercial[above.id]?.ventes ?? 0) - cur.ventes)} vente
-              {(data?.current.byCommercial[above.id]?.ventes ?? 0) - cur.ventes > 1 ? 's' : ''})
+              {(data?.current.byCommercial[above.id]?.ventes ?? 0) - cur.ventes >= 2 ? 's' : ''})
             </p>
           )}
           {isSupervisor && drillId && onShowCommercialOnMap && (
@@ -723,7 +723,7 @@ export function StatsScreen({
                       {p.full_name ?? 'Commercial'}
                     </span>
                     <span className="rank-sales tnum">
-                      {fmtN(s.ventes)} <span className="rank-sales-unit">vente{s.ventes > 1 ? 's' : ''}</span>
+                      {fmtN(s.ventes)} <span className="rank-sales-unit">vente{s.ventes >= 2 ? 's' : ''}</span>
                     </span>
                   </div>
                   {/* Portes dans la ligne (audit UX A10) : 0 porte et 80

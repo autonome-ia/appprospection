@@ -99,7 +99,7 @@ function MyCommissions() {
             <Money value={total} className="pay-total-value" />
             <span className="pay-total-meta">
               sur <Money value={my.ca} /> de CA HT · <span className="tnum">{formatCount(my.ventes)}</span> vente
-              {my.ventes > 1 ? 's' : ''}
+              {my.ventes >= 2 ? 's' : ''}
             </span>
           </section>
           <section className="card ntable is-mine">
