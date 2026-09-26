@@ -5,6 +5,7 @@ import {
   fetchBoard,
   fetchProfileRates,
   fetchSales,
+  subscribeAgencySales,
   subscribeSales,
   type RateTable,
 } from '../../data/sales'
@@ -113,21 +114,23 @@ export function NumbersProvider({
       window.clearTimeout(t)
       t = window.setTimeout(() => void load(), 250)
     }
-    // Le temps réel ne voit que les ventes que JE peux lire (RLS) : les
-    // ventes des collègues arrivent au retour au premier plan.
+    // Deux sources de temps réel : la table (mes ventes, RLS) et le signal
+    // de l'agence (db/0032 : les ventes des collègues aussi, sans donnée).
     const off = subscribeSales(soon, (status) => {
       if (status === 'SUBSCRIBED') soon()
     })
+    const offAgency = subscribeAgencySales(profile.organization_id, soon)
     const onVisible = () => {
       if (document.visibilityState === 'visible') soon()
     }
     document.addEventListener('visibilitychange', onVisible)
     return () => {
       off()
+      offAgency()
       window.clearTimeout(t)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [load])
+  }, [load, profile.organization_id])
 
   const value = useMemo<NumbersState>(() => {
     const me = profile

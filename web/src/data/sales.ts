@@ -251,6 +251,24 @@ export const setCanEditSales = (id: string, on: boolean) => patchProfile(id, { c
 
 let salesChannelSeq = 0
 
+/**
+ * Signal « les ventes ont changé » de TOUTE l'agence (db/0032) : canal
+ * privé `numbers:<agence>`, diffusé par la base à chaque écriture sur
+ * `sales`, sans aucune donnée. Il couvre les ventes des collègues, que
+ * postgres_changes ne transmet pas (RLS). Sans la migration : aucun message,
+ * l'abonnement à la table et le retour au premier plan prennent le relais.
+ */
+export function subscribeAgencySales(orgId: string, reload: () => void): () => void {
+  if (!supabase) return () => {}
+  const channel = supabase
+    .channel(`numbers:${orgId}`, { config: { private: true } })
+    .on('broadcast', { event: 'sales_changed' }, () => reload())
+    .subscribe()
+  return () => {
+    supabase?.removeChannel(channel)
+  }
+}
+
 export function subscribeSales(reload: () => void, onStatus?: (status: string) => void): () => void {
   if (!supabase) return () => {}
   const channel = supabase
