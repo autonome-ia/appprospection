@@ -67,9 +67,18 @@ export function useNumbersAccess(profile: Profile | null): boolean {
       return
     }
     let alive = true
-    void fetchNumbersEnabled(org).then((v) => alive && setOn(v))
+    const check = () => void fetchNumbersEnabled(org).then((v) => alive && setOn(v))
+    check()
+    // Échec réseau au lancement : le cache est vidé (fetchNumbersEnabled), on
+    // retente à chaque retour au premier plan au lieu de masquer le switch
+    // pour toute la session (cas d'un manager de Brest, 26/09).
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') check()
+    }
+    document.addEventListener('visibilitychange', onVisible)
     return () => {
       alive = false
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [org, secretaire])
   return on

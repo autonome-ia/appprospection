@@ -13,7 +13,10 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' (26/09, cas d'Abdoul resté sur l'ancienne version) : la
+      // nouvelle version attend l'accord de l'utilisateur (toast « Mettre à
+      // jour », main.tsx) — jamais de rechargement imposé en pleine saisie.
+      registerType: 'prompt',
       workbox: {
         // Cache inter-sessions des ressources IGN (audit carte 10/08) : les
         // CGU Géoplateforme tolèrent le cache des fonds en licence ouverte et

@@ -6,6 +6,33 @@ import '@fontsource-variable/geist-mono'
 import './index.css'
 import './lib/theme' // écoute « Auto » (prefers-color-scheme) dès le boot
 import App from './App.tsx'
+import { registerSW } from 'virtual:pwa-register'
+
+// Mises à jour de l'app (26/09 : un manager restait sur l'ancienne version,
+// même après s'être reconnecté). Une PWA iOS rouverte depuis l'arrière-plan
+// ne vérifie RIEN : il fallait deux fermetures complètes. Désormais :
+//  - on demande au service worker de chercher une nouvelle version à chaque
+//    retour au premier plan (et toutes les 30 min app ouverte) ;
+//  - quand elle est prête, un toast propose « Mettre à jour » (jamais de
+//    rechargement imposé : un commercial peut être en pleine saisie).
+const updateSW = registerSW({
+  onNeedRefresh() {
+    toast('Nouvelle version de l’app disponible', {
+      duration: Infinity,
+      action: { label: 'Mettre à jour', onClick: () => void updateSW(true) },
+    })
+  },
+  onRegisteredSW(_url, registration) {
+    if (!registration) return
+    const check = () => {
+      if (navigator.onLine) void registration.update().catch(() => {})
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') check()
+    })
+    window.setInterval(check, 30 * 60_000)
+  },
+})
 
 // Après un déploiement Render, une PWA restée ouverte référence des chunks
 // dynamiques (lidar, three, enrich…) qui n'existent plus : l'import échouait
