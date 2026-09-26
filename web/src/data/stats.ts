@@ -132,6 +132,49 @@ async function fetchSupportIds(): Promise<Set<string>> {
   return ids
 }
 
+/**
+ * Ventes du tunnel lues dans NUMBERS (26/09, décision briac, option A) :
+ * une vente à deux compte 0,5 à chaque vendeur (1 pour l'équipe), comme dans
+ * Numbers — un seul chiffre partout. Seules les ventes d'origine
+ * « Prospection » (ou pas encore renseignée : un « Vendu » à compléter)
+ * comptent : le tunnel reste celui du porte-à-porte ; les leads entrants et
+ * anciens clients vivent dans Numbers. Les ventes annulées sortent.
+ * `linkedEvents` : les « Vendu » du journal qui ont une vente Numbers — ils
+ * comptent par la vente ; les AUTRES (historique d'avant Numbers, jamais
+ * importé) gardent leur 1 pour leur auteur : ni trou, ni doublon.
+ * null = agence sans Numbers, vue sans origin/event_id (db/0033 pas passée)
+ * ou erreur : l'appelant garde le comptage par le journal seul.
+ */
+async function fetchNumbersSales(
+  start: Date,
+  end: Date,
+): Promise<{ sales: { seller1_id: string; seller2_id: string | null }[]; linkedEvents: Set<string> } | null> {
+  if (!supabase) return null
+  const org = await supabase.from('organizations').select('numbers_enabled').maybeSingle()
+  if (org.error || !(org.data as { numbers_enabled?: boolean } | null)?.numbers_enabled) return null
+  const [inRange, linked] = await Promise.all([
+    supabase
+      .from('sales_board')
+      .select('seller1_id, seller2_id, status, origin')
+      .gte('sold_on', localDayKey(start))
+      .lt('sold_on', localDayKey(end))
+      .range(0, 9999),
+    // Toutes périodes : une vente dont la date a été corrigée hors de la
+    // plage garde son événement « lié » (il ne doit pas recompter ici).
+    supabase.from('sales_board').select('event_id').not('event_id', 'is', null).range(0, 49999),
+  ])
+  if (inRange.error || linked.error) {
+    console.warn('Ventes Numbers indisponibles pour les Stats (db/0033 ?) :', (inRange.error ?? linked.error)!.message)
+    return null
+  }
+  return {
+    sales: (inRange.data ?? []).filter(
+      (x) => x.status === 'active' && (x.origin == null || x.origin === 'prospection'),
+    ) as { seller1_id: string; seller2_id: string | null }[],
+    linkedEvents: new Set((linked.data ?? []).map((x) => x.event_id as string)),
+  }
+}
+
 /** Stats de prospection sur une plage libre (Numbers : le lien portes · RDV
     · ventes du détail d'un commercial, périodes trimestre et année). */
 export async function fetchStatsRange(start: Date, end: Date): Promise<StatsResult> {
@@ -141,9 +184,9 @@ export async function fetchStatsRange(start: Date, end: Date): Promise<StatsResu
   const startISO = start.toISOString()
   const endISO = end.toISOString()
 
-  const [support, events, appts] = await Promise.all([
+  const [support, events, appts, numbersSales] = await Promise.all([
     fetchSupportIds(),
-    fetchAllRows('point_events', 'author_id, status, occurred_at', 'occurred_at', startISO, endISO),
+    fetchAllRows('point_events', 'id, author_id, status, occurred_at', 'occurred_at', startISO, endISO),
     // `kind` : les TÂCHES d'agenda (db/0016) ne comptent dans aucun taux —
     // repli sans la colonne si la migration n'est pas passée (tout est RDV).
     fetchAllRows('appointments', 'commercial_id, status, scheduled_at, kind', 'scheduled_at', startISO, endISO).catch(
@@ -153,6 +196,7 @@ export async function fetchStatsRange(start: Date, end: Date): Promise<StatsResu
         return fetchAllRows('appointments', 'commercial_id, status, scheduled_at', 'scheduled_at', startISO, endISO)
       },
     ),
+    fetchNumbersSales(start, end).catch(() => null),
   ])
 
   const bump = (id: string | null, key: keyof CommercialStats, n = 1) => {
@@ -172,7 +216,7 @@ export async function fetchStatsRange(start: Date, end: Date): Promise<StatsResu
   }
 
   for (const ev of events ?? []) {
-    const e = ev as { author_id: string | null; status: PointStatus; occurred_at: string }
+    const e = ev as { id: string; author_id: string | null; status: PointStatus; occurred_at: string }
     // L'activité d'un profil support (tests) ne compte nulle part.
     if (e.author_id && support.has(e.author_id)) continue
     bump(e.author_id, 'portes')
@@ -182,7 +226,10 @@ export async function fetchStatsRange(start: Date, end: Date): Promise<StatsResu
     bumpStatut(e.author_id, e.status)
     if (e.status === 'absent') bump(e.author_id, 'absents')
     if (e.status === 'rdv_pris') bump(e.author_id, 'rdv_pris')
-    if (e.status === 'vendu') bump(e.author_id, 'ventes')
+    // Ventes : un « Vendu » lié à une vente Numbers compte PAR LA VENTE (plus
+    // bas, avec les parts) ; sans vente liée (historique, agence sans
+    // Numbers), il compte 1 pour son auteur, comme avant.
+    if (e.status === 'vendu' && !numbersSales?.linkedEvents.has(e.id)) bump(e.author_id, 'ventes')
 
     const day = localDayKey(new Date(e.occurred_at))
     result.activityByDay[day] = (result.activityByDay[day] ?? 0) + 1
@@ -190,6 +237,14 @@ export async function fetchStatsRange(start: Date, end: Date): Promise<StatsResu
       ;(result.activityByDayBy[e.author_id] ??= {})[day] =
         (result.activityByDayBy[e.author_id]?.[day] ?? 0) + 1
     }
+  }
+
+  // Ventes Numbers : 1 vendeur = 1, deux vendeurs = 0,5 chacun (l'équipe
+  // additionne les parts : 1 par vente). Comptes support exclus.
+  for (const s of numbersSales?.sales ?? []) {
+    const sellers = [s.seller1_id, s.seller2_id].filter((x): x is string => !!x)
+    const part = sellers.length > 1 ? 0.5 : 1
+    for (const id of sellers) if (!support.has(id)) bump(id, 'ventes', part)
   }
 
   const now = Date.now()

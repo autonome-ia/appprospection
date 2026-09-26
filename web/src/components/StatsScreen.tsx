@@ -62,13 +62,16 @@ const PREV_LABEL: Record<Period, string> = {
   mois: 'vs mois dernier',
 }
 
+/** Ventes à parts (Numbers : 0,5 pour une vente à deux) : « 2,5 ». */
+const fmtN = (n: number) => n.toLocaleString('fr-FR', { maximumFractionDigits: 1 })
+
 function HeroDelta({ value, period }: { value: number; period: Period }) {
   if (value === 0) return <span className="hero-delta flat">Stable {PREV_LABEL[period]}</span>
   const up = value > 0
   return (
     <span className={`hero-delta ${up ? 'up' : 'down'}`}>
       {up ? <ArrowUp size={13} strokeWidth={2.4} /> : <ArrowDown size={13} strokeWidth={2.4} />}
-      <span className="tnum">{up ? `+${value}` : `−${Math.abs(value)}`}</span> {PREV_LABEL[period]}
+      <span className="tnum">{up ? `+${fmtN(value)}` : `−${fmtN(Math.abs(value))}`}</span> {PREV_LABEL[period]}
     </span>
   )
 }
@@ -617,7 +620,7 @@ export function StatsScreen({
           {!isSupervisor && above && (
             <p className="hero-pos">
               {above.full_name ?? 'Le suivant'} est devant (+
-              {(data?.current.byCommercial[above.id]?.ventes ?? 0) - cur.ventes} vente
+              {fmtN((data?.current.byCommercial[above.id]?.ventes ?? 0) - cur.ventes)} vente
               {(data?.current.byCommercial[above.id]?.ventes ?? 0) - cur.ventes > 1 ? 's' : ''})
             </p>
           )}
@@ -720,7 +723,7 @@ export function StatsScreen({
                       {p.full_name ?? 'Commercial'}
                     </span>
                     <span className="rank-sales tnum">
-                      {s.ventes} <span className="rank-sales-unit">vente{s.ventes > 1 ? 's' : ''}</span>
+                      {fmtN(s.ventes)} <span className="rank-sales-unit">vente{s.ventes > 1 ? 's' : ''}</span>
                     </span>
                   </div>
                   {/* Portes dans la ligne (audit UX A10) : 0 porte et 80
